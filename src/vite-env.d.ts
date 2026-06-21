@@ -1,0 +1,29 @@
+/// <reference types="vite/client" />
+
+interface Window {
+  sanctum: {
+    version: string;
+    runAgent: (payload: {
+      prompt: string;
+      chain?: Array<{ provider: string; model?: string }>;
+      cwd?: string;
+      sessionId?: string;
+    }) => Promise<string>;
+  };
+  system: {
+    getSettings: () => Promise<Record<string, any>>;
+    saveSetting: (key: string, value: any) => Promise<boolean>;
+    getUser: () => Promise<string>;
+    listProviders: (gatewayUrl?: string) => Promise<any>;
+    getDbStatus: () => Promise<string>;
+    getLocalConversation?: (provider: string, sessionId: string) => Promise<Array<{
+      id: string;
+      time: string;
+      kind: 'user' | 'assistant' | 'tool' | 'system';
+      role: string;
+      title: string;
+      detail: string;
+      provider: string;
+    }>>;
+  };
+}

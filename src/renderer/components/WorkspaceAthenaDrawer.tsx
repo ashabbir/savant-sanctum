@@ -1,0 +1,246 @@
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import { Copy, Loader2, Send, Sparkles, Trash2, X } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import type { Artifact, Session, Task, Workspace } from '../data';
+
+type ChatMessage = {
+  id: string;
+  sender: 'user' | 'assistant';
+  text: string;
+  timestamp: string;
+};
+
+type WorkspaceAthenaDrawerProps = {
+  isOpen: boolean;
+  onClose: () => void;
+  activeWorkspace?: Workspace;
+  activeWorkspaceId: string;
+  messages: ChatMessage[];
+  isLoading: boolean;
+  error: string;
+  persistedInput: string;
+  onSendMessage: (text: string) => void;
+  onDeleteMessage: (id: string) => void;
+  onChangeInput: (text: string) => void;
+  workspaceSessions: Session[];
+  workspaceTasks: Task[];
+  workspaceNotes: { id: string; sessionId: string; title: string; body: string; createdAt?: string }[];
+  workspaceArtifacts: Artifact[];
+  workspaceMergeRequests: { id: string; title: string; status: string; mrId: string; createdAt?: string; updatedAt?: string }[];
+  workspaceJiraTickets: { id: string; title: string; status: string; ticketKey: string; createdAt?: string; updatedAt?: string }[];
+  workspaceActivitySummary: { total: number; detail: string; latest: string };
+  selectedProvider?: string;
+  selectedModel?: string;
+};
+
+export function WorkspaceAthenaDrawer({
+  isOpen,
+  onClose,
+  activeWorkspace,
+  activeWorkspaceId,
+  messages,
+  isLoading,
+  error,
+  persistedInput,
+  onSendMessage,
+  onDeleteMessage,
+  onChangeInput,
+  workspaceSessions,
+  workspaceTasks,
+  workspaceNotes,
+  workspaceArtifacts,
+  workspaceMergeRequests,
+  workspaceJiraTickets,
+  workspaceActivitySummary,
+  selectedProvider = 'gemini',
+  selectedModel = '3.5',
+}: WorkspaceAthenaDrawerProps) {
+  const [input, setInput] = useState(persistedInput || '');
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setInput(persistedInput || '');
+  }, [activeWorkspaceId, persistedInput]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    if (isOpen) {
+      window.addEventListener('keydown', handleKeyDown);
+      // Auto-focus input when opening
+      window.setTimeout(() => inputRef.current?.focus(), 50);
+    }
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
+  const contextStats = useMemo(() => [
+    { label: 'sessions', value: workspaceSessions.length },
+    { label: 'tasks', value: workspaceTasks.length },
+    { label: 'notes', value: workspaceNotes.length },
+    { label: 'activity', value: workspaceActivitySummary.total },
+  ], [workspaceActivitySummary.total, workspaceNotes.length, workspaceSessions.length, workspaceTasks.length]);
+
+  if (!isOpen) return null;
+
+  const sendMessage = (event?: FormEvent) => {
+    event?.preventDefault();
+    const userText = input.trim();
+    if (!userText || isLoading) return;
+    onSendMessage(userText);
+    setInput('');
+  };
+
+  const handleInputChange = (val: string) => {
+    setInput(val);
+    onChangeInput(val);
+  };
+
+  const copyMessage = (text: string) => {
+    void navigator.clipboard?.writeText(text);
+  };
+
+  return (
+    <div className="activity-drawer-backdrop" onClick={onClose}>
+      <aside className="workspace-athena-drawer" onClick={(event) => event.stopPropagation()} aria-label="Ask Athena">
+        <header className="workspace-athena-header">
+          <div>
+            <div className="eyebrow">ATHENA</div>
+            <h2>Workspace context</h2>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              className="px-2 py-0.5 border border-cyan-500/30 text-cyan-400 bg-cyan-950/20 text-[10px] font-mono tracking-wider rounded uppercase hover:bg-cyan-900/30 transition-all cursor-pointer whitespace-nowrap"
+              title={`Active Model: ${selectedProvider} (${selectedModel})`}
+            >
+              {selectedProvider}:{selectedModel}
+            </button>
+            <button className="icon-btn" type="button" onClick={onClose} title="Close Athena" aria-label="Close Athena">
+              <X size={16} />
+            </button>
+          </div>
+        </header>
+
+        <div className="workspace-athena-context-strip">
+          {contextStats.map((item) => (
+            <div key={item.label}>
+              <span>{item.label}</span>
+              <strong>{item.value}</strong>
+            </div>
+          ))}
+        </div>
+
+        <div className="workspace-athena-messages">
+          {messages.length === 0 ? (
+            <div className="workspace-athena-empty">
+              <Sparkles size={28} />
+              <span>Ask about the current workspace graph, sessions, tasks, notes, Jira, merge requests, or artifacts.</span>
+            </div>
+          ) : messages.map((message) => (
+            <article key={message.id} className={`workspace-athena-message workspace-athena-message-${message.sender}`}>
+              <div className="workspace-athena-message-body">
+                {message.sender === 'assistant' ? (
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.text}</ReactMarkdown>
+                ) : message.text}
+              </div>
+              <footer>
+                <span>{message.sender === 'user' ? 'Operator' : 'Athena'} · {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                <div>
+                  <button type="button" onClick={() => copyMessage(message.text)} title="Copy message" aria-label="Copy message"><Copy size={12} /></button>
+                  <button type="button" onClick={() => onDeleteMessage(message.id)} title="Delete message" aria-label="Delete message"><Trash2 size={12} /></button>
+                </div>
+              </footer>
+            </article>
+          ))}
+          {isLoading && (
+            <div className="workspace-athena-loading">
+              <Loader2 size={14} />
+              <span>Reading workspace context...</span>
+            </div>
+          )}
+          {error && <div className="workspace-athena-error">{error}</div>}
+        </div>
+
+        <form className="workspace-athena-composer" onSubmit={sendMessage}>
+          <input
+            ref={inputRef}
+            type="text"
+            value={input}
+            onChange={(event) => handleInputChange(event.target.value)}
+            placeholder="Ask Athena about this workspace..."
+            disabled={isLoading}
+          />
+          <button type="submit" disabled={isLoading || !input.trim()} title="Send" aria-label="Send">
+            <Send size={15} />
+          </button>
+        </form>
+      </aside>
+    </div>
+  );
+}
+
+function formatWorkspace(workspace: Workspace | undefined, workspaceId: string) {
+  if (!workspace) return `Workspace ID: ${workspaceId}`;
+  return [
+    `Name: ${workspace.name}`,
+    `Workspace ID: ${workspaceId}`,
+    `Status: ${workspace.status}`,
+    `Priority: ${workspace.priority || 'unknown'}`,
+    `Summary: ${workspace.summary || workspace.description || 'No summary available.'}`,
+  ].join('\n');
+}
+
+function formatSessions(sessions: Session[]) {
+  if (!sessions.length) return 'No sessions are linked to this workspace.';
+  return sessions.map((session) => [
+    `- ${session.title} (${session.id})`,
+    `provider=${session.provider}`,
+    `model=${session.model}`,
+    `updated=${session.updatedAt || session.updated || 'unknown'}`,
+    `files=${session.files}`,
+    `notes=${session.notes}`,
+    `jira=${session.jira}`,
+    `merge_requests=${session.mergeRequests}`,
+    `tree=${session.tree}`,
+  ].join(' | ')).join('\n');
+}
+
+function formatTasks(tasks: Task[]) {
+  if (!tasks.length) return 'No tasks are currently loaded for this workspace.';
+  return tasks.map((task) => `- ${task.title} (${task.state}, ${task.priority}) owner=${task.owner}${task.description ? ` :: ${task.description}` : ''}`).join('\n');
+}
+
+function formatNotes(notes: WorkspaceAthenaDrawerProps['workspaceNotes'], sessions: Session[]) {
+  if (!notes.length) return 'No notes are currently loaded for this workspace.';
+  return notes.slice(0, 40).map((note) => {
+    const session = sessions.find((candidate) => candidate.id === note.sessionId);
+    return `- ${note.title} [${session?.title || note.sessionId}] ${note.body}`;
+  }).join('\n');
+}
+
+function formatMergeRequests(items: WorkspaceAthenaDrawerProps['workspaceMergeRequests']) {
+  if (!items.length) return 'No merge requests are registered for this workspace.';
+  return items.map((item) => `- ${item.mrId}: ${item.title} (${item.status})`).join('\n');
+}
+
+function formatJiraTickets(items: WorkspaceAthenaDrawerProps['workspaceJiraTickets']) {
+  if (!items.length) return 'No Jira tickets are registered for this workspace.';
+  return items.map((item) => `- ${item.ticketKey}: ${item.title} (${item.status})`).join('\n');
+}
+
+function formatArtifacts(artifacts: Artifact[], sessions: Session[]) {
+  if (!artifacts.length) return 'No artifacts are currently loaded for this workspace.';
+  return artifacts.map((artifact) => {
+    const session = sessions.find((candidate) => candidate.id === artifact.sessionId);
+    return `- ${artifact.title} (${artifact.kind}, count=${artifact.count}) session=${session?.title || artifact.sessionId}`;
+  }).join('\n');
+}
+
+function formatHistory(messages: ChatMessage[]) {
+  if (!messages.length) return 'No previous messages in this workspace Athena chat.';
+  return messages.slice(-12).map((message) => `${message.sender === 'user' ? 'User' : 'Athena'}: ${message.text}`).join('\n');
+}
