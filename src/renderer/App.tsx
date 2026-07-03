@@ -687,7 +687,7 @@ function App() {
           setWorkspaceList([]);
         }
       } catch {
-        // Keep the seeded local workspace data if the server is unavailable.
+        if (!cancelled) setWorkspaceList([]);
       } finally {
         if (!cancelled) setIsWorkspaceLoading(false);
       }
