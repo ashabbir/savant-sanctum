@@ -60,6 +60,8 @@ import {
   buildAthenaPromptSections,
   fetchWorkspaceKnowledgeGraph,
   formatWorkspaceKnowledgeGraph,
+  fetchGatewayMCPs,
+  formatGatewayMCPs,
 } from './lib/athenaContext';
 import type { Artifact, Task } from './data';
 
@@ -235,6 +237,10 @@ type SessionFlags = {
 
 type EntityFlags = {
   done?: boolean;
+  blocked?: boolean;
+  lastMovedAt?: string;
+  lastMovedFrom?: string;
+  lastMovedTo?: string;
 };
 
 function App() {
@@ -258,6 +264,8 @@ function App() {
   const [isKnowledgeOpen, setIsKnowledgeOpen] = useState(false);
   const [isWorkspaceAthenaOpen, setIsWorkspaceAthenaOpen] = useState(false);
   const [isTaskDrawerOpen, setIsTaskDrawerOpen] = useState(false);
+  const [taskCreateRequest, setTaskCreateRequest] = useState(0);
+  const [taskToEdit, setTaskToEdit] = useState<Task | null>(null);
   const [isNotesDrawerOpen, setIsNotesDrawerOpen] = useState(false);
   const [isMergeRequestsDrawerOpen, setIsMergeRequestsDrawerOpen] = useState(false);
   const [isJiraDrawerOpen, setIsJiraDrawerOpen] = useState(false);
@@ -284,6 +292,7 @@ function App() {
   const [isWorkspaceLoading, setIsWorkspaceLoading] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [athenaChats, setAthenaChats] = useState<Record<string, WorkspaceChatState>>({});
+  const [taskAthenaChats, setTaskAthenaChats] = useState<Record<string, WorkspaceChatState>>({});
   const [selectedProvider, setSelectedProvider] = useState('gemini');
   const [selectedModel, setSelectedModel] = useState('3.5');
   const [gatewayProviders, setGatewayProviders] = useState<Array<{ id: string; label: string; models: string[] }>>([]);
@@ -430,6 +439,61 @@ function App() {
     }
   };
 
+  const athenaChatKey = (wsId: string) => `athena:chat:${wsId}`;
+
+  const loadAthenaChatFromStorage = (wsId: string): ChatMessage[] => {
+    try {
+      const stored = localStorage.getItem(athenaChatKey(wsId));
+      return stored ? JSON.parse(stored) : [];
+    } catch { return []; }
+  };
+
+  const saveAthenaChatToStorage = (wsId: string, messages: ChatMessage[]) => {
+    try {
+      localStorage.setItem(athenaChatKey(wsId), JSON.stringify(messages));
+    } catch {}
+  };
+
+  const handleClearAthenaChat = (wsId: string) => {
+    localStorage.removeItem(athenaChatKey(wsId));
+    setAthenaChats(prev => ({
+      ...prev,
+      [wsId]: { messages: [], isLoading: false, error: '', input: '' },
+    }));
+  };
+
+  const runAgentViaGateway = async (prompt: string, wsId: string, mcpData?: any, providerOverride?: string, modelOverride?: string): Promise<string> => {
+    const gatewayUrl = (gatewayDraft || 'http://127.0.0.1:3100').trim().replace(/\/+$/, '');
+    const finalProvider = providerOverride || selectedProvider;
+    const finalModel = modelOverride || selectedModel;
+    const runRes = await fetch(`${gatewayUrl}/runs`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        prompt,
+        chain: [{ provider: finalProvider, model: finalModel }],
+        session_id: wsId,
+        mcp_servers: mcpData?.mcpServers || mcpData?.servers || mcpData || undefined,
+      }),
+    });
+    if (!runRes.ok) throw new Error(`Gateway /runs failed: ${runRes.status}`);
+    const run = await runRes.json();
+    const runId = String(run?.id || '');
+    if (!runId) throw new Error('Gateway did not return a run id');
+
+    const startedAt = Date.now();
+    while (Date.now() - startedAt < 120_000) {
+      await new Promise(r => setTimeout(r, 800));
+      const statusRes = await fetch(`${gatewayUrl}/runs/${encodeURIComponent(runId)}`);
+      if (!statusRes.ok) throw new Error(`Gateway poll failed: ${statusRes.status}`);
+      const status = await statusRes.json();
+      if (status.status === 'complete') return String(status.result?.response || '');
+      if (status.status === 'error' || status.status === 'killed')
+        throw new Error(status.error || `Run ${status.status}`);
+    }
+    throw new Error('Gateway run timed out after 120s');
+  };
+
   const handleSendAthenaMessage = async (workspaceId: string, text: string) => {
     if (!workspaceId) return;
     const userText = text.trim();
@@ -445,49 +509,57 @@ function App() {
     let currentMessages: ChatMessage[] = [];
     setAthenaChats(prev => {
       const chat = prev[workspaceId] || { messages: [], isLoading: false, error: '', input: '' };
-      currentMessages = [...chat.messages, userMessage];
-      const next = {
+      // Merge with localStorage in case state is stale
+      const stored = loadAthenaChatFromStorage(workspaceId);
+      const base = chat.messages.length >= stored.length ? chat.messages : stored;
+      currentMessages = [...base, userMessage];
+      saveAthenaChatToStorage(workspaceId, currentMessages);
+      return {
         ...prev,
-        [workspaceId]: {
-          messages: currentMessages,
-          isLoading: true,
-          error: '',
-          input: '',
-        }
+        [workspaceId]: { messages: currentMessages, isLoading: true, error: '', input: '' },
       };
-      void saveWorkspaceChat(workspaceId, currentMessages, '');
-      return next;
     });
 
     try {
-      const graph = await fetchWorkspaceKnowledgeGraph(serverBaseUrl, apiKey, workspaceId);
-      
+      const gatewayUrl = (gatewayDraft || 'http://127.0.0.1:3100').trim().replace(/\/+$/, '');
+      const [graph, mcpData] = await Promise.all([
+        activeSection === 'tasks' ? Promise.resolve({ nodes: [], edges: [] }) : fetchWorkspaceKnowledgeGraph(serverBaseUrl, apiKey, workspaceId),
+        fetchGatewayMCPs(gatewayUrl),
+      ]);
       const targetWorkspace = workspaceList.find(w => w.id === workspaceId);
       const targetSessions = sessionList.filter(s => s.workspaceId === workspaceId);
-      const targetTasks = taskList.filter(t => t.workspaceId === workspaceId);
       const targetSessionsSet = new Set(targetSessions.map(s => s.id));
       const targetNotes = noteList.filter(note => targetSessionsSet.has(note.sessionId));
       const targetArtifacts = artifacts.filter(artifact => targetSessionsSet.has(artifact.sessionId));
+      const targetFileGroups = workspaceSessionFiles;
+      const targetConversations = sessionConversationMap;
+      const targetTasks = activeSection === 'tasks' ? taskList : taskList.filter(t => t.workspaceId === workspaceId);
+      const provider = selectedProvider;
+      const model = selectedModel;
 
-      const prompt = buildAthenaPromptSections([
-        ['WORKSPACE', formatWorkspace(targetWorkspace, workspaceId)],
-        ['WORKSPACE KNOWLEDGE GRAPH', formatWorkspaceKnowledgeGraph(graph.nodes, graph.edges)],
-        ['LINKED SESSIONS', formatSessions(targetSessions)],
-        ['TASKS', formatTasks(targetTasks)],
-        ['NOTES', formatNotes(targetNotes, targetSessions)],
-        ['MERGE REQUESTS', formatMergeRequests(mergeRequestList)],
-        ['JIRA TICKETS', formatJiraTickets(jiraTicketList)],
-        ['ARTIFACTS', formatArtifacts(targetArtifacts, targetSessions)],
-        ['ACTIVITY SUMMARY', `${workspaceActivitySummary.detail}\nLatest: ${workspaceActivitySummary.latest}\nTotal signals: ${workspaceActivitySummary.total}`],
-        ['CONVERSATION HISTORY', formatHistory(currentMessages)],
-        ['NEW USER QUESTION', userText],
-      ]);
+      const prompt = activeSection === 'tasks'
+        ? buildAthenaPromptSections([
+            ['TASK CONTEXT', formatTasks(taskList)],
+            ['AVAILABLE MCPS', formatGatewayMCPs(mcpData)],
+            ['CONVERSATION HISTORY', formatHistory(currentMessages.slice(0, -1))],
+            ['NEW USER QUESTION', userText],
+          ])
+        : buildAthenaPromptSections([
+            ['WORKSPACE', formatWorkspace(targetWorkspace, workspaceId)],
+            ['WORKSPACE KNOWLEDGE GRAPH', formatWorkspaceKnowledgeGraph(graph.nodes, graph.edges)],
+            ['LINKED SESSIONS', formatSessionsFull(targetSessions, targetFileGroups, targetConversations)],
+            ['TASK CONTEXT', formatTasks(targetTasks)],
+            ['AVAILABLE MCPS', formatGatewayMCPs(mcpData)],
+            ['NOTES', formatNotes(targetNotes, targetSessions)],
+            ['MERGE REQUESTS', formatMergeRequests(mergeRequestList)],
+            ['JIRA TICKETS', formatJiraTickets(jiraTicketList)],
+            ['ARTIFACTS', formatArtifacts(targetArtifacts, targetSessions)],
+            ['ACTIVITY SUMMARY', `${workspaceActivitySummary.detail}\nLatest: ${workspaceActivitySummary.latest}\nTotal signals: ${workspaceActivitySummary.total}`],
+            ['CONVERSATION HISTORY', formatHistory(currentMessages.slice(0, -1))],
+            ['NEW USER QUESTION', userText],
+          ]);
 
-      const response = await window.sanctum.runAgent({
-        prompt,
-        sessionId: workspaceId,
-        chain: [{ provider: selectedProvider, model: selectedModel }],
-      });
+      const response = await runAgentViaGateway(prompt, workspaceId, mcpData, provider, model);
 
       const assistantMessage: ChatMessage = {
         id: `assistant-${Date.now()}`,
@@ -499,38 +571,24 @@ function App() {
       setAthenaChats(prev => {
         const chat = prev[workspaceId] || { messages: [], isLoading: false, error: '', input: '' };
         const updatedMessages = [...chat.messages, assistantMessage];
-        const next = {
+        saveAthenaChatToStorage(workspaceId, updatedMessages);
+        return {
           ...prev,
-          [workspaceId]: {
-            messages: updatedMessages,
-            isLoading: false,
-            error: '',
-            input: chat.input,
-          }
+          [workspaceId]: { messages: updatedMessages, isLoading: false, error: '', input: chat.input },
         };
-        void saveWorkspaceChat(workspaceId, updatedMessages, chat.input);
-        return next;
       });
 
       if (!isWorkspaceAthenaOpen || activeWorkspaceId !== workspaceId) {
         const workspaceName = targetWorkspace?.name || 'Workspace';
-        pushToast('Athena Response', `Athena replied in workspace "${workspaceName}": "${response.slice(0, 60)}..."`, 'good');
+        pushToast('Athena Response', `Athena replied in "${workspaceName}": "${response.slice(0, 60)}..."`, 'good');
       }
 
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unable to ask Athena.';
-      setAthenaChats(prev => {
-        const chat = prev[workspaceId] || { messages: [], isLoading: false, error: '', input: '' };
-        const next = {
-          ...prev,
-          [workspaceId]: {
-            ...chat,
-            isLoading: false,
-            error: errorMessage,
-          }
-        };
-        return next;
-      });
+      setAthenaChats(prev => ({
+        ...prev,
+        [workspaceId]: { ...(prev[workspaceId] || { messages: [], input: '' }), isLoading: false, error: errorMessage },
+      }));
       pushToast('Athena Error', errorMessage, 'warning');
     }
   };
@@ -563,6 +621,134 @@ function App() {
         }
       };
       void saveWorkspaceChat(workspaceId, chat.messages, text);
+      return next;
+    });
+  };
+
+  const saveTaskChat = async (taskId: string, messages: ChatMessage[], input: string) => {
+    if (!window.system?.saveSetting) return;
+    await window.system.saveSetting(`athena:task-chat:${taskId}`, { messages, input });
+  };
+
+  const taskAthenaChatKey = (taskId: string) => `athena:task-chat:${taskId}`;
+
+  const loadTaskAthenaChatFromStorage = (taskId: string): ChatMessage[] => {
+    try {
+      const stored = localStorage.getItem(taskAthenaChatKey(taskId));
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  };
+
+  const saveTaskAthenaChatToStorage = (taskId: string, messages: ChatMessage[]) => {
+    try {
+      localStorage.setItem(taskAthenaChatKey(taskId), JSON.stringify(messages));
+    } catch {}
+  };
+
+  const handleClearTaskAthenaChat = (taskId: string) => {
+    localStorage.removeItem(taskAthenaChatKey(taskId));
+    setTaskAthenaChats(prev => ({
+      ...prev,
+      [taskId]: { messages: [], isLoading: false, error: '', input: '' },
+    }));
+    void saveTaskChat(taskId, [], '');
+  };
+
+  const handleSendTaskAthenaMessage = async (taskId: string, text: string) => {
+    const activeTask = taskList.find(t => t.id === taskId);
+    if (!activeTask) return;
+
+    setTaskAthenaChats(prev => {
+      const chat = prev[taskId] || { messages: [], isLoading: false, error: '', input: '' };
+      const userMsg: ChatMessage = {
+        id: `user-${Date.now()}`,
+        sender: 'user',
+        text,
+        timestamp: new Date().toISOString(),
+      };
+      const currentMessages = [...chat.messages, userMsg];
+      saveTaskAthenaChatToStorage(taskId, currentMessages);
+      return {
+        ...prev,
+        [taskId]: { messages: currentMessages, isLoading: true, error: '', input: '' },
+      };
+    });
+
+    try {
+      const gatewayUrl = (gatewayDraft || 'http://127.0.0.1:3100').trim().replace(/\/+$/, '');
+      const mcpData = await fetchGatewayMCPs(gatewayUrl);
+      
+      const provider = selectedProvider;
+      const model = selectedModel;
+
+      const currentMessages = loadTaskAthenaChatFromStorage(taskId);
+
+      const prompt = buildAthenaPromptSections([
+        ['TASK UNDER DISCUSSION', formatTasks([activeTask])],
+        ['AVAILABLE MCPS', formatGatewayMCPs(mcpData)],
+        ['CONVERSATION HISTORY', formatHistory(currentMessages.slice(0, -1))],
+        ['NEW USER QUESTION', text],
+      ]);
+
+      const response = await runAgentViaGateway(prompt, activeTask.workspaceId, mcpData, provider, model);
+
+      const assistantMessage: ChatMessage = {
+        id: `assistant-${Date.now()}`,
+        sender: 'assistant',
+        text: response || 'No response received from Athena.',
+        timestamp: new Date().toISOString(),
+      };
+
+      setTaskAthenaChats(prev => {
+        const chat = prev[taskId] || { messages: [], isLoading: false, error: '', input: '' };
+        const updatedMessages = [...chat.messages, assistantMessage];
+        saveTaskAthenaChatToStorage(taskId, updatedMessages);
+        void saveTaskChat(taskId, updatedMessages, chat.input);
+        return {
+          ...prev,
+          [taskId]: { messages: updatedMessages, isLoading: false, error: '', input: chat.input },
+        };
+      });
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Unable to ask Athena.';
+      setTaskAthenaChats(prev => ({
+        ...prev,
+        [taskId]: { ...(prev[taskId] || { messages: [], input: '' }), isLoading: false, error: errorMessage },
+      }));
+      pushToast('Athena Error', errorMessage, 'warning');
+    }
+  };
+
+  const handleDeleteTaskAthenaMessage = (taskId: string, messageId: string) => {
+    setTaskAthenaChats(prev => {
+      const chat = prev[taskId];
+      if (!chat) return prev;
+      const updatedMessages = chat.messages.filter(m => m.id !== messageId);
+      const next = {
+        ...prev,
+        [taskId]: {
+          ...chat,
+          messages: updatedMessages,
+        }
+      };
+      void saveTaskChat(taskId, updatedMessages, chat.input);
+      return next;
+    });
+  };
+
+  const handleChangeTaskAthenaInput = (taskId: string, text: string) => {
+    setTaskAthenaChats(prev => {
+      const chat = prev[taskId] || { messages: [], isLoading: false, error: '', input: '' };
+      const next = {
+        ...prev,
+        [taskId]: {
+          ...chat,
+          input: text,
+        }
+      };
+      void saveTaskChat(taskId, chat.messages, text);
       return next;
     });
   };
@@ -600,21 +786,64 @@ function App() {
       }
     }
 
-    // Load persisted chats from SQLite config/settings
+    // Load persisted chats from localStorage (primary) + SQLite settings (fallback)
     const initialChats: Record<string, WorkspaceChatState> = {};
+    // Scan localStorage for all athena chat keys
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key?.startsWith('athena:chat:')) {
+        const wsId = key.replace('athena:chat:', '');
+        try {
+          const stored = localStorage.getItem(key);
+          const messages = stored ? JSON.parse(stored) : [];
+          initialChats[wsId] = { messages: Array.isArray(messages) ? messages : [], isLoading: false, error: '', input: '' };
+        } catch {}
+      }
+    }
+    // Also pull from SQLite settings as fallback for any workspace not in localStorage
     for (const key of Object.keys(settings)) {
       if (key.startsWith('athena:chat:')) {
-        const workspaceId = key.replace('athena:chat:', '');
-        const data = settings[key] || {};
-        initialChats[workspaceId] = {
-          messages: Array.isArray(data.messages) ? data.messages : [],
-          isLoading: false,
-          error: '',
-          input: typeof data.input === 'string' ? data.input : '',
-        };
+        const wsId = key.replace('athena:chat:', '');
+        if (!initialChats[wsId]) {
+          const data = settings[key] || {};
+          initialChats[wsId] = {
+            messages: Array.isArray(data.messages) ? data.messages : [],
+            isLoading: false,
+            error: '',
+            input: typeof data.input === 'string' ? data.input : '',
+          };
+        }
       }
     }
     setAthenaChats(initialChats);
+
+    const initialTaskChats: Record<string, WorkspaceChatState> = {};
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key?.startsWith('athena:task-chat:')) {
+        const tId = key.replace('athena:task-chat:', '');
+        try {
+          const stored = localStorage.getItem(key);
+          const messages = stored ? JSON.parse(stored) : [];
+          initialTaskChats[tId] = { messages: Array.isArray(messages) ? messages : [], isLoading: false, error: '', input: '' };
+        } catch {}
+      }
+    }
+    for (const key of Object.keys(settings)) {
+      if (key.startsWith('athena:task-chat:')) {
+        const tId = key.replace('athena:task-chat:', '');
+        if (!initialTaskChats[tId]) {
+          const data = settings[key] || {};
+          initialTaskChats[tId] = {
+            messages: Array.isArray(data.messages) ? data.messages : [],
+            isLoading: false,
+            error: '',
+            input: typeof data.input === 'string' ? data.input : '',
+          };
+        }
+      }
+    }
+    setTaskAthenaChats(initialTaskChats);
 
     const providerChain = settings['provider:chain'];
     if (Array.isArray(providerChain) && providerChain[0]) {
@@ -687,7 +916,7 @@ function App() {
           setWorkspaceList([]);
         }
       } catch {
-        if (!cancelled) setWorkspaceList([]);
+        // Keep the seeded local workspace data if the server is unavailable.
       } finally {
         if (!cancelled) setIsWorkspaceLoading(false);
       }
@@ -707,25 +936,38 @@ function App() {
       if (!activeWorkspaceId) return;
       try {
         const [tasksResponse, remindersResponse] = await Promise.all([
-          fetch(`${serverBaseUrl}/api/tasks?workspace_id=${encodeURIComponent(activeWorkspaceId)}`, { headers }),
+          fetch(`${serverBaseUrl}/api/tasks`, { headers }),
           fetch(`${serverBaseUrl}/api/reminders/due-today`, { headers }),
         ]);
         if (tasksResponse.ok) {
           const tasksData = await tasksResponse.json();
-          if (!cancelled && Array.isArray(tasksData)) {
-            setTaskList(tasksData.map((task: any) => ({
-              id: task.task_id ?? task.id,
-              workspaceId: task.workspace_id,
-              title: task.title,
-              description: task.description ?? '',
-              priority: task.priority ?? 'medium',
-              state: task.status ?? 'todo',
-              owner: task.user_id ?? 'server',
-              due: task.date ?? undefined,
-              dependsOn: task.depends_on ?? task.dependencies ?? [],
-              comments: task.comments ?? [],
-            })));
-          }
+            setTaskList(tasksData.map((task: any) => {
+              const idStr = String(task.task_id ?? task.id ?? task.title ?? '');
+              let hash = 0;
+              for (let i = 0; i < idStr.length; i++) {
+                hash = idStr.charCodeAt(i) + ((hash << 5) - hash);
+              }
+              const defaultTime = Math.abs(hash % 16) + 2; // 2 to 17 hours
+              const complexities = ['simple', 'moderate', 'complex', 'extreme'] as const;
+              const defaultComplexity = complexities[Math.abs(hash % complexities.length)];
+
+              return {
+                id: task.task_id ?? task.id,
+                workspaceId: task.workspace_id,
+                title: task.title,
+                description: task.description ?? '',
+                priority: task.priority ?? 'medium',
+                state: task.status ?? 'todo',
+                owner: task.user_id ?? 'server',
+                due: task.date ?? undefined,
+                dependsOn: task.depends_on ?? task.dependencies ?? [],
+                comments: task.comments ?? [],
+                createdAt: task.created_at ?? task.createdAt,
+                updatedAt: task.updated_at ?? task.updatedAt,
+                timeSpent: task.timeSpent ?? task.time_spent ?? defaultTime,
+                complexity: task.complexity ?? defaultComplexity,
+              };
+            }));
         }
         if (remindersResponse.ok) {
           const remindersData = await remindersResponse.json();
@@ -1115,12 +1357,12 @@ function App() {
   );
   const manageSummary = useMemo(
     () => ({
-      todayTasks: todayTasks.length,
+      todayTasks: taskList.filter((task) => task.due === todayIso || task.due === 'Today').length,
       todayReminders: todayReminders.length,
-      openTasks: workspaceTasks.filter((task) => task.state !== 'done').length,
+      openTasks: taskList.filter((task) => task.state !== 'done').length,
       pendingReminders: workspaceReminders.filter((reminder) => reminder.state !== 'done').length,
     }),
-    [todayReminders.length, todayTasks.length, workspaceReminders, workspaceTasks],
+    [taskList, todayReminders.length, todayIso, workspaceReminders],
   );
   const workspaceActivitySummary = useMemo(
     () => ({
@@ -1143,8 +1385,8 @@ function App() {
     if (activeSection === 'tasks') {
       return {
         eyebrow: activeProfile.eyebrow,
-        title: `${displayedWorkspaceName} priority queue`,
-        subtitle: `${workspaceTasks.filter((task) => task.state !== 'todo').length} active signals`,
+        title: 'Task manager',
+        subtitle: `${taskList.length} tasks across ${workspaceList.length} workspaces`,
         blurb: activeProfile.blurb,
       };
     }
@@ -1186,10 +1428,12 @@ function App() {
         `${workspaceReminders.length} reminders`,
         `${mergeRequestList.length} merge requests`,
         `${jiraTicketList.length} jira tickets`,
+        `${workspaceSummary.knowledgeNodes} nodes`,
+        `${workspaceSummary.knowledgeEdges} edges`,
       ].join(' · '),
       blurb: activeProfile.blurb,
     };
-  }, [activeSection, activeProfile, activeSession.updated, activeWorkspace, displayedProvider, displayedSessionTitle, displayedWorkspaceName, jiraTicketList.length, mergeRequestList.length, workspaceNotes.length, workspaceReminders.length, workspaceSummary.sessions, workspaceSummary.tasks, workspaceTasks]);
+  }, [activeSection, activeProfile, activeSession.updated, activeWorkspace, displayedProvider, displayedSessionTitle, displayedWorkspaceName, jiraTicketList.length, mergeRequestList.length, workspaceNotes.length, workspaceReminders.length, workspaceSummary.sessions, workspaceSummary.tasks, workspaceSummary.knowledgeNodes, workspaceSummary.knowledgeEdges, workspaceTasks]);
   const systemStatus = useMemo(
     () => [
       ['Server', 'Online'],
@@ -1220,11 +1464,11 @@ function App() {
 
     if (activeSection === 'tasks') {
       return [
-        `Critical ${workspaceTasks.filter((task) => task.priority === 'critical').length}`,
-        `In progress ${workspaceTasks.filter((task) => task.state === 'in-progress').length}`,
-        `Todo ${workspaceTasks.filter((task) => task.state === 'todo').length}`,
-        `Review ${workspaceTasks.filter((task) => task.state === 'review').length}`,
-        `Blocked ${workspaceTasks.filter((task) => task.state === 'blocked').length}`,
+        `Critical ${taskList.filter((task) => task.priority === 'critical').length}`,
+        `In progress ${taskList.filter((task) => task.state === 'in-progress').length}`,
+        `Todo ${taskList.filter((task) => task.state === 'todo').length}`,
+        `Review ${taskList.filter((task) => task.state === 'review').length}`,
+        `Blocked ${taskList.filter((task) => task.state === 'blocked').length}`,
       ];
     }
 
@@ -1236,7 +1480,7 @@ function App() {
       return [
         `Today tasks ${todayTasks.length}`,
         `Today reminders ${todayReminders.length}`,
-        `Open tasks ${workspaceTasks.filter((task) => task.state !== 'done').length}`,
+        `Open tasks ${taskList.filter((task) => task.state !== 'done').length}`,
         `Scheduled reminders ${workspaceReminders.filter((reminder) => reminder.state !== 'done').length}`,
       ];
     }
@@ -1257,7 +1501,7 @@ function App() {
       `Notes ${workspaceNotes.length}`,
       `Status ${activeWorkspace?.status ?? 'unknown'}`,
     ];
-  }, [activeSection, activeSession, activeWorkspace, localSetup.length, providers.length, todayReminders.length, todayTasks.length, workspaceNotes.length, workspaceReminders, workspaceTasks, workspaceSessions.length, workspaceSummary.sessions, workspaceSummary.tasks]);
+  }, [activeSection, activeSession, activeWorkspace, localSetup.length, providers.length, taskList, todayReminders.length, todayTasks.length, workspaceNotes.length, workspaceReminders, workspaceSessions.length, workspaceSummary.sessions, workspaceSummary.tasks]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -1600,6 +1844,8 @@ function App() {
                 priority: 'medium' as const,
                 state: 'todo' as const,
                 owner: 'ahmed',
+                timeSpent: 4,
+                complexity: 'moderate' as const,
               };
               setTaskList((current) => [task, ...current]);
               pushToast('Task created', 'New task added to the active workspace.', 'good');
@@ -1748,9 +1994,16 @@ function App() {
     }
   }, [activeSection, activeSession.provider, displayedSessionTitle, displayedWorkspaceName, sessionIndex, workspaceIndex, workspaceList.length, workspaceSessions, workspaceSessions.length]);
   const rightRailItems = useMemo(() => {
+    if (activeSection === 'tasks') {
+      return [
+        { id: 'workspace-athena', label: 'Ask Athena', icon: <Sparkles size={14} />, active: isWorkspaceAthenaOpen, action: () => { closeWorkspaceDrawers(); setIsWorkspaceAthenaOpen(true); } },
+        { id: 'global-task-create', label: 'Add Task', icon: <Plus size={14} />, active: false, action: () => { setTaskCreateRequest((current) => current + 1); } },
+      ];
+    }
     if (!activeWorkspaceId) return [];
     return [
       { id: 'workspace-athena', label: 'Ask Athena', icon: <Sparkles size={14} />, active: isWorkspaceAthenaOpen, action: () => { closeWorkspaceDrawers(); setIsWorkspaceAthenaOpen(true); } },
+      { id: 'workspace-create', label: 'New Workspace', icon: <Plus size={14} />, active: false, action: () => openWorkspaceEditor('create') },
       { id: 'workspace-knowledge', label: 'Knowledge graph', icon: <Share2 size={14} />, active: isKnowledgeOpen, action: () => { closeWorkspaceDrawers(); setIsKnowledgeOpen(true); } },
       { id: 'workspace-sessions', label: 'Sessions', icon: <MessageSquare size={14} />, active: isSessionsDrawerOpen, action: openSessionsDrawer },
       { id: 'workspace-merge-requests', label: 'Merge requests', icon: <GitBranch size={14} />, active: isMergeRequestsDrawerOpen, action: () => { closeWorkspaceDrawers(); setIsMergeRequestsDrawerOpen(true); } },
@@ -1760,7 +2013,7 @@ function App() {
       { id: 'workspace-notes', label: 'Notes', icon: <FileText size={14} />, active: isNotesDrawerOpen, action: () => { closeWorkspaceDrawers(); setIsNotesDrawerOpen(true); } },
       { id: 'workspace-activity', label: 'Recent activity', icon: <History size={14} />, active: isActivityOpen, action: () => { closeWorkspaceDrawers(); setIsActivityOpen(true); } },
     ];
-  }, [activeWorkspaceId, isActivityOpen, isArtifactsDrawerOpen, isJiraDrawerOpen, isKnowledgeOpen, isMergeRequestsDrawerOpen, isNotesDrawerOpen, isSessionsDrawerOpen, isTaskDrawerOpen, isWorkspaceAthenaOpen, openSessionsDrawer]);
+  }, [activeSection, activeWorkspaceId, isActivityOpen, isArtifactsDrawerOpen, isJiraDrawerOpen, isKnowledgeOpen, isMergeRequestsDrawerOpen, isNotesDrawerOpen, isSessionsDrawerOpen, isTaskDrawerOpen, isWorkspaceAthenaOpen, openSessionsDrawer]);
 
   if (!authReady || !hasApiKey) {
     return <LoginScreen onLogin={persistApiKey} />;
@@ -1793,9 +2046,8 @@ function App() {
       onLogout={() => { void handleLogout(); }}
       onWorkspaceCreate={() => openWorkspaceEditor('create')}
       onWorkspaceSelected={() => {
-        setActiveSection('workspace');
+        setActiveSection('tasks');
         setIsDrawerOpen(true);
-        setIsWorkspacePaneOpen(true);
       }}
       onSettings={() => setSettingsOpen(true)}
       rightRailItems={rightRailItems}
@@ -1815,6 +2067,7 @@ function App() {
         onEdit={() => openWorkspaceEditor('edit')}
         workspaceSessions={workspaceSessions}
         workspaceTasks={workspaceTasks}
+        allTasks={taskList}
         workspaceReminders={workspaceReminders}
         workspaceNotes={workspaceNotes}
         workspaceArtifacts={workspaceArtifacts}
@@ -1849,6 +2102,10 @@ function App() {
         pushToast={pushToast}
         setActiveSection={setActiveSection}
         setManagementDrawer={setManagementDrawer}
+        onOpenTasks={() => setIsTaskDrawerOpen(true)}
+        onEditGlobalTask={(task) => {
+          setTaskToEdit(task);
+        }}
         setNoteList={setNoteList}
         setTaskList={setTaskList}
         setReminderList={setReminderList}
@@ -1888,6 +2145,7 @@ function App() {
       setIsKnowledgeOpen={setIsKnowledgeOpen}
         isTaskDrawerOpen={isTaskDrawerOpen}
         setIsTaskDrawerOpen={setIsTaskDrawerOpen}
+        taskCreateRequest={taskCreateRequest}
         isNotesDrawerOpen={isNotesDrawerOpen}
         setIsNotesDrawerOpen={setIsNotesDrawerOpen}
         isMergeRequestsDrawerOpen={isMergeRequestsDrawerOpen}
@@ -1972,12 +2230,17 @@ function App() {
           }
         }}
       onLogout={handleAuthLogout}
+      onRefreshProviders={() => refreshProviders(gatewayDraft.trim() || 'http://127.0.0.1:3100')}
       recentAlerts={toasts}
       activityFeed={activityFeed}
         restoreActivityContext={restoreActivityContext}
         managementDrawer={managementDrawer}
         setManagementDrawer={setManagementDrawer}
-        workspaceTasks={workspaceTasks}
+        workspaceTasks={activeSection === 'tasks' ? taskList : workspaceTasks}
+        taskDrawerScope={activeSection === 'tasks' ? 'global' : 'workspace'}
+        workspaceList={workspaceList}
+        taskToEdit={activeSection === 'tasks' ? taskToEdit : null}
+        onTaskEditOpened={() => setTaskToEdit(null)}
         setTaskList={setTaskList}
         workspaceNotes={workspaceNotes}
         workspaceArtifacts={workspaceArtifacts}
@@ -1993,6 +2256,11 @@ function App() {
         activeWorkspaceId={activeWorkspaceId}
         serverBaseUrl={serverBaseUrl}
         apiKey={apiKey}
+        taskAthenaChats={taskAthenaChats}
+        onSendTaskAthenaMessage={handleSendTaskAthenaMessage}
+        onDeleteTaskAthenaMessage={handleDeleteTaskAthenaMessage}
+        onClearTaskAthenaChat={handleClearTaskAthenaChat}
+        onChangeTaskAthenaInput={handleChangeTaskAthenaInput}
       />
 
       <WorkspaceAthenaDrawer
@@ -2006,9 +2274,10 @@ function App() {
         persistedInput={athenaChats[activeWorkspaceId]?.input || ''}
         onSendMessage={(text) => handleSendAthenaMessage(activeWorkspaceId, text)}
         onDeleteMessage={(msgId) => handleDeleteAthenaMessage(activeWorkspaceId, msgId)}
+        onClearChat={() => handleClearAthenaChat(activeWorkspaceId)}
         onChangeInput={(text) => handleChangeAthenaInput(activeWorkspaceId, text)}
         workspaceSessions={workspaceSessions}
-        workspaceTasks={workspaceTasks}
+        workspaceTasks={activeSection === 'tasks' ? taskList : workspaceTasks}
         workspaceNotes={workspaceNotes}
         workspaceArtifacts={workspaceArtifacts}
         workspaceMergeRequests={mergeRequestList}
@@ -2016,6 +2285,7 @@ function App() {
         workspaceActivitySummary={workspaceActivitySummary}
         selectedProvider={selectedProvider}
         selectedModel={selectedModel}
+        athenaType={activeSection === 'tasks' ? 'task_manager' : 'workspace'}
       />
 
     </ShellChrome>
@@ -2050,9 +2320,68 @@ function formatSessions(sessions: Session[]) {
   ].join(' | ')).join('\n');
 }
 
+function formatSessionsFull(
+  sessions: Session[],
+  fileGroups: Record<string, any>,
+  conversations: Record<string, any[]>,
+) {
+  if (!sessions.length) return 'No sessions are linked to this workspace.';
+  return sessions.map((session) => {
+    const lines: string[] = [
+      `### Session: ${session.title}`,
+      `ID: ${session.id}`,
+      `Provider: ${session.provider} / Model: ${session.model}`,
+      `Updated: ${session.updatedAt || session.updated || 'unknown'}`,
+      `Stats: files=${session.files} notes=${session.notes} jira=${session.jira} mrs=${session.mergeRequests}`,
+    ];
+    if (session.tree) lines.push(`Directory: ${session.tree}`);
+    // Files
+    const fg = fileGroups[session.id];
+    if (fg) {
+      const allFiles: string[] = [];
+      if (Array.isArray(fg)) {
+        fg.forEach((f: any) => allFiles.push(f.path || f.name || String(f)));
+      } else if (typeof fg === 'object') {
+        Object.values(fg).forEach((group: any) => {
+          if (Array.isArray(group)) group.forEach((f: any) => allFiles.push(f.path || f.name || String(f)));
+        });
+      }
+      if (allFiles.length) lines.push(`Files (${allFiles.length}):\n${allFiles.slice(0, 60).map(f => `  ${f}`).join('\n')}`);
+    }
+    // Conversation excerpt
+    const convo = conversations[session.id];
+    if (convo && convo.length) {
+      lines.push(`Conversation (last ${Math.min(6, convo.length)} turns):`);
+      convo.slice(-6).forEach((msg: any) => {
+        const role = msg.role || msg.sender || 'unknown';
+        const content = String(msg.content || msg.text || '').slice(0, 200);
+        lines.push(`  [${role.toUpperCase()}] ${content}`);
+      });
+    }
+    return lines.join('\n');
+  }).join('\n\n---\n\n');
+}
+
 function formatTasks(tasks: Task[]) {
   if (!tasks.length) return 'No tasks are currently loaded for this workspace.';
-  return tasks.map((task) => `- ${task.title} (${task.state}, ${task.priority}) owner=${task.owner}${task.description ? ` :: ${task.description}` : ''}`).join('\n');
+  return [
+    `Total tasks: ${tasks.length}`,
+    '',
+    ...tasks.map((task) => {
+      const flags = [
+        task.state ? `state=${task.state}` : '',
+        task.priority ? `priority=${task.priority}` : '',
+        task.owner ? `owner=${task.owner}` : '',
+        task.due ? `due=${task.due}` : '',
+        task.dependsOn?.length ? `dependsOn=${task.dependsOn.join(',')}` : '',
+        task.comments?.length ? `comments=${task.comments.slice(-3).join(' || ')}` : '',
+        task.description ? `description=${task.description}` : '',
+        task.createdAt ? `createdAt=${task.createdAt}` : '',
+        task.updatedAt ? `updatedAt=${task.updatedAt}` : '',
+      ].filter(Boolean).join(' | ');
+      return `- ${task.title} (${task.id})${flags ? ` :: ${flags}` : ''}`;
+    }),
+  ].join('\n');
 }
 
 function formatNotes(notes: any[], sessions: Session[]) {
@@ -2083,5 +2412,5 @@ function formatArtifacts(artifacts: Artifact[], sessions: Session[]) {
 
 function formatHistory(messages: ChatMessage[]) {
   if (!messages.length) return 'No previous messages in this workspace Athena chat.';
-  return messages.slice(-12).map((message) => `${message.sender === 'user' ? 'User' : 'Athena'}: ${message.text}`).join('\n');
+  return messages.map((message) => `${message.sender === 'user' ? 'User' : 'Athena'}: ${message.text}`).join('\n');
 }

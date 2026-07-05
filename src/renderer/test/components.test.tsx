@@ -419,6 +419,94 @@ describe('renderer components', () => {
     expect(html).toContain('Content Area');
     expect(html).toContain('Tasks');
     expect(html).toContain('Fail');
+    expect(html).not.toContain('Search workspaces...');
+  });
+
+  it('renders the cross-workspace Task Dashboard as a complete top-level surface', () => {
+    const globalTasks: Task[] = [
+      { id: 'task-global', workspaceId: workspace.id, title: 'Global task', priority: 'critical', state: 'in-progress', owner: 'operator' },
+    ];
+    const html = renderToStaticMarkup(
+      <WorkspaceSurface
+        hero={{ eyebrow: 'Tasks', title: 'Task manager', subtitle: 'All workspaces' }}
+        heroFacts={[]}
+        workspaceSessions={[session]}
+        workspaceTasks={globalTasks}
+        allTasks={globalTasks}
+        workspaceReminders={[]}
+        workspaceNotes={[]}
+        workspaceArtifacts={[]}
+        workspaceSessionFiles={{}}
+        workspaceMergeRequests={[]}
+        workspaceJiraTickets={[]}
+        activeWorkspace={workspace}
+        workspaceSummary={{ knowledgeNodes: 0, knowledgeEdges: 0, knowledgeCommittedNodes: 0, knowledgeStagedNodes: 0, knowledgeCommittedEdges: 0, knowledgeStagedEdges: 0 }}
+        manageSummary={{ todayTasks: 0, todayReminders: 0, openTasks: 1, pendingReminders: 0 }}
+        todayTasks={[]}
+        todayReminders={[]}
+        activeSection="tasks"
+        onEdit={() => {}}
+        surfaceMode="dashboard"
+        setSurfaceMode={() => {}}
+        activeModeLabel="Dashboard"
+        surfaceTitle="Tasks"
+        workspaceList={[workspace]}
+        workspaceIndex={0}
+        setWorkspaceIndex={() => {}}
+        setSessionIndex={() => {}}
+        activeSession={session}
+        sessionNotes={[]}
+        sessionArtifacts={[]}
+        sessionTimeline={[]}
+        sessionConversation={[]}
+        sessionStats={[]}
+        sessionCheckpoints={[]}
+        activeProvider={{ id: 'p1', label: 'P1', models: [] }}
+        providers={[]}
+        setSessionProvider={() => {}}
+        localSetup={{ server: 'http://localhost:8090', key: '123', initialized: true }}
+        pushToast={() => {}}
+        setActiveSection={() => {}}
+        setManagementDrawer={() => {}}
+        setNoteList={() => {}}
+        onCreateSessionNote={() => {}}
+        setTaskList={() => {}}
+        setReminderList={() => {}}
+        taskFlags={{}}
+        reminderFlags={{}}
+        setTaskFlags={() => {}}
+        setReminderFlags={() => {}}
+        workspaceSearch=""
+        setWorkspaceSearch={() => {}}
+        setIsTaskDrawerOpen={() => {}}
+        setIsNotesDrawerOpen={() => {}}
+        setIsMergeRequestsDrawerOpen={() => {}}
+        setIsJiraDrawerOpen={() => {}}
+        setIsArtifactsDrawerOpen={() => {}}
+        isKnowledgeOpen={false}
+        setIsKnowledgeOpen={() => {}}
+        isActivityOpen={false}
+        setIsActivityOpen={() => {}}
+        serverBaseUrl="http://localhost:8090"
+        apiKey="123"
+        onOpenTasks={() => {}}
+        onEditGlobalTask={() => {}}
+        workspaceActivitySummary={{ total: 0, detail: 'none', latest: 'never' }}
+        restoreActivityContext={() => {}}
+        activeWorkspaceId={workspace.id}
+        onOpenSessions={() => {}}
+      />
+    );
+
+    expect(html).toContain('Cross-workspace board');
+    expect(html).toContain('Task Status Overview');
+    expect(html).toContain('In progress');
+    expect(html).toContain('All workspaces');
+    expect(html).toContain('All statuses');
+    expect(html).toContain('All priorities');
+    expect(html).toContain('Board');
+    expect(html).toContain('Visual');
+    expect(html).toContain('Global task');
   });
 
   it('renders WorkspaceSurface for different modes', () => {
@@ -491,6 +579,8 @@ describe('renderer components', () => {
         setIsActivityOpen={() => {}}
         serverBaseUrl="http://localhost:8090"
         apiKey="123"
+        onOpenTasks={() => {}}
+        onEditGlobalTask={() => {}}
         workspaceActivitySummary={{ total: 0, detail: 'none', latest: 'never' }}
         restoreActivityContext={() => {}}
         activeWorkspaceId="ws-test"

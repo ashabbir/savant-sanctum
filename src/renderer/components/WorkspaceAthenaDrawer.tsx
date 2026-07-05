@@ -22,6 +22,7 @@ type WorkspaceAthenaDrawerProps = {
   persistedInput: string;
   onSendMessage: (text: string) => void;
   onDeleteMessage: (id: string) => void;
+  onClearChat?: () => void;
   onChangeInput: (text: string) => void;
   workspaceSessions: Session[];
   workspaceTasks: Task[];
@@ -32,6 +33,7 @@ type WorkspaceAthenaDrawerProps = {
   workspaceActivitySummary: { total: number; detail: string; latest: string };
   selectedProvider?: string;
   selectedModel?: string;
+  athenaType?: 'workspace' | 'task_manager';
 };
 
 export function WorkspaceAthenaDrawer({
@@ -45,6 +47,7 @@ export function WorkspaceAthenaDrawer({
   persistedInput,
   onSendMessage,
   onDeleteMessage,
+  onClearChat,
   onChangeInput,
   workspaceSessions,
   workspaceTasks,
@@ -55,6 +58,7 @@ export function WorkspaceAthenaDrawer({
   workspaceActivitySummary,
   selectedProvider = 'gemini',
   selectedModel = '3.5',
+  athenaType = 'workspace',
 }: WorkspaceAthenaDrawerProps) {
   const [input, setInput] = useState(persistedInput || '');
   const inputRef = useRef<HTMLInputElement>(null);
@@ -77,12 +81,19 @@ export function WorkspaceAthenaDrawer({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, onClose]);
 
-  const contextStats = useMemo(() => [
-    { label: 'sessions', value: workspaceSessions.length },
-    { label: 'tasks', value: workspaceTasks.length },
-    { label: 'notes', value: workspaceNotes.length },
-    { label: 'activity', value: workspaceActivitySummary.total },
-  ], [workspaceActivitySummary.total, workspaceNotes.length, workspaceSessions.length, workspaceTasks.length]);
+  const contextStats = useMemo(() => {
+    if (athenaType === 'task_manager') {
+      return [
+        { label: 'tasks (global)', value: workspaceTasks.length },
+      ];
+    }
+    return [
+      { label: 'sessions', value: workspaceSessions.length },
+      { label: 'tasks', value: workspaceTasks.length },
+      { label: 'notes', value: workspaceNotes.length },
+      { label: 'activity', value: workspaceActivitySummary.total },
+    ];
+  }, [athenaType, workspaceActivitySummary.total, workspaceNotes.length, workspaceSessions.length, workspaceTasks.length]);
 
   if (!isOpen) return null;
 
@@ -109,7 +120,7 @@ export function WorkspaceAthenaDrawer({
         <header className="workspace-athena-header">
           <div>
             <div className="eyebrow">ATHENA</div>
-            <h2>Workspace context</h2>
+            <h2>{athenaType === 'task_manager' ? 'Task Manager Context' : 'Workspace Context'}</h2>
           </div>
           <div className="flex items-center gap-2">
             <button
@@ -177,6 +188,18 @@ export function WorkspaceAthenaDrawer({
           <button type="submit" disabled={isLoading || !input.trim()} title="Send" aria-label="Send">
             <Send size={15} />
           </button>
+          {messages.length > 0 && onClearChat && (
+            <button
+              type="button"
+              onClick={() => { if (window.confirm('Clear all Athena chat history for this workspace?')) onClearChat(); }}
+              title="Clear chat history"
+              aria-label="Clear chat"
+              className="ghost-btn action-close icon-only"
+              style={{ opacity: 0.5 }}
+            >
+              <Trash2 size={13} />
+            </button>
+          )}
         </form>
       </aside>
     </div>

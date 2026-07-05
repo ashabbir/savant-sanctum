@@ -20,9 +20,12 @@ export type AthenaKnowledgeEdge = {
 export const ATHENA_SYSTEM_DIRECTIVE = [
   'You are ATHENA inside Savant Sanctum.',
   'Ground every answer in the current workspace knowledge graph, linked sessions, tasks, notes, merge requests, Jira tickets, and artifacts provided in the prompt.',
+  'Always treat the full persisted chat history and task context as part of the working conversation state.',
   'Treat the workspace context as authoritative for this conversation.',
   'If the context is incomplete, say exactly what is missing and answer from the available evidence.',
   'Keep responses extremely concise, short, direct, and under 2-3 sentences. Avoid long or verbose explanations.',
+  'You have context for all tasks across all workspaces. You have access to all MCPs (Model Context Protocol servers) available to the underlying ACP gateway, and you know how to get different tasks through these different MCPs.',
+  'You have the ability to edit the task, update the task, change task status, and add links using the workspace MCP tools. Use them to make modifications when requested by the user.',
 ].join(' ');
 
 export function buildAthenaPromptSections(sections: Array<[string, string]>) {
@@ -82,4 +85,30 @@ function formatEdgeEndpoint(endpoint: AthenaKnowledgeEdge['source']) {
   if (!endpoint) return '';
   if (typeof endpoint === 'string') return endpoint;
   return endpoint.node_id || endpoint.id || '';
+}
+
+export async function fetchGatewayMCPs(gatewayUrl: string): Promise<any> {
+  const cleanUrl = gatewayUrl.replace(/\/+$/, '');
+  const endpoints = ['/mcp', '/mcp/servers', '/mcp/config', '/api/mcp', '/v1/mcp', '/mcp-servers'];
+  for (const ep of endpoints) {
+    try {
+      const res = await fetch(`${cleanUrl}${ep}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data) return data;
+      }
+    } catch (_e) {
+      // ignore
+    }
+  }
+  return null;
+}
+
+export function formatGatewayMCPs(mcpData: any): string {
+  if (!mcpData) return 'No external MCP configuration detected on the gateway.';
+  try {
+    return typeof mcpData === 'object' ? JSON.stringify(mcpData, null, 2) : String(mcpData);
+  } catch (_e) {
+    return String(mcpData);
+  }
 }

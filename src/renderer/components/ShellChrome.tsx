@@ -1,5 +1,5 @@
 import { type ReactNode } from 'react';
-import { Bell, ChevronLeft, ChevronRight, Folder, Keyboard, LogOut, Plus, Settings } from 'lucide-react';
+import { Bell, ChevronLeft, ChevronRight, Folder, Keyboard, ListChecks, LogOut, Plus, Settings } from 'lucide-react';
 import type { Session, Workspace } from '../data';
 import { BottomBar } from './BottomBar';
 
@@ -80,6 +80,7 @@ export function ShellChrome({
   footerItems,
 }: ShellChromeProps) {
   const filteredWorkspaces = workspaceList.filter((ws) => ws.name.toLowerCase().includes(workspaceSearch.toLowerCase()));
+  const showWorkspacePane = isWorkspacePaneOpen && activeSection !== 'tasks';
 
   return (
     <div className="app-shell">
@@ -105,14 +106,15 @@ export function ShellChrome({
         ))}
       </div>
 
-      <div className={`shell-body ${isWorkspacePaneOpen ? 'left-pane-open' : 'left-pane-collapsed'}`}>
+      <div className={`shell-body ${showWorkspacePane ? 'left-pane-open' : 'left-pane-collapsed'} ${activeSection === 'tasks' ? 'task-mode' : ''}`}>
         <aside className="rail rail-left">
           <div className="rail-group">
-            {[...navigation.filter((item) => item.id === 'workspace'), ...navigation.filter((item) => item.id === 'manage')].map((item) => (
-              <button key={item.id} className={`nav-item ${activeSection === item.id ? 'is-active' : ''}`} onClick={item.id === 'workspace' ? toggleWorkspacePane : onWorkspaceSelected} title={item.label} aria-label={item.label}>
-                <span className="nav-icon" aria-hidden="true">{sectionIcons[item.id] || item.icon}</span>
-              </button>
-            ))}
+            <button className={`nav-item ${activeSection === 'workspace' ? 'is-active' : ''}`} onClick={toggleWorkspacePane} title="Workspaces" aria-label="Workspaces">
+              <span className="nav-icon" aria-hidden="true">{sectionIcons.workspace || <Folder size={14} />}</span>
+            </button>
+            <button className={`nav-item ${activeSection === 'tasks' ? 'is-active' : ''}`} onClick={() => onWorkspaceSelected()} title="Task manager" aria-label="Task manager">
+              <span className="nav-icon" aria-hidden="true"><ListChecks size={14} /></span>
+            </button>
           </div>
           <div className="rail-spacer" />
           <div className="rail-group rail-group-bottom">
@@ -123,56 +125,88 @@ export function ShellChrome({
           </div>
         </aside>
 
-        <aside className={`workspace-pane ${isWorkspacePaneOpen ? 'is-open' : 'is-closed'}`}>
-          <div className="workspace-pane-head">
-            <div>
-              <div className="eyebrow">Workspaces</div>
-              <h2>Workspaces</h2>
-            </div>
-            <div className="flex items-center gap-1">
+        {activeSection !== 'tasks' && (
+        <aside className={`workspace-pane ${isWorkspacePaneOpen ? 'is-open' : 'is-collapsed'}`}>
+          {!isWorkspacePaneOpen ? (
+            <>
               <button
-                className="text-btn flex items-center justify-center w-6 h-6 p-0"
+                type="button"
+                className="workspace-pane-top-toggle"
                 onClick={toggleWorkspacePane}
-                title={isWorkspacePaneOpen ? 'Collapse panel' : 'Expand panel'}
-                aria-label={isWorkspacePaneOpen ? 'Collapse workspace panel' : 'Expand workspace panel'}
+                title="Expand workspaces panel"
+                aria-label="Expand workspaces panel"
               >
-                {isWorkspacePaneOpen ? <ChevronLeft size={16} /> : <ChevronRight size={16} />}
+                <ChevronRight size={14} />
               </button>
-              <button className="text-btn flex items-center justify-center w-6 h-6 p-0" onClick={onWorkspaceCreate} title="New Workspace"><Plus size={16} /></button>
-            </div>
-          </div>
-          <div className="workspace-search-container">
-            <input type="text" placeholder="Search workspaces..." className="workspace-search-input" value={workspaceSearch} onChange={(e) => onWorkspaceSearchChange(e.target.value)} />
-          </div>
-          <div className="workspace-pane-list">
-            {filteredWorkspaces.length > 0 ? filteredWorkspaces.map((workspace) => {
-              const index = workspaceList.findIndex((ws) => ws.id === workspace.id);
-              const count = workspace.counts?.total ?? workspace.sessions ?? 0;
-              return (
-                <button key={workspace.id} className={`workspace-pane-item ${index === workspaceIndex ? 'is-active' : ''}`} onClick={() => onWorkspaceSelect(index)}>
-                  <div className="workspace-tree-node">
-                    <ChevronRight size={12} className="tree-chevron" />
-                    <Folder size={14} className="tree-icon" />
-                    <span className="workspace-pane-name">{workspace.name}</span>
-                    <span className="workspace-count-badge">{count}</span>
-                  </div>
-                </button>
-              );
-            }) : (
-              <div className="workspace-pane-empty">
-                <div className="eyebrow">Server data</div>
-                <div className="text-sm opacity-70">
-                  {isWorkspaceLoading ? 'Loading workspaces from server...' : workspaceSearch ? 'No workspaces match this search.' : 'No workspaces returned from the server.'}
+              <button
+                type="button"
+                className="workspace-pane-bar"
+                onClick={toggleWorkspacePane}
+                title="Expand workspaces panel"
+                aria-label="Expand workspaces panel"
+              >
+                Workspaces
+              </button>
+            </>
+          ) : (
+            <>
+              <div className="workspace-pane-head">
+                <span>Workspaces</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <button
+                    type="button"
+                    onClick={toggleWorkspacePane}
+                    title="Collapse workspaces panel"
+                    aria-label="Collapse workspaces panel"
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: 'var(--cyan)',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      padding: '0'
+                    }}
+                  >
+                    <ChevronLeft size={14} />
+                  </button>
                 </div>
               </div>
-            )}
-          </div>
+              <div className="workspace-search-container">
+                <input type="text" placeholder="Search workspaces..." className="workspace-search-input" value={workspaceSearch} onChange={(e) => onWorkspaceSearchChange(e.target.value)} />
+              </div>
+              <div className="workspace-pane-list">
+                {filteredWorkspaces.length > 0 ? filteredWorkspaces.map((workspace) => {
+                  const index = workspaceList.findIndex((ws) => ws.id === workspace.id);
+                  const count = workspace.counts?.total ?? workspace.sessions ?? 0;
+                  return (
+                    <button key={workspace.id} className={`workspace-pane-item ${index === workspaceIndex ? 'is-active' : ''}`} onClick={() => onWorkspaceSelect(index)}>
+                      <div className="workspace-tree-node">
+                        <ChevronRight size={12} className="tree-chevron" />
+                        <Folder size={14} className="tree-icon" />
+                        <span className="workspace-pane-name">{workspace.name}</span>
+                        <span className="workspace-count-badge">{count}</span>
+                      </div>
+                    </button>
+                  );
+                }) : (
+                  <div className="workspace-pane-empty">
+                    <div className="eyebrow">Server data</div>
+                    <div className="text-sm opacity-70">
+                      {isWorkspaceLoading ? 'Loading workspaces from server...' : workspaceSearch ? 'No workspaces match this search.' : 'No workspaces returned from the server.'}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
         </aside>
+        )}
 
         {children}
 
         <aside className="rail rail-right">
-          <div className="rail-group">{rightRailItems.map((item) => (<button key={item.id} type="button" className={`nav-item ${item.active ? 'is-active' : ''}`} onClick={item.action} title={item.label} aria-label={item.label}><span className="nav-icon">{item.icon}</span></button>))}</div>
+          <div className="rail-group">{rightRailItems.map((item) => (<button key={item.id} type="button" className={`nav-item ${item.id === 'global-task-create' ? 'nav-item-add' : ''} ${item.active ? 'is-active' : ''}`} onClick={item.action} title={item.label} aria-label={item.label}><span className="nav-icon">{item.icon}</span></button>))}</div>
           <div className="rail-spacer" />
         </aside>
       </div>

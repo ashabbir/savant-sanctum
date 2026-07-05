@@ -1,0 +1,197 @@
+{
+  "electron/main.ts": {
+    "mtime": 1783141542.2251477,
+    "ast_hash": "8d7949c34b7b7b12ae3397600f8e3994",
+    "semantic_hash": ""
+  },
+  "electron/preload.ts": {
+    "mtime": 1782050062.276803,
+    "ast_hash": "76ca7933c1698c61e12576fc33bb962f",
+    "semantic_hash": ""
+  },
+  "package.json": {
+    "mtime": 1783141542.225342,
+    "ast_hash": "2f6b0591e5ebae97a55e8c411d1ec2bf",
+    "semantic_hash": ""
+  },
+  "src/main.tsx": {
+    "mtime": 1781744980.5495393,
+    "ast_hash": "5b3e8289fe7cc895bd50e8d7a83f06b7",
+    "semantic_hash": ""
+  },
+  "src/renderer/App.tsx": {
+    "mtime": 1783141542.225438,
+    "ast_hash": "70a069b0bdd3892c4f93d798711d9904",
+    "semantic_hash": ""
+  },
+  "src/renderer/KnowledgeGraph.tsx": {
+    "mtime": 1783141542.2255132,
+    "ast_hash": "df751616956b9e4134e4c155bf592b49",
+    "semantic_hash": ""
+  },
+  "src/renderer/components/AppOverlays.tsx": {
+    "mtime": 1783141542.2255938,
+    "ast_hash": "28b6eff1669845d593923732a6223a95",
+    "semantic_hash": ""
+  },
+  "src/renderer/components/BottomBar.tsx": {
+    "mtime": 1782050067.360739,
+    "ast_hash": "81547390f65efd1789438a0ed502721b",
+    "semantic_hash": ""
+  },
+  "src/renderer/components/LoginScreen.tsx": {
+    "mtime": 1781775566.6197534,
+    "ast_hash": "5126151bf2b40f00b831a287b81345cf",
+    "semantic_hash": ""
+  },
+  "src/renderer/components/SessionConversation.tsx": {
+    "mtime": 1781982452.720972,
+    "ast_hash": "e68c79b50e4b7dd58cab3422938db292",
+    "semantic_hash": ""
+  },
+  "src/renderer/components/SettingsModal.tsx": {
+    "mtime": 1783141542.2256653,
+    "ast_hash": "51de8007f0d98b58b778df1961170c27",
+    "semantic_hash": ""
+  },
+  "src/renderer/components/ShellChrome.tsx": {
+    "mtime": 1781987740.959509,
+    "ast_hash": "77e55194116a985dd4ab5d471da88d9f",
+    "semantic_hash": ""
+  },
+  "src/renderer/components/WorkspaceAthenaDrawer.tsx": {
+    "mtime": 1783141542.225786,
+    "ast_hash": "599bd6701662948dc14cfe45ff1ef71b",
+    "semantic_hash": ""
+  },
+  "src/renderer/components/WorkspaceHeader.tsx": {
+    "mtime": 1781970691.3638656,
+    "ast_hash": "25e4ba5a0c82cb62ce95cd45a4f8de7c",
+    "semantic_hash": ""
+  },
+  "src/renderer/components/WorkspaceOverview.tsx": {
+    "mtime": 1781987563.471845,
+    "ast_hash": "ad7ea86e8ef3a73eb04327486a334beb",
+    "semantic_hash": ""
+  },
+  "src/renderer/components/WorkspacePanels.tsx": {
+    "mtime": 1781982460.1555657,
+    "ast_hash": "83e0d6576809489ddbe9ebeae0cbfaea",
+    "semantic_hash": ""
+  },
+  "src/renderer/components/WorkspacePrimitives.tsx": {
+    "mtime": 1781970117.7456234,
+    "ast_hash": "6f36d4c2320284e82ffe680b958bda68",
+    "semantic_hash": ""
+  },
+  "src/renderer/components/WorkspaceSessionCard.tsx": {
+    "mtime": 1782049363.6410542,
+    "ast_hash": "a7426c76d35fe5c5bbaf7a34025edb23",
+    "semantic_hash": ""
+  },
+  "src/renderer/components/WorkspaceSessionDetailsDrawer.tsx": {
+    "mtime": 1782018777.5350103,
+    "ast_hash": "8d052d014e56d5e32e0cc0c9a1b2d98d",
+    "semantic_hash": ""
+  },
+  "src/renderer/components/WorkspaceSessionsDrawer.tsx": {
+    "mtime": 1782018879.1083157,
+    "ast_hash": "a01309f73caf6a6e8dea737901439c63",
+    "semantic_hash": ""
+  },
+  "src/renderer/components/WorkspaceSurface.tsx": {
+    "mtime": 1781987546.451861,
+    "ast_hash": "2a3d2b295b36883bdaae1340b8846819",
+    "semantic_hash": ""
+  },
+  "src/renderer/components/workspaceEditor.ts": {
+    "mtime": 1781969563.7347634,
+    "ast_hash": "7e6a80b65724c1b2db6e63b72afcbcb7",
+    "semantic_hash": ""
+  },
+  "src/renderer/data.ts": {
+    "mtime": 1781968654.906605,
+    "ast_hash": "efd2f80f37b8e5a1c7a31d19782e3cd9",
+    "semantic_hash": ""
+  },
+  "src/renderer/lib/athenaContext.ts": {
+    "mtime": 1781982989.342768,
+    "ast_hash": "b4d8b81782e7ae235070b6635706fc7b",
+    "semantic_hash": ""
+  },
+  "src/renderer/services/sessionAdapters.ts": {
+    "mtime": 1782050022.2911425,
+    "ast_hash": "4cb1b684ca13f038908800a757f13251",
+    "semantic_hash": ""
+  },
+  "src/renderer/test/components.test.tsx": {
+    "mtime": 1782050058.8181288,
+    "ast_hash": "4405b1dc2fc98ec8777bc0b9b00d1e6f",
+    "semantic_hash": ""
+  },
+  "src/renderer/test/sanctum.test.ts": {
+    "mtime": 1781775124.5994158,
+    "ast_hash": "bc6b496941b6ad2cc0233d96dcb7eda4",
+    "semantic_hash": ""
+  },
+  "src/renderer/test/sessionAdapters.test.ts": {
+    "mtime": 1782049865.0946598,
+    "ast_hash": "51261eca768707aa55a192e250c8844b",
+    "semantic_hash": ""
+  },
+  "src/vite-env.d.ts": {
+    "mtime": 1782018620.1461596,
+    "ast_hash": "43854f0314ff54595ee33c1a8d642b40",
+    "semantic_hash": ""
+  },
+  "tsconfig.electron.json": {
+    "mtime": 1781734961.6754134,
+    "ast_hash": "7c2761f42a4a61eb1ca83c35fc1fdb36",
+    "semantic_hash": ""
+  },
+  "tsconfig.json": {
+    "mtime": 1781734958.7731857,
+    "ast_hash": "b4f21eba585e354a5b7ca2886999c238",
+    "semantic_hash": ""
+  },
+  "tsconfig.preload.json": {
+    "mtime": 1783141542.2258525,
+    "ast_hash": "aaeca709e9b83425ab6f35fa3271fa8f",
+    "semantic_hash": ""
+  },
+  "vite.config.ts": {
+    "mtime": 1782049824.0604038,
+    "ast_hash": "097b339e5f0f960afd0fff4db2937e2c",
+    "semantic_hash": ""
+  },
+  "index.html": {
+    "mtime": 1782049853.9515266,
+    "ast_hash": "b417180e6f484cf458b6b480f83befb7",
+    "semantic_hash": ""
+  },
+  "sanctum-roadmap-prd.md": {
+    "mtime": 1781731098.1538982,
+    "ast_hash": "5a94f1a7191369ce7f945dc02138dd06",
+    "semantic_hash": ""
+  },
+  "sanctum-style-guide.md": {
+    "mtime": 1781733850.8887954,
+    "ast_hash": "ac10c7fbfed8eba04260f04d808d0426",
+    "semantic_hash": ""
+  },
+  "sanctum.svg": {
+    "mtime": 1781734593.4505086,
+    "ast_hash": "4b1bb85409eedf6599948de4b01c016d",
+    "semantic_hash": ""
+  },
+  "savant.png": {
+    "mtime": 1780701648.334981,
+    "ast_hash": "331dd9d519cd69852c5892b2f20557ec",
+    "semantic_hash": ""
+  },
+  "tray.svg": {
+    "mtime": 1781734600.6509778,
+    "ast_hash": "f2ac36839553b6f374c7ebf8bdfe260f",
+    "semantic_hash": ""
+  }
+}

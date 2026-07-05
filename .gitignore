@@ -4,8 +4,11 @@ node_modules/
 # Build output
 dist/
 dist-electron/
+out/
+release/
 *.dmg
 *.blockmap
+*.tsbuildinfo
 
 # Generated app assets are tracked only when needed
 build/*

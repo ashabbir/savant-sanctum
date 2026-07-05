@@ -71,8 +71,8 @@ export function BottomBar({
       let sUrl = "http://127.0.0.1:8090";
 
       try {
-        const settings = await window.system.getSettings();
-        const osUser = await window.system.getUser().catch(() => "operator");
+        const settings = window.system?.getSettings ? await window.system.getSettings() : {};
+        const osUser = window.system?.getUser ? await window.system.getUser().catch(() => "operator") : "operator";
         name = settings["user:name"] || osUser || "operator";
         
         if (settings["system:defaultDirectory"]) {
@@ -139,7 +139,7 @@ export function BottomBar({
       }
 
       try {
-        const status = await window.system.getDbStatus();
+        const status = window.system?.getDbStatus ? await window.system.getDbStatus().catch(() => "offline") : "offline";
         setDbStatus(status === "connected" ? "connected" : "offline");
       } catch (e) {
         setDbStatus("offline");

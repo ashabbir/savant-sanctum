@@ -18,6 +18,13 @@ interface KnowledgeGraphProps {
   selectedModel?: string;
 }
 
+interface SessionModalState {
+  node: any;
+  editTitle: string;
+  editContent: string;
+  saving: boolean;
+}
+
 interface Node extends d3.SimulationNodeDatum {
   id: string;
   node_id: string;
@@ -125,6 +132,7 @@ export const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({
   const [isExploreActive, setIsExploreActive] = useState(false);
   const [focalNodeId, setFocalNodeId] = useState<string | null>(null);
   const [mergeNodeType, setMergeNodeType] = useState('insight');
+  const [sessionModal, setSessionModal] = useState<SessionModalState | null>(null);
 
   useEffect(() => {
     if (chatEndRef.current) {
@@ -142,8 +150,8 @@ export const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({
     try {
       const normalizedBase = baseUrl.replace(/\/+$/, '');
       const headers = apiKey ? { 'X-API-Key': apiKey } : {};
-      const workspaceUrl = `${normalizedBase}/api/knowledge/graph?workspace_id=${encodeURIComponent(workspaceId)}&limit=250&slim=false&include_staged=true&_=${Date.now()}`;
-      const fullUrl = `${normalizedBase}/api/knowledge/graph?limit=250&slim=false&include_staged=true&_=${Date.now()}`;
+      const workspaceUrl = `${normalizedBase}/api/knowledge/graph?workspace_id=${encodeURIComponent(workspaceId)}&slim=true&include_staged=true&_=${Date.now()}`;
+      const fullUrl = `${normalizedBase}/api/knowledge/graph?slim=true&include_staged=true&_=${Date.now()}`;
 
       const workspaceRes = await fetch(workspaceUrl, { headers }).catch(() => null);
       let raw: { nodes?: any[]; edges?: any[] } = { nodes: [], edges: [] };
@@ -342,8 +350,11 @@ export const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({
     setIsAiLoading(true);
 
     try {
-      // Call the Electron bridge to run the agent
-      const response = await (window as any).sanctum.runAgent({
+      const sanctum = (window as any).sanctum;
+      if (!sanctum?.runAgent) {
+        throw new Error('Sanctum IPC bridge not available. Make sure the Electron preload is loaded.');
+      }
+      const response = await sanctum.runAgent({
         prompt: `Entity: ${selectedNode.title} (${selectedNode.node_type})\nContext: ${selectedNode.content || ''}\nQuery: ${chatInput}`,
         chain: selectedProvider && selectedModel ? [{ provider: selectedProvider, model: selectedModel }] : undefined,
         sessionId: workspaceId,
@@ -352,12 +363,18 @@ export const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({
       const aiMsg: ChatMessage = {
         id: (Date.now() + 1).toString(),
         sender: 'assistant',
-        text: response,
+        text: typeof response === 'string' ? response : JSON.stringify(response),
         timestamp: new Date().toISOString(),
       };
       setChatMessages(prev => [...prev, aiMsg]);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Agent error:', err);
+      setChatMessages(prev => [...prev, {
+        id: (Date.now() + 1).toString(),
+        sender: 'assistant',
+        text: `Error: ${err?.message || String(err)}`,
+        timestamp: new Date().toISOString(),
+      }]);
     } finally {
       setIsAiLoading(false);
     }
@@ -534,8 +551,25 @@ export const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({
             return next;
           });
           setSelectedNode(d);
+        } else if (d.node_type === 'session') {
+          setSelectedNodes(new Map());
+          setSelectedNode(d);
+          // Lazy-fetch full content then open modal
+          const base = (baseUrl || 'http://127.0.0.1:8090').replace(/\/+$/, '');
+          const headers: Record<string,string> = apiKey ? { 'X-API-Key': apiKey } : {};
+          fetch(`${base}/api/knowledge/nodes/${d.node_id}`, { headers })
+            .then(r => r.ok ? r.json() : d)
+            .then(full => setSessionModal({ node: full, editTitle: full.title || '', editContent: full.content || '', saving: false }))
+            .catch(() => setSessionModal({ node: d, editTitle: d.title || '', editContent: d.content || '', saving: false }));
         } else {
           setSelectedNodes(new Map());
+          // Lazy-fetch full node content
+          const base = (baseUrl || 'http://127.0.0.1:8090').replace(/\/+$/, '');
+          const headers: Record<string,string> = apiKey ? { 'X-API-Key': apiKey } : {};
+          fetch(`${base}/api/knowledge/nodes/${d.node_id}`, { headers })
+            .then(r => r.ok ? r.json() : d)
+            .then(full => setSelectedNode(full))
+            .catch(() => setSelectedNode(d));
           setSelectedNode(d);
         }
         if (event.altKey) {
@@ -556,8 +590,49 @@ export const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({
         })
       );
 
-    // Node circles
-    nodeGroup.append('circle')
+    // Session nodes: rounded rect card
+    nodeGroup.filter(d => d.node_type === 'session')
+      .append('rect')
+      .attr('x', -52).attr('y', -20)
+      .attr('width', 104).attr('height', 40)
+      .attr('rx', 4).attr('ry', 4)
+      .attr('fill', d => selectedNodes.has(d.node_id) || d.id === selectedNode?.id ? '#1e3a4a' : '#111827')
+      .attr('stroke', d => selectedNodes.has(d.node_id) ? '#00e6c8' : d.id === selectedNode?.id ? '#6b7280' : '#374151')
+      .attr('stroke-width', d => selectedNodes.has(d.node_id) ? 2 : 1)
+      .attr('stroke-dasharray', d => d.status === 'staged' ? '3,3' : 'none')
+      .attr('opacity', d => selectedNodes.size > 0 && !selectedNodes.has(d.node_id) ? 0.32 : d.status === 'staged' ? 0.65 : 1);
+
+    // Session: type badge text
+    nodeGroup.filter(d => d.node_type === 'session')
+      .append('text')
+      .attr('dy', -6).attr('text-anchor', 'middle')
+      .text('SESSION')
+      .attr('fill', '#6b7280').attr('font-size', '7px')
+      .attr('font-family', 'Share Tech Mono, monospace')
+      .attr('letter-spacing', '1.5px')
+      .style('pointer-events', 'none');
+
+    // Session: title text (truncated, centered)
+    nodeGroup.filter(d => d.node_type === 'session')
+      .append('text')
+      .attr('dy', 8).attr('text-anchor', 'middle')
+      .text(d => { const t = d.title || d.node_id; return t.length > 18 ? t.slice(0, 18) + '…' : t; })
+      .attr('fill', '#e2e8f0').attr('font-size', '9px')
+      .attr('font-family', 'Share Tech Mono, monospace')
+      .style('pointer-events', 'none');
+
+    // Session: created_at badge
+    nodeGroup.filter(d => d.node_type === 'session')
+      .append('text')
+      .attr('dy', 21).attr('text-anchor', 'middle')
+      .text(d => d.created_at ? new Date(d.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '')
+      .attr('fill', '#4b5563').attr('font-size', '7px')
+      .attr('font-family', 'Share Tech Mono, monospace')
+      .style('pointer-events', 'none');
+
+    // Non-session node circles
+    nodeGroup.filter(d => d.node_type !== 'session')
+      .append('circle')
       .attr('r', d => selectedNodes.has(d.node_id) || d.id === selectedNode?.id ? 15 : 10)
       .attr('fill', d => NODE_TYPE_COLORS[d.node_type] || '#6b7280')
       .attr('stroke', d => selectedNodes.has(d.node_id) ? '#00e6c8' : d.id === selectedNode?.id ? '#fff' : 'rgba(255,255,255,0.1)')
@@ -565,11 +640,12 @@ export const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({
       .attr('stroke-dasharray', d => d.status === 'staged' ? '3,3' : 'none')
       .attr('opacity', d => selectedNodes.size > 0 && !selectedNodes.has(d.node_id) ? 0.32 : d.status === 'staged' ? 0.65 : 1);
 
-    // Node labels
-    nodeGroup.append('text')
+    // Non-session node labels (truncated)
+    nodeGroup.filter(d => d.node_type !== 'session')
+      .append('text')
       .attr('dy', 25)
       .attr('text-anchor', 'middle')
-      .text(d => d.title || d.node_id)
+      .text(d => { const t = d.title || d.node_id; return t.length > 20 ? t.slice(0, 20) + '…' : t; })
       .attr('fill', 'rgba(255,255,255,0.8)')
       .attr('font-size', '10px')
       .attr('font-family', 'Share Tech Mono, monospace')
@@ -630,6 +706,31 @@ export const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({
   const handleZoom = (factor: number) => {
     if (svgRef.current && zoomBehaviorRef.current) {
         d3.select(svgRef.current).transition().duration(250).call(zoomBehaviorRef.current.scaleBy, factor);
+    }
+  };
+
+  const handleSaveSessionNode = async () => {
+    if (!sessionModal) return;
+    setSessionModal(m => m ? { ...m, saving: true } : null);
+    try {
+      const normalizedBase = (baseUrl || 'http://127.0.0.1:8090').replace(/\/+$/, '');
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (apiKey) headers['X-API-Key'] = apiKey;
+      const res = await fetch(`${normalizedBase}/api/knowledge/nodes/${sessionModal.node.node_id}`, {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify({ title: sessionModal.editTitle, content: sessionModal.editContent }),
+      });
+      if (res.ok) {
+        setSessionModal(null);
+        await loadGraph();
+      } else {
+        alert('Failed to save session node');
+      }
+    } catch (err) {
+      alert('Error saving: ' + String(err));
+    } finally {
+      setSessionModal(m => m ? { ...m, saving: false } : null);
     }
   };
 
@@ -913,6 +1014,96 @@ export const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({
         )}
       </div>
     </div>
+
+    {/* Session Node Detail / Edit Modal */}
+    {sessionModal && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
+        <div className="w-full max-w-lg bg-[#0a0e17] border border-white/10 shadow-2xl rounded-sm flex flex-col" style={{ maxHeight: '85vh' }}>
+          {/* Header */}
+          <div className="flex items-center justify-between px-5 py-4 border-b border-white/5 shrink-0">
+            <div className="flex items-center gap-3">
+              <span className="text-[9px] uppercase tracking-widest px-2 py-0.5 bg-[#6b7280]/20 border border-[#6b7280]/30 text-[#6b7280] rounded-sm">session</span>
+              {sessionModal.node.status === 'staged' && (
+                <span className="text-[9px] uppercase tracking-widest px-2 py-0.5 bg-yellow-500/10 border border-yellow-500/30 text-yellow-400 rounded-sm">staged</span>
+              )}
+            </div>
+            <button onClick={() => setSessionModal(null)} className="text-white/30 hover:text-white/60 transition-colors">
+              <X size={16} />
+            </button>
+          </div>
+
+          {/* Body */}
+          <div className="flex-1 overflow-y-auto p-5 space-y-5">
+            {/* Meta row */}
+            <div className="grid grid-cols-2 gap-3 text-[10px] font-mono">
+              <div className="bg-white/[0.02] border border-white/5 px-3 py-2 rounded-sm">
+                <div className="text-white/30 uppercase tracking-widest mb-1">Created</div>
+                <div className="text-white/70">{sessionModal.node.created_at ? new Date(sessionModal.node.created_at).toLocaleString() : '—'}</div>
+              </div>
+              <div className="bg-white/[0.02] border border-white/5 px-3 py-2 rounded-sm">
+                <div className="text-white/30 uppercase tracking-widest mb-1">Node ID</div>
+                <div className="text-white/40 truncate">{sessionModal.node.node_id}</div>
+              </div>
+              {sessionModal.node.metadata?.workspace_id && (
+                <div className="bg-white/[0.02] border border-white/5 px-3 py-2 rounded-sm col-span-2">
+                  <div className="text-white/30 uppercase tracking-widest mb-1">Workspace</div>
+                  <div className="text-cyan-400/80">{sessionModal.node.metadata.workspace_id}</div>
+                </div>
+              )}
+              {sessionModal.node.metadata?.source && (
+                <div className="bg-white/[0.02] border border-white/5 px-3 py-2 rounded-sm col-span-2">
+                  <div className="text-white/30 uppercase tracking-widest mb-1">Source</div>
+                  <div className="text-white/60 break-all">{sessionModal.node.metadata.source}</div>
+                </div>
+              )}
+            </div>
+
+            {/* Editable title */}
+            <div className="space-y-1.5">
+              <label className="text-[10px] uppercase tracking-widest text-white/30">Title</label>
+              <input
+                value={sessionModal.editTitle}
+                onChange={e => setSessionModal(m => m ? { ...m, editTitle: e.target.value } : null)}
+                className="w-full bg-white/[0.03] border border-white/10 rounded-sm px-3 py-2 text-sm text-white/90 font-mono outline-none focus:border-cyan-500/50"
+              />
+            </div>
+
+            {/* Editable content */}
+            <div className="space-y-1.5">
+              <label className="text-[10px] uppercase tracking-widest text-white/30">Content</label>
+              <textarea
+                value={sessionModal.editContent}
+                onChange={e => setSessionModal(m => m ? { ...m, editContent: e.target.value } : null)}
+                rows={10}
+                className="w-full bg-white/[0.03] border border-white/10 rounded-sm px-3 py-2 text-xs text-white/80 font-mono outline-none focus:border-cyan-500/50 resize-y leading-relaxed"
+              />
+            </div>
+          </div>
+
+          {/* Footer */}
+          <div className="flex items-center justify-between gap-3 px-5 py-4 border-t border-white/5 shrink-0">
+            <button
+              onClick={() => { setSessionModal(null); handleExploreNode(sessionModal.node.node_id); }}
+              className="flex items-center gap-2 px-4 py-2 border border-white/10 text-white/50 hover:text-white/70 text-[10px] uppercase tracking-widest rounded-sm transition-colors"
+            >
+              <Layers size={12} /> Explore
+            </button>
+            <div className="flex gap-2">
+              <button onClick={() => setSessionModal(null)} className="px-4 py-2 border border-white/10 text-white/40 hover:text-white/60 text-[10px] uppercase tracking-widest rounded-sm transition-colors">
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveSessionNode}
+                disabled={sessionModal.saving}
+                className="px-5 py-2 bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 text-white text-[10px] uppercase tracking-widest font-bold rounded-sm transition-colors flex items-center gap-2"
+              >
+                <Check size={12} /> {sessionModal.saving ? 'Saving…' : 'Save'}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    )}
     </Tooltip.Provider>
   );
 };

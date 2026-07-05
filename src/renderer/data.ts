@@ -75,8 +75,12 @@ export type Task = {
   state: 'todo' | 'in-progress' | 'review' | 'done' | 'blocked';
   owner: string;
   due?: string;
-  dependsOn?: string[];
   comments?: string[];
+  dependsOn?: string[];
+  createdAt?: string;
+  updatedAt?: string;
+  timeSpent?: number;
+  complexity?: 'simple' | 'moderate' | 'complex' | 'extreme';
 };
 
 export type Reminder = {
@@ -251,6 +255,8 @@ export const tasks: Task[] = [
     state: 'in-progress',
     owner: 'ahmed',
     due: 'Today',
+    timeSpent: 12,
+    complexity: 'extreme',
   },
   {
     id: 'task-2',
@@ -260,6 +266,8 @@ export const tasks: Task[] = [
     state: 'todo',
     owner: 'ahmed',
     due: 'Today',
+    timeSpent: 4,
+    complexity: 'moderate',
   },
   {
     id: 'task-3',
@@ -269,6 +277,8 @@ export const tasks: Task[] = [
     state: 'todo',
     owner: 'ahmed',
     due: 'Tomorrow',
+    timeSpent: 8,
+    complexity: 'complex',
   },
   {
     id: 'task-4',
@@ -278,6 +288,8 @@ export const tasks: Task[] = [
     state: 'review',
     owner: 'ahmed',
     due: 'Today',
+    timeSpent: 2,
+    complexity: 'simple',
   },
 ];
 
@@ -384,7 +396,7 @@ export const apiSurface: SurfaceItem[] = [
 export const mcpSurface: SurfaceItem[] = [
   { id: 'mcp-1', label: 'savant-workspace', detail: 'Workspace/session/task/reminder tools', tone: 'good' },
   { id: 'mcp-2', label: 'savant-knowledge', detail: 'Knowledge graph and context tools', tone: 'good' },
-  { id: 'mcp-3', label: 'savant-abilities', detail: 'Ability and prompt assets', tone: 'muted' },
+  { id: 'mcp-3', label: 'savant-abilities', detail: 'Ability and prompt assets', tone: 'good' },
   { id: 'mcp-4', label: 'savant-context', detail: 'Context and code search', tone: 'muted' },
   { id: 'mcp-5', label: 'savant-reminders', detail: 'Reminder tooling', tone: 'muted' },
 ];

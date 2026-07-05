@@ -1,4 +1,4 @@
-import { app, BrowserWindow, Menu, Tray, ipcMain, nativeImage } from 'electron';
+import { app, BrowserWindow, ipcMain } from 'electron';
 import path from 'node:path';
 import fs from 'node:fs/promises';
 import os from 'node:os';
@@ -22,9 +22,6 @@ const COPILOT_SESSION_DB_PATH = path.join(COPILOT_DIR, 'session-store.db');
 
 let db: any;
 let codexLogsDb: any;
-let mainWindow: BrowserWindow | null = null;
-let tray: Tray | null = null;
-let isQuitting = false;
 
 type RunAgentPayload = {
   prompt?: string;
@@ -489,7 +486,7 @@ function createWindow() {
     title: 'Savant Sanctum',
     backgroundColor: '#080b12',
     webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
+      preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,
       sandbox: false,
     },
@@ -497,104 +494,18 @@ function createWindow() {
 
   const devUrl = process.env.VITE_DEV_SERVER_URL;
   if (devUrl) {
-    win.on('page-title-updated', (event) => {
-      event.preventDefault();
-      win.setTitle('Savant Sanctum');
-    });
-    win.once('ready-to-show', () => {
-      win.setTitle('Savant Sanctum');
-    });
     win.loadURL(devUrl);
     win.setTitle('Savant Sanctum');
-    mainWindow = win;
-    win.on('close', (event) => {
-      if (isQuitting) return;
-      event.preventDefault();
-      win.hide();
-    });
-    return win;
+    return;
   }
-  win.on('page-title-updated', (event) => {
-    event.preventDefault();
-    win.setTitle('Savant Sanctum');
-  });
-  win.once('ready-to-show', () => {
-    win.setTitle('Savant Sanctum');
-  });
   win.loadFile(path.join(__dirname, '../dist/index.html'));
   win.setTitle('Savant Sanctum');
-  mainWindow = win;
-  win.on('close', (event) => {
-    if (isQuitting) return;
-    event.preventDefault();
-    win.hide();
-  });
-  return win;
-}
-
-async function getTrayIconPath() {
-  const candidates = [
-    path.join(app.getAppPath(), 'build/icons/tray.png'),
-    path.join(__dirname, '../build/icons/tray.png'),
-    path.join(__dirname, '../tray.png'),
-  ];
-
-  for (const candidate of candidates) {
-    try {
-      await fs.access(candidate);
-      return candidate;
-    } catch {
-      continue;
-    }
-  }
-
-  return candidates[0];
-}
-
-async function createTray() {
-  if (process.platform !== 'darwin' && process.platform !== 'linux' && process.platform !== 'win32') return;
-
-  const iconPath = await getTrayIconPath();
-  const image = nativeImage.createFromPath(iconPath);
-  if (image.isEmpty()) return;
-
-  tray = new Tray(image);
-  tray.setToolTip('Savant Sanctum');
-  tray.setContextMenu(Menu.buildFromTemplate([
-    { label: 'Show Sanctum', click: () => mainWindow?.show() },
-    { label: 'Hide Sanctum', click: () => mainWindow?.hide() },
-    { type: 'separator' },
-    { label: 'Quit', click: () => app.quit() },
-  ]));
-  tray.on('click', () => {
-    if (!mainWindow) return;
-    if (mainWindow.isVisible()) {
-      mainWindow.hide();
-      return;
-    }
-    mainWindow.show();
-    mainWindow.focus();
-  });
 }
 
 app.whenReady().then(async () => {
   app.setName('Savant Sanctum');
   await initDb();
-  await createTray();
   createWindow();
-});
-
-app.on('activate', () => {
-  if (!mainWindow) {
-    createWindow();
-  } else if (!mainWindow.isVisible()) {
-    mainWindow.show();
-    mainWindow.focus();
-  }
-});
-
-app.on('before-quit', () => {
-  isQuitting = true;
 });
 
 app.on('window-all-closed', () => {

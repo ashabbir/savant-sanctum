@@ -1,8 +1,10 @@
-import { Check, ChevronDown, Circle, FileCode, FileText, GitBranch, History, ListChecks, Network, Plus, Timer, Trash2, X, Zap } from 'lucide-react';
+import { Check, ChevronDown, Circle, FileCode, FileText, GitBranch, History, ListChecks, Network, Plus, Timer, Trash2, X, Zap, Copy, Loader2, Send, Sparkles } from 'lucide-react';
 import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { KnowledgeGraph } from '../KnowledgeGraph';
 import { SettingsModal } from './SettingsModal';
-import type { Artifact, Note, Provider, Reminder, Session, Task } from '../data';
+import type { Artifact, Note, Provider, Reminder, Session, Task, Workspace } from '../data';
 import { WorkspaceSessionsDrawer } from './WorkspaceSessionsDrawer';
 import { WorkspaceSessionDetailsDrawer } from './WorkspaceSessionDetailsDrawer';
 import { getSessionAdapter, inferSessionProvider, type SessionConversationMessage, type SessionFileGroup } from '../services/sessionAdapters';
@@ -52,6 +54,7 @@ type AppOverlaysProps = {
   setIsKnowledgeOpen: Dispatch<SetStateAction<boolean>>;
   isTaskDrawerOpen: boolean;
   setIsTaskDrawerOpen: Dispatch<SetStateAction<boolean>>;
+  taskCreateRequest: number;
   isNotesDrawerOpen: boolean;
   setIsNotesDrawerOpen: Dispatch<SetStateAction<boolean>>;
   isMergeRequestsDrawerOpen: boolean;
@@ -89,6 +92,7 @@ type AppOverlaysProps = {
   gatewayProviders: Array<{ id: string; label: string; models: string[] }>;
   onSaveSettings: () => Promise<void> | void;
   onLogout: () => Promise<void> | void;
+  onRefreshProviders?: () => Promise<void> | void;
   recentAlerts: {
     id: string;
     title: string;
@@ -117,6 +121,10 @@ type AppOverlaysProps = {
   managementDrawer: 'tasks' | 'reminders' | null;
   setManagementDrawer: Dispatch<SetStateAction<'tasks' | 'reminders' | null>>;
   workspaceTasks: Task[];
+  taskDrawerScope: 'global' | 'workspace';
+  workspaceList: Workspace[];
+  taskToEdit: Task | null;
+  onTaskEditOpened: () => void;
   setTaskList: Dispatch<SetStateAction<Task[]>>;
   workspaceNotes: Note[];
   workspaceArtifacts: Artifact[];
@@ -131,6 +139,11 @@ type AppOverlaysProps = {
   activeWorkspaceId: string;
   serverBaseUrl: string;
   apiKey: string;
+  taskAthenaChats?: Record<string, { messages: any[]; isLoading: boolean; error: string; input: string }>;
+  onSendTaskAthenaMessage?: (taskId: string, text: string) => Promise<void> | void;
+  onDeleteTaskAthenaMessage?: (taskId: string, messageId: string) => void;
+  onClearTaskAthenaChat?: (taskId: string) => void;
+  onChangeTaskAthenaInput?: (taskId: string, text: string) => void;
 };
 
 export function AppOverlays(props: AppOverlaysProps) {
@@ -143,6 +156,7 @@ export function AppOverlays(props: AppOverlaysProps) {
     setIsKnowledgeOpen,
     isTaskDrawerOpen,
     setIsTaskDrawerOpen,
+    taskCreateRequest,
     isNotesDrawerOpen,
     setIsNotesDrawerOpen,
     isMergeRequestsDrawerOpen,
@@ -180,6 +194,7 @@ export function AppOverlays(props: AppOverlaysProps) {
     gatewayProviders,
     onSaveSettings,
     onLogout,
+    onRefreshProviders,
     recentAlerts,
     editDraft,
     setEditDraft,
@@ -190,6 +205,10 @@ export function AppOverlays(props: AppOverlaysProps) {
     managementDrawer,
     setManagementDrawer,
     workspaceTasks,
+    taskDrawerScope,
+    workspaceList,
+    taskToEdit,
+    onTaskEditOpened,
     setTaskList,
     workspaceNotes,
     workspaceArtifacts,
@@ -204,12 +223,19 @@ export function AppOverlays(props: AppOverlaysProps) {
     activeWorkspaceId,
     serverBaseUrl,
     apiKey,
+    taskAthenaChats = {},
+    onSendTaskAthenaMessage,
+    onDeleteTaskAthenaMessage,
+    onClearTaskAthenaChat,
+    onChangeTaskAthenaInput,
   } = props;
   const [selectedNote, setSelectedNote] = useState<Note | null>(null);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
+  const [taskEditorTab, setTaskEditorTab] = useState<'details' | 'athena'>('details');
   const [taskViewMode, setTaskViewMode] = useState<'board' | 'visualization'>('board');
   const [draggingTaskId, setDraggingTaskId] = useState<string | null>(null);
+  const [taskWorkspaceId, setTaskWorkspaceId] = useState('');
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
   const [mergeRequests, setMergeRequests] = useState<WorkspaceMergeRequest[]>([]);
   const [jiraTickets, setJiraTickets] = useState<WorkspaceJiraTicket[]>([]);
@@ -291,6 +317,17 @@ export function AppOverlays(props: AppOverlaysProps) {
     source: workflowNodePlacement.get(dependsOn),
     target: workflowNodePlacement.get(task.id),
   }))).filter((edge): edge is { id: string; source: NonNullable<typeof edge.source>; target: NonNullable<typeof edge.target> } => Boolean(edge.source && edge.target));
+  const visualTimeStats = useMemo(() => {
+    const tasksWithTime = workspaceTasks.filter(t => t.timeSpent !== undefined && t.timeSpent > 0);
+    if (tasksWithTime.length === 0) {
+      return { total: 0, average: 0, max: 0 };
+    }
+    const times = tasksWithTime.map(t => t.timeSpent!);
+    const total = times.reduce((sum, t) => sum + t, 0);
+    const average = Math.round((total / times.length) * 10) / 10;
+    const max = Math.max(...times);
+    return { total, average, max };
+  }, [workspaceTasks]);
   const truncateTaskTitle = (title: string) => title.length > 28 ? `${title.slice(0, 27)}…` : title;
   const selectedSession = selectedSessionId ? workspaceSessions.find((session) => session.id === selectedSessionId) ?? null : null;
   const selectedSessionFiles = selectedSession ? workspaceSessionFileGroups[selectedSession.id] : undefined;
@@ -574,6 +611,7 @@ export function AppOverlays(props: AppOverlaysProps) {
   };
   const openTaskCreator = () => {
     setSelectedTask(null);
+    setTaskEditorTab('details');
     setTaskEditor({
       title: '',
       description: '',
@@ -583,10 +621,16 @@ export function AppOverlays(props: AppOverlaysProps) {
       dependencyId: '',
       comment: '',
     });
+    setTaskWorkspaceId(taskDrawerScope === 'workspace' ? activeWorkspaceId : '');
     setIsTaskModalOpen(true);
   };
+  useEffect(() => {
+    if (taskCreateRequest <= 0) return;
+    openTaskCreator();
+  }, [taskCreateRequest]);
   const openTaskEditor = (task: Task) => {
     setSelectedTask(task);
+    setTaskEditorTab('details');
     setTaskEditor({
       title: task.title,
       description: task.description ?? '',
@@ -598,18 +642,29 @@ export function AppOverlays(props: AppOverlaysProps) {
     });
     setIsTaskModalOpen(true);
   };
+  useEffect(() => {
+    if (!taskToEdit) return;
+    openTaskEditor(taskToEdit);
+    onTaskEditOpened();
+  }, [taskToEdit]);
   const moveTask = (taskId: string, state: Task['state']) => {
     setTaskList((current) => current.map((task) => (task.id === taskId ? { ...task, state } : task)));
     setTaskFlags((current) => ({ ...current, [taskId]: { done: state === 'done' } }));
     setDraggingTaskId(null);
     pushToast('Task moved', `Task moved to ${state}.`, 'good');
+    void fetch(`${serverBaseUrl.replace(/\/+$/, '')}/api/tasks/${encodeURIComponent(taskId)}`, {
+      method: 'PUT',
+      headers,
+      body: JSON.stringify({ status: taskStatusForServer(state) }),
+    }).catch(() => undefined);
   };
   const createTask = async () => {
     const title = taskEditor.title.trim();
-    if (!title) return;
+    const workspaceId = taskDrawerScope === 'global' ? taskWorkspaceId : activeWorkspaceId;
+    if (!title || !workspaceId) return;
     const localTask: Task = {
       id: `task-${Date.now().toString(36)}`,
-      workspaceId: activeWorkspaceId,
+      workspaceId,
       title,
       description: taskEditor.description,
       priority: taskEditor.priority,
@@ -626,7 +681,7 @@ export function AppOverlays(props: AppOverlaysProps) {
         headers,
         body: JSON.stringify({
           task_id: localTask.id,
-          workspace_id: activeWorkspaceId,
+          workspace_id: workspaceId,
           title,
           description: taskEditor.description,
           status: taskStatusForServer(taskEditor.state),
@@ -641,7 +696,7 @@ export function AppOverlays(props: AppOverlaysProps) {
     setTaskList((current) => [task, ...current.filter((item) => item.id !== task.id)]);
     setSelectedTask(task);
     setIsTaskModalOpen(false);
-    pushToast('Task created', `${title} added.`, 'good');
+    pushToast('Task created', `${title} added to ${workspaceList.find((workspace) => workspace.id === workspaceId)?.name ?? workspaceId}.`, 'good');
   };
   const saveTask = async () => {
     if (!selectedTask) return;
@@ -856,13 +911,13 @@ export function AppOverlays(props: AppOverlaysProps) {
 
       {isTaskDrawerOpen && (
         <div className="activity-drawer-backdrop" onClick={() => setIsTaskDrawerOpen(false)}>
-          <div className="knowledge-drawer" onClick={(e) => e.stopPropagation()}>
+          <div className="knowledge-drawer task-drawer" onClick={(e) => e.stopPropagation()}>
             <div className="workspace-drawer-head">
               <div className="flex items-center gap-3">
                 <ListChecks size={18} className="text-cyan-400" />
                 <div>
                   <h2 className="brand-title !text-base !tracking-wider">Tasks</h2>
-                  <div className="workspace-drawer-subtitle">{workspaceTasks.length} tasks · {displayedWorkspaceName}</div>
+                  <div className="workspace-drawer-subtitle">{workspaceTasks.length} tasks · {taskDrawerScope === 'global' ? 'All workspaces' : displayedWorkspaceName}</div>
                 </div>
               </div>
               <div className="flex items-center gap-2">
@@ -870,7 +925,6 @@ export function AppOverlays(props: AppOverlaysProps) {
                   <button type="button" className={taskViewMode === 'board' ? 'is-active' : ''} onClick={() => setTaskViewMode('board')}><ListChecks size={13} /> Board</button>
                   <button type="button" className={taskViewMode === 'visualization' ? 'is-active' : ''} onClick={() => setTaskViewMode('visualization')}><Network size={13} /> Visualization</button>
                 </div>
-                <button className="ghost-btn accent icon-only" aria-label="Add task" title="Add task" onClick={openTaskCreator}><Plus size={14} /></button>
                 <button className="text-btn action-close icon-only" aria-label="Close" title="Close" onClick={() => setIsTaskDrawerOpen(false)}><X size={14} /></button>
               </div>
             </div>
@@ -908,9 +962,10 @@ export function AppOverlays(props: AppOverlaysProps) {
                             onClick={() => openTaskEditor(task)}
                           >
                             <div className="task-card-title">{task.title}</div>
+                            <div className="task-card-description">{task.description || 'No description.'}</div>
                             <div className="task-card-meta">
                               <span>{task.priority}</span>
-                              <span>{task.owner}</span>
+                              <span>{taskDrawerScope === 'global' ? (workspaceList.find((workspace) => workspace.id === task.workspaceId)?.name ?? task.workspaceId) : task.owner}</span>
                             </div>
                             <div className="task-card-state">{taskFlags[task.id]?.done ? 'done' : task.state}</div>
                           </button>
@@ -926,29 +981,87 @@ export function AppOverlays(props: AppOverlaysProps) {
                   {workspaceTasks.length === 0 ? (
                     <div className="activity-empty">No tasks to visualize.</div>
                   ) : (
-                    <svg className="task-workflow-svg" viewBox={`0 0 1000 ${workflowHeight}`} role="img" aria-label="Task workflow graph">
-                      <defs>
-                        <marker id="task-arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
-                          <path d="M0,0 L0,6 L9,3 z" fill="rgba(0,229,255,0.7)" />
-                        </marker>
-                      </defs>
-                      {workflowEdges.map((edge) => (
-                        <path
-                          key={edge.id}
-                          className="task-workflow-edge"
-                          markerEnd="url(#task-arrow)"
-                          d={`M${edge.source.x},${edge.source.y + 30} C${edge.source.x},${edge.source.y + 56} ${edge.target.x},${edge.target.y - 56} ${edge.target.x},${edge.target.y - 30}`}
-                        />
-                      ))}
-                      {workflowNodes.map(({ task, x, y }) => (
-                        <g key={task.id} className="task-workflow-node" role="button" tabIndex={0} onClick={() => openTaskEditor(task)}>
-                          <rect x={x - 84} y={y - 28} width="168" height="56" rx="0" className={`task-workflow-card priority-${task.priority}`} />
-                          <text x={x} y={y - 7} textAnchor="middle" className="task-workflow-title">{truncateTaskTitle(task.title)}</text>
-                          <text x={x} y={y + 13} textAnchor="middle" className="task-workflow-meta">{task.priority} · {taskFlags[task.id]?.done ? 'done' : task.state}</text>
-                          {(task.dependsOn ?? []).length > 0 && <circle cx={x + 70} cy={y + 15} r="4" className="task-workflow-link-dot" />}
-                        </g>
-                      ))}
-                    </svg>
+                    <>
+                      <div className="task-dashboard-stats" style={{ marginBottom: 20, gridTemplateColumns: 'repeat(3, minmax(0, 1fr))' }}>
+                        <div className="task-dashboard-stat task-dashboard-stat-active">
+                          <span>Total Time Spent</span>
+                          <strong>{visualTimeStats.total} hrs</strong>
+                        </div>
+                        <div className="task-dashboard-stat task-dashboard-stat-review">
+                          <span>Average Time Spent</span>
+                          <strong>{visualTimeStats.average} hrs</strong>
+                        </div>
+                        <div className="task-dashboard-stat task-dashboard-stat-critical">
+                          <span>Max Time Spent</span>
+                          <strong>{visualTimeStats.max} hrs</strong>
+                        </div>
+                      </div>
+                      <svg className="task-workflow-svg" viewBox={`0 0 1000 ${workflowHeight}`} role="img" aria-label="Task workflow graph">
+                        <defs>
+                          <marker id="task-arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+                            <path d="M0,0 L0,6 L9,3 z" fill="rgba(0,229,255,0.7)" />
+                          </marker>
+                        </defs>
+                        {workflowEdges.map((edge) => (
+                          <path
+                            key={edge.id}
+                            className="task-workflow-edge"
+                            markerEnd="url(#task-arrow)"
+                            d={`M${edge.source.x},${edge.source.y + 30} C${edge.source.x},${edge.source.y + 56} ${edge.target.x},${edge.target.y - 56} ${edge.target.x},${edge.target.y - 30}`}
+                          />
+                        ))}
+                        {workflowNodes.map(({ task, x, y }) => (
+                          <g key={task.id} className="task-workflow-node" role="button" tabIndex={0} onClick={() => openTaskEditor(task)}>
+                            <rect x={x - 84} y={y - 28} width="168" height="56" rx="0" className={`task-workflow-card priority-${task.priority}`} />
+                            <text x={x} y={y - 7} textAnchor="middle" className="task-workflow-title">{truncateTaskTitle(task.title)}</text>
+                            <text x={x} y={y + 13} textAnchor="middle" className="task-workflow-meta">{task.priority} · {taskFlags[task.id]?.done ? 'done' : task.state}</text>
+                            
+                            {/* Complexity Badge */}
+                            {task.complexity && (
+                              <g>
+                                <rect
+                                  x={x + 35}
+                                  y={y - 24}
+                                  width="45"
+                                  height="12"
+                                  rx="2"
+                                  fill={
+                                    task.complexity === 'extreme' ? 'rgba(255, 0, 85, 0.15)' :
+                                    task.complexity === 'complex' ? 'rgba(255, 170, 0, 0.15)' :
+                                    task.complexity === 'moderate' ? 'rgba(0, 229, 255, 0.15)' :
+                                    'rgba(0, 230, 118, 0.15)'
+                                  }
+                                  stroke={
+                                    task.complexity === 'extreme' ? '#ff0055' :
+                                    task.complexity === 'complex' ? '#ffaa00' :
+                                    task.complexity === 'moderate' ? '#00e5ff' :
+                                    '#00e676'
+                                  }
+                                  strokeWidth="0.5"
+                                />
+                                <text
+                                  x={x + 57.5}
+                                  y={y - 15}
+                                  textAnchor="middle"
+                                  style={{
+                                    fontSize: '7px',
+                                    fill: '#fff',
+                                    fontWeight: 'bold',
+                                    fontFamily: "'Share Tech Mono', monospace",
+                                    textTransform: 'uppercase',
+                                    letterSpacing: '0.05em'
+                                  }}
+                                >
+                                  {task.complexity}
+                                </text>
+                              </g>
+                            )}
+
+                            {(task.dependsOn ?? []).length > 0 && <circle cx={x + 70} cy={y + 15} r="4" className="task-workflow-link-dot" />}
+                          </g>
+                        ))}
+                      </svg>
+                    </>
                   )}
                 </div>
               )}
@@ -1194,89 +1307,221 @@ export function AppOverlays(props: AppOverlaysProps) {
               <button type="button" className="text-btn action-close icon-only" aria-label="Close" title="Close" onClick={() => setIsTaskModalOpen(false)}><X size={14} /></button>
             </div>
 
-            <div className="task-editor-grid">
-              <div className="task-editor-main">
-                <label className="task-editor-field">
-                  <span>Title</span>
-                  <input value={taskEditor.title} onChange={(event) => setTaskEditor((current) => ({ ...current, title: event.target.value }))} placeholder="Task title" />
-                </label>
-                <label className="task-editor-field">
-                  <span>Detail</span>
-                  <textarea value={taskEditor.description} onChange={(event) => setTaskEditor((current) => ({ ...current, description: event.target.value }))} placeholder="Task detail, acceptance notes, or implementation context." />
-                </label>
-                <div className="task-editor-section">
-                  <div className="task-editor-section-head">Comments</div>
-                  <div className="task-comment-list">
-                    {(selectedTask?.comments ?? []).length > 0 ? (selectedTask?.comments ?? []).map((comment, index) => (
-                      <div key={`${selectedTask?.id}-comment-${index}`} className="task-comment">{comment}</div>
-                    )) : (
-                      <div className="workspace-list-empty">No comments yet.</div>
-                    )}
-                  </div>
-                  <div className="task-inline-control">
-                    <input value={taskEditor.comment} onChange={(event) => setTaskEditor((current) => ({ ...current, comment: event.target.value }))} placeholder={selectedTask ? 'Add comment...' : 'Initial comment...'} />
-                    {selectedTask && <button type="button" className="ghost-btn icon-only" aria-label="Add comment" title="Add comment" onClick={addTaskComment}><Plus size={14} /></button>}
-                  </div>
+            {selectedTask && (
+              <div className="flex justify-between items-center border-b border-white/10 px-6 py-2">
+                <div className="flex gap-4">
+                  <button
+                    type="button"
+                    onClick={() => setTaskEditorTab('details')}
+                    className={`pb-1 text-sm font-semibold border-b-2 transition-all cursor-pointer ${taskEditorTab === 'details' ? 'border-cyan-400 text-cyan-400' : 'border-transparent text-white/50 hover:text-white'}`}
+                  >
+                    Details
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTaskEditorTab('athena')}
+                    className={`pb-1 border-b-2 transition-all cursor-pointer flex items-center justify-center ${taskEditorTab === 'athena' ? 'border-cyan-400 text-cyan-400' : 'border-transparent text-white/50 hover:text-white'}`}
+                    title="Ask Athena"
+                    aria-label="Ask Athena"
+                  >
+                    <Sparkles size={14} />
+                  </button>
                 </div>
+                {taskEditorTab === 'athena' && (
+                  <span
+                    className="px-2 py-0.5 border border-cyan-500/30 text-cyan-400 bg-cyan-950/20 text-[10px] font-mono tracking-wider rounded uppercase whitespace-nowrap cursor-default"
+                    title={`Active Model: ${selectedProvider} (${selectedModel})`}
+                  >
+                    {selectedProvider}:{selectedModel}
+                  </span>
+                )}
               </div>
+            )}
 
-              <aside className="task-editor-side">
-                <label className="task-editor-field">
-                  <span>Status</span>
-                  <select value={taskEditor.state} onChange={(event) => setTaskEditor((current) => ({ ...current, state: event.target.value as Task['state'] }))}>
-                    <option value="todo">to do</option>
-                    <option value="in-progress">in progress</option>
-                    <option value="review">review</option>
-                    <option value="done">done</option>
-                    <option value="blocked">blocked</option>
-                  </select>
-                </label>
-                <label className="task-editor-field">
-                  <span>Priority</span>
-                  <select value={taskEditor.priority} onChange={(event) => setTaskEditor((current) => ({ ...current, priority: event.target.value as Task['priority'] }))}>
-                    <option value="critical">critical</option>
-                    <option value="high">high</option>
-                    <option value="medium">medium</option>
-                    <option value="low">low</option>
-                  </select>
-                </label>
-                <label className="task-editor-field">
-                  <span>Date</span>
-                  <input type="date" value={taskEditor.due} onChange={(event) => setTaskEditor((current) => ({ ...current, due: event.target.value }))} />
-                </label>
-                <div className="detail-row"><strong>Workspace</strong><span>{displayedWorkspaceName}</span></div>
-                {selectedTask && <div className="detail-row"><strong>Task ID</strong><span>{selectedTask.id}</span></div>}
-
-                <div className="task-editor-section">
-                  <div className="task-editor-section-head">Linked tasks</div>
-                  <div className="task-link-list">
-                    {(selectedTask?.dependsOn ?? []).length > 0 ? (selectedTask?.dependsOn ?? []).map((taskId) => {
-                      const linkedTask = workspaceTasks.find((task) => task.id === taskId);
-                      return (
-                        <div key={taskId} className="task-link-row">
-                          <span>{linkedTask?.title ?? taskId}</span>
-                          <button type="button" onClick={() => removeDependency(taskId)}><Trash2 size={12} /> Remove</button>
-                        </div>
-                      );
-                    }) : (
-                      <div className="workspace-list-empty">No linked tasks.</div>
-                    )}
-                  </div>
-                  <div className="task-inline-control">
-                    <select value={taskEditor.dependencyId} onChange={(event) => setTaskEditor((current) => ({ ...current, dependencyId: event.target.value }))} disabled={!selectedTask}>
-                      <option value="">Select task...</option>
-                      {workspaceTasks.filter((task) => task.id !== selectedTask?.id).map((task) => (
-                        <option key={task.id} value={task.id}>{task.title}</option>
-                      ))}
-                    </select>
-                    <button type="button" className="ghost-btn" onClick={addDependency} disabled={!selectedTask}>Link</button>
+            {(!selectedTask || taskEditorTab === 'details') ? (
+              <div className="task-editor-grid">
+                <div className="task-editor-main">
+                  <label className="task-editor-field">
+                    <span>Title</span>
+                    <input value={taskEditor.title} onChange={(event) => setTaskEditor((current) => ({ ...current, title: event.target.value }))} placeholder="Task title" />
+                  </label>
+                  <label className="task-editor-field">
+                    <span>Detail</span>
+                    <textarea value={taskEditor.description} onChange={(event) => setTaskEditor((current) => ({ ...current, description: event.target.value }))} placeholder="Task detail, acceptance notes, or implementation context." />
+                  </label>
+                  <div className="task-editor-section">
+                    <div className="task-editor-section-head">Comments</div>
+                    <div className="task-comment-list">
+                      {(selectedTask?.comments ?? []).length > 0 ? (selectedTask?.comments ?? []).map((comment, index) => (
+                        <div key={`${selectedTask?.id}-comment-${index}`} className="task-comment">{comment}</div>
+                      )) : (
+                        <div className="workspace-list-empty">No comments yet.</div>
+                      )}
+                    </div>
+                    <div className="task-inline-control">
+                      <input value={taskEditor.comment} onChange={(event) => setTaskEditor((current) => ({ ...current, comment: event.target.value }))} placeholder={selectedTask ? 'Add comment...' : 'Initial comment...'} />
+                      {selectedTask && <button type="button" className="ghost-btn icon-only" aria-label="Add comment" title="Add comment" onClick={addTaskComment}><Plus size={14} /></button>}
+                    </div>
                   </div>
                 </div>
-              </aside>
-            </div>
+
+                <aside className="task-editor-side">
+                  <label className="task-editor-field">
+                    <span>Status</span>
+                    <select value={taskEditor.state} onChange={(event) => setTaskEditor((current) => ({ ...current, state: event.target.value as Task['state'] }))}>
+                      <option value="todo">to do</option>
+                      <option value="in-progress">in progress</option>
+                      <option value="review">review</option>
+                      <option value="done">done</option>
+                      <option value="blocked">blocked</option>
+                    </select>
+                  </label>
+                  <label className="task-editor-field">
+                    <span>Priority</span>
+                    <select value={taskEditor.priority} onChange={(event) => setTaskEditor((current) => ({ ...current, priority: event.target.value as Task['priority'] }))}>
+                      <option value="critical">critical</option>
+                      <option value="high">high</option>
+                      <option value="medium">medium</option>
+                      <option value="low">low</option>
+                    </select>
+                  </label>
+                  <label className="task-editor-field">
+                    <span>Date</span>
+                    <input type="date" value={taskEditor.due} onChange={(event) => setTaskEditor((current) => ({ ...current, due: event.target.value }))} />
+                  </label>
+                  {selectedTask ? (
+                    <div className="detail-row"><strong>Workspace</strong><span>{workspaceList.find((workspace) => workspace.id === selectedTask.workspaceId)?.name ?? selectedTask.workspaceId}</span></div>
+                  ) : taskDrawerScope === 'global' ? (
+                    <label className="task-editor-field">
+                      <span>Workspace</span>
+                      <select required value={taskWorkspaceId} onChange={(event) => setTaskWorkspaceId(event.target.value)}>
+                        <option value="">Choose workspace...</option>
+                        {workspaceList.map((workspace) => <option key={workspace.id} value={workspace.id}>{workspace.name}</option>)}
+                      </select>
+                    </label>
+                  ) : (
+                    <div className="detail-row"><strong>Workspace</strong><span>{displayedWorkspaceName}</span></div>
+                  )}
+                  {selectedTask && <div className="detail-row"><strong>Task ID</strong><span>{selectedTask.id}</span></div>}
+
+                  <div className="task-editor-section">
+                    <div className="task-editor-section-head">Linked tasks</div>
+                    <div className="task-link-list">
+                      {(selectedTask?.dependsOn ?? []).length > 0 ? (selectedTask?.dependsOn ?? []).map((taskId) => {
+                        const linkedTask = workspaceTasks.find((task) => task.id === taskId);
+                        return (
+                          <div key={taskId} className="task-link-row">
+                            <span>{linkedTask?.title ?? taskId}</span>
+                            <button type="button" onClick={() => removeDependency(taskId)}><Trash2 size={12} /> Remove</button>
+                          </div>
+                        );
+                      }) : (
+                        <div className="workspace-list-empty">No linked tasks.</div>
+                      )}
+                    </div>
+                    <div className="task-inline-control">
+                      <select value={taskEditor.dependencyId} onChange={(event) => setTaskEditor((current) => ({ ...current, dependencyId: event.target.value }))} disabled={!selectedTask}>
+                        <option value="">Select task...</option>
+                        {workspaceTasks.filter((task) => task.id !== selectedTask?.id).map((task) => (
+                          <option key={task.id} value={task.id}>{task.title}</option>
+                        ))}
+                      </select>
+                      <button type="button" className="ghost-btn" onClick={addDependency} disabled={!selectedTask}>Link</button>
+                    </div>
+                  </div>
+                </aside>
+              </div>
+            ) : (() => {
+              const activeTaskChat = selectedTask ? taskAthenaChats[selectedTask.id] || { messages: [], isLoading: false, error: '', input: '' } : { messages: [], isLoading: false, error: '', input: '' };
+              const handleTaskAthenaSend = (e: React.FormEvent | React.KeyboardEvent) => {
+                e.preventDefault();
+                if (!selectedTask || !onSendTaskAthenaMessage) return;
+                const text = (activeTaskChat.input || '').trim();
+                if (!text) return;
+                onSendTaskAthenaMessage(selectedTask.id, text);
+              };
+               return (
+                <div className="task-athena-container">
+                  <div className="px-4 py-2 bg-cyan-950/20 border-b border-cyan-500/10 flex flex-col gap-0.5">
+                    <div className="text-[9px] font-bold text-cyan-400 uppercase tracking-wider">Athena Context: Edit Task</div>
+                    <div className="text-[12px] font-semibold text-white/90 truncate">
+                      {selectedTask?.title || 'Unknown Task'}
+                    </div>
+                    <div className="text-[10px] text-white/50 flex gap-2">
+                      <span>Status: <strong className="text-cyan-300/80">{selectedTask?.state}</strong></span>
+                      <span>Priority: <strong className="text-cyan-300/80">{selectedTask?.priority}</strong></span>
+                    </div>
+                  </div>
+                  <div className="task-athena-messages">
+                    {activeTaskChat.messages.length === 0 ? (
+                      <div className="task-athena-empty">
+                        <Sparkles size={28} />
+                        <span>Ask Athena about this task</span>
+                      </div>
+                    ) : activeTaskChat.messages.map((message: any) => (
+                      <article key={message.id} className={`task-athena-message task-athena-message-${message.sender}`}>
+                        <div className="task-athena-message-body">
+                          {message.sender === 'assistant' ? (
+                            <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.text}</ReactMarkdown>
+                          ) : message.text}
+                        </div>
+                        <footer>
+                          <span>{message.sender === 'user' ? 'Operator' : 'Athena'} · {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                          <div>
+                            <button type="button" onClick={() => { void navigator.clipboard?.writeText(message.text); }} title="Copy message" aria-label="Copy message"><Copy size={12} /></button>
+                            <button type="button" onClick={() => onDeleteTaskAthenaMessage && onDeleteTaskAthenaMessage(selectedTask.id, message.id)} title="Delete message" aria-label="Delete message"><Trash2 size={12} /></button>
+                          </div>
+                        </footer>
+                      </article>
+                    ))}
+                    {activeTaskChat.isLoading && (
+                      <div className="task-athena-loading">
+                        <Loader2 size={14} />
+                        <span>Reading task context...</span>
+                      </div>
+                    )}
+                    {activeTaskChat.error && <div className="task-athena-error">{activeTaskChat.error}</div>}
+                  </div>
+
+                  <div className="task-athena-composer">
+                    <input
+                      type="text"
+                      value={activeTaskChat.input || ''}
+                      onChange={(event) => onChangeTaskAthenaInput && onChangeTaskAthenaInput(selectedTask.id, event.target.value)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter') {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          handleTaskAthenaSend(event);
+                        }
+                      }}
+                      placeholder="Ask Athena about this task..."
+                      disabled={activeTaskChat.isLoading}
+                    />
+                    <button type="button" onClick={handleTaskAthenaSend} disabled={activeTaskChat.isLoading || !(activeTaskChat.input || '').trim()} title="Send" aria-label="Send">
+                      <Send size={15} />
+                    </button>
+                    {activeTaskChat.messages.length > 0 && onClearTaskAthenaChat && (
+                      <button
+                        type="button"
+                        onClick={() => { if (window.confirm('Clear all Athena chat history for this task?')) onClearTaskAthenaChat(selectedTask.id); }}
+                        title="Clear chat history"
+                        aria-label="Clear chat"
+                        className="ghost-btn action-close icon-only"
+                        style={{ opacity: 0.5 }}
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
 
             <div className="modal-actions">
-              <button type="submit" className="ghost-btn action-save icon-only" aria-label={selectedTask ? 'Save task' : 'Create task'} title={selectedTask ? 'Save task' : 'Create task'}><Check size={14} /></button>
+              {(!selectedTask || taskEditorTab === 'details') && (
+                <button type="submit" className="ghost-btn action-save icon-only" aria-label={selectedTask ? 'Save task' : 'Create task'} title={selectedTask ? 'Save task' : 'Create task'}><Check size={14} /></button>
+              )}
               <button type="button" className="ghost-btn action-close icon-only" aria-label="Cancel" title="Cancel" onClick={() => setIsTaskModalOpen(false)}><X size={14} /></button>
             </div>
           </form>
@@ -1369,6 +1614,7 @@ export function AppOverlays(props: AppOverlaysProps) {
         onSelectedModelChange={setSelectedModel}
         onSave={onSaveSettings}
         onLogout={onLogout}
+        onRefreshProviders={onRefreshProviders}
       />
 
       {managementDrawer && (
