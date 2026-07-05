@@ -88,6 +88,7 @@ describe('renderer components', () => {
         onAddNote={noop}
         onOpenKnowledge={noop}
         onOpenActivity={noop}
+        workspaceId="test-workspace-id"
       />,
     );
 
@@ -97,6 +98,7 @@ describe('renderer components', () => {
     expect(html).toContain('Density sparse');
     expect(html).toContain('Edit workspace');
     expect(html).toContain('color:#12ab34');
+    expect(html).toContain('aria-label="Copy workspace ID"');
   });
 
   it('creates a blank workspace draft for add', () => {
@@ -299,6 +301,8 @@ describe('renderer components', () => {
     expect(html).toContain('10'); // Nodes
     expect(html).toContain('5'); // Edges
     expect(html).toContain('15'); // Activity total
+    expect(html).not.toContain('Workspace ID');
+    expect(html).not.toContain('Copy ID');
   });
 
   it('renders WorkspaceSessionCard and generates the correct resume command', () => {
@@ -381,6 +385,8 @@ describe('renderer components', () => {
     );
 
     expect(html).toContain('Savant Sanctum');
+    expect(html).toContain('Server URL');
+    expect(html).toContain('value="http://127.0.0.1:8090"');
     expect(html).toContain('Savant API Key');
     expect(html).toContain('placeholder="sk-..."');
   });

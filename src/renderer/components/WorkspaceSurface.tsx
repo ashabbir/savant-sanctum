@@ -1,6 +1,7 @@
 import { useMemo, useState, type Dispatch, type ReactNode, type SetStateAction } from 'react';
 import { Ban, BarChart3, Check, ChevronDown, ListChecks, Network, Trash2, X } from 'lucide-react';
 import { apiSurface, localSetup, mcpSurface, type Artifact, type Provider, type Reminder, type Session, type SurfaceMode, type Task, type Workspace } from '../data';
+import { canMoveTask, isTaskBlocked, taskWorkflowState, type TaskFlagState } from '../lib/taskBoard';
 import { PanelHeader } from './WorkspacePrimitives';
 import { WorkspaceOverview } from './WorkspaceOverview';
 import { WorkspaceHeader } from './WorkspaceHeader';
@@ -75,9 +76,9 @@ type WorkspaceSurfaceProps = {
   onCreateSessionNote: (text: string) => Promise<void> | void;
   setTaskList: Dispatch<SetStateAction<Task[]>>;
   setReminderList: Dispatch<SetStateAction<Reminder[]>>;
-  taskFlags: Record<string, { done?: boolean; blocked?: boolean; lastMovedAt?: string; lastMovedFrom?: string; lastMovedTo?: string }>;
+  taskFlags: Record<string, TaskFlagState>;
   reminderFlags: Record<string, { done?: boolean }>;
-  setTaskFlags: Dispatch<SetStateAction<Record<string, { done?: boolean; blocked?: boolean; lastMovedAt?: string; lastMovedFrom?: string; lastMovedTo?: string }>>>;
+  setTaskFlags: Dispatch<SetStateAction<Record<string, TaskFlagState>>>;
   setReminderFlags: Dispatch<SetStateAction<Record<string, { done?: boolean }>>>;
   workspaceSearch: string;
   setWorkspaceSearch: (value: string) => void;
@@ -176,7 +177,7 @@ export function WorkspaceSurface(props: WorkspaceSurfaceProps) {
     onOpenSessions,
   } = props;
   const [draggingTaskId, setDraggingTaskId] = useState<string | null>(null);
-  const [taskViewMode, setTaskViewMode] = useState<'board' | 'visualization' | 'analytics'>('board');
+  const [taskViewMode, setTaskViewMode] = useState<'overview' | 'visualization' | 'analytics'>('overview');
   const [isGlobalTaskCreateOpen, setIsGlobalTaskCreateOpen] = useState(false);
   const [taskWorkspaceFilter, setTaskWorkspaceFilter] = useState<string>('');
   const [taskStatusFilter, setTaskStatusFilter] = useState<string>('');
@@ -205,7 +206,13 @@ export function WorkspaceSurface(props: WorkspaceSurfaceProps) {
     updatedAt: task.updated_at ?? task.updatedAt ?? fallback.updatedAt,
   });
   const moveGlobalTask = (taskId: string, state: Task['state']) => {
-    const previousState = allTasks.find((task) => task.id === taskId)?.state ?? 'todo';
+    const currentTask = allTasks.find((task) => task.id === taskId);
+    if (currentTask && !canMoveTask(currentTask, state, taskFlags)) {
+      pushToast('Task blocked', `${currentTask.title} must be unblocked before changing status.`, 'warning');
+      setDraggingTaskId(null);
+      return;
+    }
+    const previousState = currentTask ? taskWorkflowState(currentTask, taskFlags) : 'todo';
     const movedAt = new Date().toISOString();
     setTaskList((current) => current.map((task) => (task.id === taskId ? { ...task, state } : task)));
     setTaskFlags((current) => ({ ...current, [taskId]: { ...(current[taskId] ?? {}), done: state === 'done', lastMovedAt: movedAt, lastMovedFrom: previousState, lastMovedTo: state } }));
@@ -217,15 +224,14 @@ export function WorkspaceSurface(props: WorkspaceSurfaceProps) {
       body: JSON.stringify({ status: state }),
     }).catch(() => undefined);
   };
-  const isTaskBlocked = (task: Task) => Boolean(taskFlags[task.id]?.blocked || task.state === 'blocked');
-  const taskWorkflowState = (task: Task): Exclude<Task['state'], 'blocked'> => task.state === 'blocked' ? 'todo' : task.state;
   const toggleTaskBlocked = (task: Task) => {
-    const blocked = !isTaskBlocked(task);
+    const blocked = !isTaskBlocked(task, taskFlags);
+    const workflowState = taskWorkflowState(task, taskFlags);
     setTaskFlags((current) => ({ ...current, [task.id]: { ...(current[task.id] ?? {}), blocked } }));
     if (task.state === 'blocked') {
-      setTaskList((current) => current.map((item) => item.id === task.id ? { ...item, state: 'todo' } : item));
+      setTaskList((current) => current.map((item) => item.id === task.id ? { ...item, state: workflowState } : item));
     }
-    pushToast(blocked ? 'Task blocked' : 'Task unblocked', `${task.title} remains in ${taskWorkflowState(task)}.`, blocked ? 'warning' : 'good');
+    pushToast(blocked ? 'Task blocked' : 'Task unblocked', `${task.title} remains in ${workflowState}.`, blocked ? 'warning' : 'good');
   };
   const removeGlobalTask = (taskId: string) => {
     const task = allTasks.find((item) => item.id === taskId);
@@ -243,7 +249,7 @@ export function WorkspaceSurface(props: WorkspaceSurfaceProps) {
   };
   const filteredGlobalTasks = useMemo(() => {
     return allTasks.filter((task) => {
-      const doneState = taskFlags[task.id]?.done ? 'done' : taskWorkflowState(task);
+      const doneState = taskFlags[task.id]?.done ? 'done' : task.state;
       const searchText = taskTextFilter.trim().toLowerCase();
       if (searchText && !`${task.title} ${task.description ?? ''}`.toLowerCase().includes(searchText)) return false;
       if (taskWorkspaceFilter && task.workspaceId !== taskWorkspaceFilter) return false;
@@ -255,15 +261,15 @@ export function WorkspaceSurface(props: WorkspaceSurfaceProps) {
   const filteredTaskColumns = useMemo(() => {
     return (['todo', 'in-progress', 'review', 'done'] as const).map((state) => ({
       state,
-      tasks: filteredGlobalTasks.filter((task) => (taskFlags[task.id]?.done ? 'done' : taskWorkflowState(task)) === state),
+      tasks: filteredGlobalTasks.filter((task) => (taskFlags[task.id]?.done ? 'done' : task.state) === state),
     }));
   }, [filteredGlobalTasks, taskFlags]);
   const globalTaskStats = useMemo(() => {
     const completed = filteredGlobalTasks.filter((task) => (taskFlags[task.id]?.done ? 'done' : task.state) === 'done').length;
-    const blocked = filteredGlobalTasks.filter((task) => isTaskBlocked(task) && !taskFlags[task.id]?.done).length;
-    const active = filteredGlobalTasks.filter((task) => taskWorkflowState(task) === 'in-progress' && !taskFlags[task.id]?.done).length;
-    const todo = filteredGlobalTasks.filter((task) => taskWorkflowState(task) === 'todo' && !taskFlags[task.id]?.done).length;
-    const review = filteredGlobalTasks.filter((task) => taskWorkflowState(task) === 'review' && !taskFlags[task.id]?.done).length;
+    const blocked = filteredGlobalTasks.filter((task) => isTaskBlocked(task, taskFlags) && !taskFlags[task.id]?.done).length;
+    const active = filteredGlobalTasks.filter((task) => taskWorkflowState(task, taskFlags) === 'in-progress' && !taskFlags[task.id]?.done).length;
+    const todo = filteredGlobalTasks.filter((task) => taskWorkflowState(task, taskFlags) === 'todo' && !taskFlags[task.id]?.done).length;
+    const review = filteredGlobalTasks.filter((task) => taskWorkflowState(task, taskFlags) === 'review' && !taskFlags[task.id]?.done).length;
     const critical = filteredGlobalTasks.filter((task) => task.priority === 'critical' && !taskFlags[task.id]?.done && task.state !== 'done').length;
     const workspaceCount = new Set(filteredGlobalTasks.map((task) => task.workspaceId).filter(Boolean)).size;
     const completionRate = filteredGlobalTasks.length ? Math.round((completed / filteredGlobalTasks.length) * 100) : 0;
@@ -324,7 +330,7 @@ export function WorkspaceSurface(props: WorkspaceSurfaceProps) {
     const scoped = filteredGlobalTasks.filter((task) => task.workspaceId === workspace.id);
     const statusCounts = (['todo', 'in-progress', 'review', 'done'] as const).map((status) => ({
       status,
-      count: scoped.filter((task) => (taskFlags[task.id]?.done ? 'done' : taskWorkflowState(task)) === status).length,
+      count: scoped.filter((task) => (taskFlags[task.id]?.done ? 'done' : taskWorkflowState(task, taskFlags)) === status).length,
     }));
     const createdTimes = scoped.map((task) => Date.parse(task.createdAt ?? '')).filter(Number.isFinite);
     const latestActivity = scoped
@@ -424,6 +430,7 @@ export function WorkspaceSurface(props: WorkspaceSurfaceProps) {
         }}
         onOpenKnowledge={() => setIsKnowledgeOpen(true)}
         onOpenActivity={() => setIsActivityOpen(true)}
+        workspaceId={activeWorkspaceId}
       />}
       {activeSection === 'workspace' ? (
         <WorkspaceOverview
@@ -488,11 +495,11 @@ export function WorkspaceSurface(props: WorkspaceSurfaceProps) {
               </label>
             </div>
             <div className="task-view-toggle mb-4" role="tablist" aria-label="Task view">
+              <button type="button" className={taskViewMode === 'overview' ? 'is-active' : ''} onClick={() => setTaskViewMode('overview')}><ListChecks size={13} /> Overview</button>
               <button type="button" className={taskViewMode === 'analytics' ? 'is-active' : ''} onClick={() => setTaskViewMode('analytics')}><BarChart3 size={13} /> Analytics</button>
-              <button type="button" className={taskViewMode === 'board' ? 'is-active' : ''} onClick={() => setTaskViewMode('board')}><ListChecks size={13} /> Board</button>
               <button type="button" className={taskViewMode === 'visualization' ? 'is-active' : ''} onClick={() => setTaskViewMode('visualization')}><Network size={13} /> Visual</button>
             </div>
-            {taskViewMode === 'board' ? (
+            {taskViewMode === 'overview' ? (
               <div className="task-kanban-grid task-manager-kanban-grid">
                 {filteredTaskColumns.map((column) => (
                   <section key={column.state} className="task-kanban-column">
@@ -513,8 +520,12 @@ export function WorkspaceSurface(props: WorkspaceSurfaceProps) {
                         <div
                           key={task.id}
                           className="task-kanban-card"
-                          draggable
+                          draggable={!isTaskBlocked(task, taskFlags)}
                           onDragStart={(event) => {
+                            if (isTaskBlocked(task, taskFlags)) {
+                              event.preventDefault();
+                              return;
+                            }
                             setDraggingTaskId(task.id);
                             event.dataTransfer.setData('text/plain', task.id);
                             event.dataTransfer.effectAllowed = 'move';
@@ -532,15 +543,15 @@ export function WorkspaceSurface(props: WorkspaceSurfaceProps) {
                           </div>
                           <div className="task-card-footer">
                             <div className="task-card-footer-state">
-                              <div className="task-card-state">{taskFlags[task.id]?.done ? 'done' : taskWorkflowState(task)}</div>
-                              {isTaskBlocked(task) && <div className="task-blocked-badge"><Ban size={11} /> Blocked</div>}
+                              <div className="task-card-state">{taskFlags[task.id]?.done ? 'done' : taskWorkflowState(task, taskFlags)}</div>
+                              {isTaskBlocked(task, taskFlags) && <div className="task-blocked-badge"><Ban size={11} /> Blocked</div>}
                             </div>
                             <div className="task-card-actions">
                               <button
                                 type="button"
-                                className={`task-card-block ${isTaskBlocked(task) ? 'is-blocked' : ''}`}
-                                aria-label={`${isTaskBlocked(task) ? 'Unblock' : 'Block'} ${task.title}`}
-                                title={isTaskBlocked(task) ? 'Unblock task' : 'Block task'}
+                                className={`task-card-block ${isTaskBlocked(task, taskFlags) ? 'is-blocked' : ''}`}
+                                aria-label={`${isTaskBlocked(task, taskFlags) ? 'Unblock' : 'Block'} ${task.title}`}
+                                title={isTaskBlocked(task, taskFlags) ? 'Unblock task' : 'Block task'}
                                 onClick={(event) => { event.stopPropagation(); toggleTaskBlocked(task); }}
                               >
                                 <Ban size={14} />

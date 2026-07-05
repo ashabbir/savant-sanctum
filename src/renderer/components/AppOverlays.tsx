@@ -1,10 +1,11 @@
-import { Check, ChevronDown, Circle, FileCode, FileText, GitBranch, History, ListChecks, Network, Plus, Timer, Trash2, X, Zap, Copy, Loader2, Send, Sparkles } from 'lucide-react';
+import { Ban, Check, ChevronDown, Circle, FileCode, FileText, GitBranch, History, ListChecks, Network, Plus, Timer, Trash2, X, Zap, Copy, Loader2, Send, Sparkles } from 'lucide-react';
 import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { KnowledgeGraph } from '../KnowledgeGraph';
 import { SettingsModal } from './SettingsModal';
 import type { Artifact, Note, Provider, Reminder, Session, Task, Workspace } from '../data';
+import { canMoveTask, isTaskBlocked, taskBoardState, taskWorkflowState, type TaskFlagState } from '../lib/taskBoard';
 import { WorkspaceSessionsDrawer } from './WorkspaceSessionsDrawer';
 import { WorkspaceSessionDetailsDrawer } from './WorkspaceSessionDetailsDrawer';
 import { getSessionAdapter, inferSessionProvider, type SessionConversationMessage, type SessionFileGroup } from '../services/sessionAdapters';
@@ -131,8 +132,8 @@ type AppOverlaysProps = {
   workspaceSessions: Session[];
   workspaceReminders: Reminder[];
   displayedWorkspaceName: string;
-  taskFlags: Record<string, { done?: boolean }>;
-  setTaskFlags: Dispatch<SetStateAction<Record<string, { done?: boolean }>>>;
+  taskFlags: Record<string, TaskFlagState>;
+  setTaskFlags: Dispatch<SetStateAction<Record<string, TaskFlagState>>>;
   reminderFlags: Record<string, { done?: boolean }>;
   setReminderFlags: Dispatch<SetStateAction<Record<string, { done?: boolean }>>>;
   pushToast: (title: string, detail: string, tone?: 'good' | 'warning' | 'muted') => void;
@@ -259,12 +260,12 @@ export function AppOverlays(props: AppOverlaysProps) {
     comment: '',
   });
   const isTaskDone = (task: Task) => task.state === 'done' || Boolean(taskFlags[task.id]?.done);
+  const taskDisplayState = (task: Task) => taskBoardState(task, taskFlags);
   const taskColumns = [
-    { id: 'todo', title: 'To do', state: 'todo' as const, tasks: workspaceTasks.filter((task) => !isTaskDone(task) && task.state === 'todo') },
-    { id: 'active', title: 'In progress', state: 'in-progress' as const, tasks: workspaceTasks.filter((task) => !isTaskDone(task) && task.state === 'in-progress') },
-    { id: 'review', title: 'Review', state: 'review' as const, tasks: workspaceTasks.filter((task) => !isTaskDone(task) && task.state === 'review') },
+    { id: 'todo', title: 'To do', state: 'todo' as const, tasks: workspaceTasks.filter((task) => !isTaskDone(task) && taskDisplayState(task) === 'todo') },
+    { id: 'active', title: 'In progress', state: 'in-progress' as const, tasks: workspaceTasks.filter((task) => !isTaskDone(task) && taskDisplayState(task) === 'in-progress') },
+    { id: 'review', title: 'Review', state: 'review' as const, tasks: workspaceTasks.filter((task) => !isTaskDone(task) && taskDisplayState(task) === 'review') },
     { id: 'done', title: 'Done', state: 'done' as const, tasks: workspaceTasks.filter((task) => isTaskDone(task)) },
-    { id: 'blocked', title: 'Blocked', state: 'blocked' as const, tasks: workspaceTasks.filter((task) => !isTaskDone(task) && task.state === 'blocked') },
   ];
   const dependencyParents = new Map<string, string[]>();
   const dependencyChildren = new Map<string, string[]>();
@@ -404,6 +405,10 @@ export function AppOverlays(props: AppOverlaysProps) {
         setIsSessionsDrawerOpen(false);
         return;
       }
+      if (managementDrawer) {
+        setManagementDrawer(null);
+        return;
+      }
       if (selectedSessionId) {
         setSelectedSessionId(null);
       }
@@ -424,6 +429,8 @@ export function AppOverlays(props: AppOverlaysProps) {
     selectedSessionId,
     isTaskDrawerOpen,
     isTaskModalOpen,
+    managementDrawer,
+    setManagementDrawer,
   ]);
 
   const getNoteSessionTitle = (note: Note) => workspaceSessions.find((session) => session.id === note.sessionId)?.title ?? 'Workspace session';
@@ -431,7 +438,8 @@ export function AppOverlays(props: AppOverlaysProps) {
   const authHeaders = apiKey ? { 'X-API-Key': apiKey } : {};
   const taskStatusForServer = (state: Task['state']) => state;
   const taskStateFromServer = (status: string | undefined, fallback: Task['state']): Task['state'] => {
-    if (status === 'todo' || status === 'in-progress' || status === 'review' || status === 'done' || status === 'blocked') return status;
+    if (status === 'todo' || status === 'in-progress' || status === 'review' || status === 'done') return status;
+    if (status === 'blocked') return fallback;
     return fallback;
   };
   const normalizeTaskFromServer = (task: any, fallback: Task): Task => ({
@@ -648,14 +656,59 @@ export function AppOverlays(props: AppOverlaysProps) {
     onTaskEditOpened();
   }, [taskToEdit]);
   const moveTask = (taskId: string, state: Task['state']) => {
+    const currentTask = workspaceTasks.find((task) => task.id === taskId);
+    if (currentTask && !canMoveTask(currentTask, state, taskFlags)) {
+      pushToast('Task blocked', `${currentTask.title} must be unblocked before changing status.`, 'warning');
+      setDraggingTaskId(null);
+      return;
+    }
+    const previousState = currentTask ? taskWorkflowState(currentTask, taskFlags) : 'todo';
     setTaskList((current) => current.map((task) => (task.id === taskId ? { ...task, state } : task)));
-    setTaskFlags((current) => ({ ...current, [taskId]: { done: state === 'done' } }));
+    setTaskFlags((current) => ({
+      ...current,
+      [taskId]: {
+        ...(current[taskId] ?? {}),
+        done: state === 'done',
+        lastMovedAt: new Date().toISOString(),
+        lastMovedFrom: current[taskId]?.lastMovedFrom ?? previousState,
+        lastMovedTo: state,
+      },
+    }));
     setDraggingTaskId(null);
     pushToast('Task moved', `Task moved to ${state}.`, 'good');
     void fetch(`${serverBaseUrl.replace(/\/+$/, '')}/api/tasks/${encodeURIComponent(taskId)}`, {
       method: 'PUT',
       headers,
       body: JSON.stringify({ status: taskStatusForServer(state) }),
+    }).catch(() => undefined);
+  };
+  const toggleTaskBlocked = (task: Task) => {
+    const blocked = !isTaskBlocked(task, taskFlags);
+    const workflowState = taskWorkflowState(task, taskFlags);
+    setTaskFlags((current) => ({
+      ...current,
+      [task.id]: {
+        ...(current[task.id] ?? {}),
+        blocked,
+        lastMovedFrom: current[task.id]?.lastMovedFrom ?? workflowState,
+      },
+    }));
+    if (task.state === 'blocked' && !blocked) {
+      setTaskList((current) => current.map((item) => item.id === task.id ? { ...item, state: workflowState } : item));
+    }
+    pushToast(blocked ? 'Task blocked' : 'Task unblocked', `${task.title} remains in ${workflowState}.`, blocked ? 'warning' : 'good');
+  };
+  const removeTask = (taskId: string) => {
+    setTaskList((current) => current.filter((task) => task.id !== taskId));
+    setTaskFlags((current) => {
+      const next = { ...current };
+      delete next[taskId];
+      return next;
+    });
+    pushToast('Task removed', 'Task removed from the workspace board.', 'warning');
+    void fetch(`${serverBaseUrl.replace(/\/+$/, '')}/api/tasks/${encodeURIComponent(taskId)}`, {
+      method: 'DELETE',
+      headers,
     }).catch(() => undefined);
   };
   const createTask = async () => {
@@ -702,13 +755,14 @@ export function AppOverlays(props: AppOverlaysProps) {
     if (!selectedTask) return;
     const title = taskEditor.title.trim();
     if (!title) return;
+    const blockedState = isTaskBlocked(selectedTask, taskFlags) ? taskWorkflowState(selectedTask, taskFlags) : null;
 
     const updatedLocal: Task = {
       ...selectedTask,
       title,
       description: taskEditor.description,
       priority: taskEditor.priority,
-      state: taskEditor.state,
+      state: blockedState ?? taskEditor.state,
       due: taskEditor.due || undefined,
     };
 
@@ -720,7 +774,7 @@ export function AppOverlays(props: AppOverlaysProps) {
         body: JSON.stringify({
           title,
           description: taskEditor.description,
-          status: taskStatusForServer(taskEditor.state),
+          status: taskStatusForServer(blockedState ?? taskEditor.state),
           priority: taskEditor.priority,
           date: taskEditor.due || undefined,
         }),
@@ -930,36 +984,46 @@ export function AppOverlays(props: AppOverlaysProps) {
             </div>
             <div className="workspace-drawer-body">
               {taskViewMode === 'board' ? (
-                <div className="task-kanban-grid">
+                <div className="task-kanban-grid task-manager-kanban-grid">
                   {taskColumns.map((column) => (
-                    <section
-                      key={column.id}
-                      className={`task-kanban-column ${draggingTaskId ? 'is-drop-ready' : ''}`}
-                      onDragOver={(event) => event.preventDefault()}
-                      onDrop={(event) => {
-                        event.preventDefault();
-                        const taskId = event.dataTransfer.getData('text/plain') || draggingTaskId;
-                        if (taskId) moveTask(taskId, column.state);
-                      }}
-                    >
+                    <section key={column.id} className="task-kanban-column">
                       <div className="task-kanban-head">
                         <span>{column.title}</span>
                         <strong>{column.tasks.length}</strong>
                       </div>
-                      <div className="task-kanban-list">
+                      <div
+                        className={`task-kanban-list ${draggingTaskId ? 'is-drop-ready' : ''}`}
+                        onDragOver={(event) => event.preventDefault()}
+                        onDrop={(event) => {
+                          event.preventDefault();
+                          const taskId = event.dataTransfer.getData('text/plain') || draggingTaskId;
+                          if (taskId) moveTask(taskId, column.state);
+                        }}
+                      >
                         {column.tasks.length > 0 ? column.tasks.map((task) => (
-                          <button
+                          <div
                             key={task.id}
-                            type="button"
                             className="task-kanban-card"
-                            draggable
-                            onDragStart={(event) => {
+                          draggable={!isTaskBlocked(task, taskFlags)}
+                          onDragStart={(event) => {
+                              if (isTaskBlocked(task, taskFlags)) {
+                                event.preventDefault();
+                                return;
+                              }
                               setDraggingTaskId(task.id);
                               event.dataTransfer.setData('text/plain', task.id);
                               event.dataTransfer.effectAllowed = 'move';
                             }}
                             onDragEnd={() => setDraggingTaskId(null)}
                             onClick={() => openTaskEditor(task)}
+                            onKeyDown={(event) => {
+                              if (event.key === 'Enter' || event.key === ' ') {
+                                event.preventDefault();
+                                openTaskEditor(task);
+                              }
+                            }}
+                            role="button"
+                            tabIndex={0}
                           >
                             <div className="task-card-title">{task.title}</div>
                             <div className="task-card-description">{task.description || 'No description.'}</div>
@@ -967,8 +1031,33 @@ export function AppOverlays(props: AppOverlaysProps) {
                               <span>{task.priority}</span>
                               <span>{taskDrawerScope === 'global' ? (workspaceList.find((workspace) => workspace.id === task.workspaceId)?.name ?? task.workspaceId) : task.owner}</span>
                             </div>
-                            <div className="task-card-state">{taskFlags[task.id]?.done ? 'done' : task.state}</div>
-                          </button>
+                            <div className="task-card-footer">
+                              <div className="task-card-footer-state">
+                                <div className="task-card-state">{taskFlags[task.id]?.done ? 'done' : taskWorkflowState(task, taskFlags)}</div>
+                                {isTaskBlocked(task, taskFlags) && <div className="task-blocked-badge"><Ban size={11} /> Blocked</div>}
+                              </div>
+                              <div className="task-card-actions">
+                                <button
+                                  type="button"
+                                  className={`task-card-block ${isTaskBlocked(task, taskFlags) ? 'is-blocked' : ''}`}
+                                  aria-label={`${isTaskBlocked(task, taskFlags) ? 'Unblock' : 'Block'} ${task.title}`}
+                                  title={isTaskBlocked(task, taskFlags) ? 'Unblock task' : 'Block task'}
+                                  onClick={(event) => { event.stopPropagation(); toggleTaskBlocked(task); }}
+                                >
+                                  <Ban size={14} />
+                                </button>
+                                <button
+                                  type="button"
+                                  className="task-card-remove"
+                                  aria-label={`Delete ${task.title}`}
+                                  title="Delete task"
+                                  onClick={(event) => { event.stopPropagation(); removeTask(task.id); }}
+                                >
+                                  <Trash2 size={14} />
+                                </button>
+                              </div>
+                            </div>
+                          </div>
                         )) : (
                           <div className="workspace-list-empty">No tasks in this lane.</div>
                         )}
@@ -1368,13 +1457,18 @@ export function AppOverlays(props: AppOverlaysProps) {
                 <aside className="task-editor-side">
                   <label className="task-editor-field">
                     <span>Status</span>
-                    <select value={taskEditor.state} onChange={(event) => setTaskEditor((current) => ({ ...current, state: event.target.value as Task['state'] }))}>
+                    <select
+                      value={taskEditor.state}
+                      disabled={Boolean(selectedTask && isTaskBlocked(selectedTask, taskFlags))}
+                      onChange={(event) => setTaskEditor((current) => ({ ...current, state: event.target.value as Task['state'] }))}
+                    >
                       <option value="todo">to do</option>
                       <option value="in-progress">in progress</option>
                       <option value="review">review</option>
                       <option value="done">done</option>
                       <option value="blocked">blocked</option>
                     </select>
+                    {selectedTask && isTaskBlocked(selectedTask, taskFlags) && <span className="task-editor-hint">Status is locked while blocked. Unblock the card first.</span>}
                   </label>
                   <label className="task-editor-field">
                     <span>Priority</span>

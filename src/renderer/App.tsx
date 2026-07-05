@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   Folder,
   MessageSquare,
@@ -159,6 +159,10 @@ type WorkspaceJiraTicket = {
 };
 
 type WorkspaceSessionFileGroups = Record<string, SessionFileGroup>;
+type AthenaEngineSettings = {
+  provider?: string;
+  model?: string;
+};
 
 function normalizeServerNote(raw: ServerNote, sessionId: string) {
   const body = String(raw.text ?? '').trim();
@@ -371,6 +375,9 @@ function App() {
   const sectionLabel = navigation.find((item) => item.id === activeSection)?.label ?? 'Workspace';
   const activityCount = activityFeed.length;
   const hasApiKey = authDraft.trim().length > 0;
+  const selectedProviderLabel = gatewayProviders.find((provider) => provider.id === selectedProvider)?.label ?? selectedProvider;
+  const selectedProviderRef = useRef(selectedProvider);
+  const selectedModelRef = useRef(selectedModel);
 
   const saveSettingSafely = async (key: string, value: unknown) => {
     try {
@@ -380,14 +387,35 @@ function App() {
     }
   };
 
-  const persistApiKey = async (value: string) => {
+  const saveAthenaEngineSafely = async (provider: string, model: string) => {
+    const cleanProvider = provider.trim();
+    const cleanModel = model.trim();
+    await saveSettingSafely('athena:engine', { provider: cleanProvider, model: cleanModel } satisfies AthenaEngineSettings);
+    await saveSettingSafely('provider:chain', [{ id: 'p1', provider: cleanProvider, model: cleanModel }]);
+  };
+
+  const updateAthenaProvider = (value: string) => {
+    selectedProviderRef.current = value;
+    setSelectedProvider(value);
+    void saveAthenaEngineSafely(value, selectedModelRef.current);
+  };
+
+  const updateAthenaModel = (value: string) => {
+    selectedModelRef.current = value;
+    setSelectedModel(value);
+    void saveAthenaEngineSafely(selectedProviderRef.current, value);
+  };
+
+  const persistApiKey = async (value: string, serverUrl?: string) => {
     const clean = value.trim();
+    const targetServerUrl = serverUrl?.trim() || serverDraft.trim() || 'http://127.0.0.1:8090';
     await saveSettingSafely('user:apiKey', clean);
+    await saveSettingSafely('server:config', { url: targetServerUrl, enabled: true });
+    setServerDraft(targetServerUrl);
     if (clean) {
       window.localStorage.setItem('user:apiKey', clean);
       try {
-        const cleanServerUrl = serverDraft.trim() || 'http://127.0.0.1:8090';
-        const response = await fetch(`${cleanServerUrl}/api/auth/validate`, {
+        const response = await fetch(`${targetServerUrl}/api/auth/validate`, {
           headers: { 'X-API-Key': clean }
         });
         if (response.ok) {
@@ -845,10 +873,20 @@ function App() {
     }
     setTaskAthenaChats(initialTaskChats);
 
-    const providerChain = settings['provider:chain'];
-    if (Array.isArray(providerChain) && providerChain[0]) {
-      setSelectedProvider(providerChain[0].provider || 'gemini');
-      setSelectedModel(providerChain[0].model || '3.5');
+    const athenaEngine = settings['athena:engine'];
+    if (athenaEngine && typeof athenaEngine === 'object' && !Array.isArray(athenaEngine)) {
+      const engine = athenaEngine as AthenaEngineSettings;
+      setSelectedProvider(String(engine.provider || 'gemini'));
+      setSelectedModel(String(engine.model || '3.5'));
+    } else {
+      const providerChain = settings['provider:chain'];
+      if (Array.isArray(providerChain) && providerChain[0]) {
+        const nextProvider = providerChain[0].provider || 'gemini';
+        const nextModel = providerChain[0].model || '3.5';
+        setSelectedProvider(nextProvider);
+        setSelectedModel(nextModel);
+        void saveAthenaEngineSafely(nextProvider, nextModel);
+      }
     }
 
     void refreshProviders(settings['gateway:config']?.url);
@@ -859,6 +897,14 @@ function App() {
   useEffect(() => {
     loadAuthSettings().catch(() => setAuthReady(true));
   }, []);
+
+  useEffect(() => {
+    selectedProviderRef.current = selectedProvider;
+  }, [selectedProvider]);
+
+  useEffect(() => {
+    selectedModelRef.current = selectedModel;
+  }, [selectedModel]);
 
   useEffect(() => {
     if (settingsOpen) {
@@ -2016,7 +2062,7 @@ function App() {
   }, [activeSection, activeWorkspaceId, isActivityOpen, isArtifactsDrawerOpen, isJiraDrawerOpen, isKnowledgeOpen, isMergeRequestsDrawerOpen, isNotesDrawerOpen, isSessionsDrawerOpen, isTaskDrawerOpen, isWorkspaceAthenaOpen, openSessionsDrawer]);
 
   if (!authReady || !hasApiKey) {
-    return <LoginScreen onLogin={persistApiKey} />;
+    return <LoginScreen onLogin={persistApiKey} initialServerUrl={serverDraft} />;
   }
 
   return (
@@ -2051,6 +2097,8 @@ function App() {
       }}
       onSettings={() => setSettingsOpen(true)}
       rightRailItems={rightRailItems}
+      athenaProvider={selectedProviderLabel}
+      athenaModel={selectedModel}
       footerItems={[
         { label: 'user', status: 'online', detail: 'ahmed' },
         { label: 'section', status: 'online', detail: sectionLabel },
@@ -2177,8 +2225,8 @@ function App() {
         setGatewayDraft={setGatewayDraft}
         selectedProvider={selectedProvider}
         selectedModel={selectedModel}
-        setSelectedProvider={setSelectedProvider}
-        setSelectedModel={setSelectedModel}
+        setSelectedProvider={updateAthenaProvider}
+        setSelectedModel={updateAthenaModel}
         gatewayProviders={gatewayProviders}
         editDraft={editDraft}
         setEditDraft={setEditDraft}
@@ -2189,7 +2237,7 @@ function App() {
           await saveSettingSafely('user:name', newName);
           await saveSettingSafely('server:config', { url: serverDraft.trim(), enabled: true });
           await saveSettingSafely('gateway:config', { url: gatewayDraft.trim(), enabled: true });
-          await saveSettingSafely('provider:chain', [{ id: 'p1', provider: selectedProvider, model: selectedModel }]);
+          await saveAthenaEngineSafely(selectedProvider, selectedModel);
           await persistApiKey(authDraft);
           void refreshProviders(gatewayDraft.trim());
 

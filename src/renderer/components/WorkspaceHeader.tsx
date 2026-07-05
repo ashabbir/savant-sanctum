@@ -1,3 +1,6 @@
+import { useState } from 'react';
+import { Check, Copy } from 'lucide-react';
+
 type WorkspaceHeaderProps = {
   eyebrow: string;
   title: string;
@@ -12,6 +15,7 @@ type WorkspaceHeaderProps = {
   onAddNote: () => void;
   onOpenKnowledge: () => void;
   onOpenActivity: () => void;
+  workspaceId?: string;
 };
 
 export function WorkspaceHeader({
@@ -28,14 +32,42 @@ export function WorkspaceHeader({
   onAddNote,
   onOpenKnowledge,
   onOpenActivity,
+  workspaceId,
 }: WorkspaceHeaderProps) {
+  const [copied, setCopied] = useState(false);
   const priorityTone = (workspacePriority ?? '').toLowerCase();
   const statusTone = (workspaceStatus ?? '').toLowerCase();
+
+  const handleCopyWorkspaceId = () => {
+    if (!workspaceId) return;
+    void navigator.clipboard?.writeText(workspaceId);
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 2000);
+  };
+
   return (
     <section className="hero-panel">
       <div className="panel-head">
         <div>
-          <div className="eyebrow">{eyebrow}</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+            <div className="eyebrow">{eyebrow}</div>
+            {workspaceId && (
+              <>
+                <span className="workspace-id-tiny" style={{ fontSize: '9px', opacity: 0.4, fontFamily: "'Share Tech Mono', monospace", letterSpacing: '0.05em', textTransform: 'none' }}>
+                  ID: {workspaceId}
+                </span>
+                <button
+                  type="button"
+                  className="ghost-btn icon-only"
+                  aria-label="Copy workspace ID"
+                  title="Copy workspace ID"
+                  onClick={handleCopyWorkspaceId}
+                >
+                  <span aria-hidden="true">{copied ? <Check size={12} /> : <Copy size={12} />}</span>
+                </button>
+              </>
+            )}
+          </div>
           <div className="workspace-header-title-row">
             <h1 style={workspaceColor ? { color: workspaceColor } : undefined}>{title}</h1>
             {(workspacePriority || workspaceStatus) ? (

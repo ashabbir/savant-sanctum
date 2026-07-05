@@ -42,6 +42,8 @@ type ShellChromeProps = {
   isWorkspacePaneOpen: boolean;
   toggleWorkspacePane: () => void;
   workspaceSessions: Session[];
+  athenaProvider?: string;
+  athenaModel?: string;
   onAlerts: () => void;
   onHelp: () => void;
   onLogout: () => void;
@@ -69,6 +71,8 @@ export function ShellChrome({
   isWorkspacePaneOpen,
   toggleWorkspacePane,
   workspaceSessions,
+  athenaProvider,
+  athenaModel,
   onAlerts,
   onHelp,
   onLogout,
@@ -211,7 +215,12 @@ export function ShellChrome({
         </aside>
       </div>
 
-      <BottomBar workspaces={workspaceList} sessions={workspaceSessions} />
+      <BottomBar
+        workspaces={workspaceList}
+        sessions={workspaceSessions}
+        activeModel={athenaModel}
+        activeProvider={athenaProvider}
+      />
     </div>
   );
 }

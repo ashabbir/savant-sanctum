@@ -506,6 +506,9 @@ app.whenReady().then(async () => {
   app.setName('Savant Sanctum');
   await initDb();
   createWindow();
+}).catch((err) => {
+  console.error('Failed to initialize or start application:', err);
+  app.quit();
 });
 
 app.on('window-all-closed', () => {

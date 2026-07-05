@@ -1542,6 +1542,7 @@ h3 {
 
 .task-manager-panel {
   display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
   gap: 14px;
   align-content: start;
   padding: 16px 14px 18px;
@@ -2711,7 +2712,7 @@ h3 {
   background: var(--bg);
   display: flex;
   flex-direction: column;
-  animation: activity-slide-in-left 300ms cubic-bezier(0.16, 1, 0.3, 1);
+  animation: activity-slide-in-left 420ms cubic-bezier(0.16, 1, 0.3, 1);
   z-index: 51;
 }
 
@@ -2827,7 +2828,7 @@ h3 {
   border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
-  animation: activity-slide-in-left 300ms cubic-bezier(0.16, 1, 0.3, 1);
+  animation: activity-slide-in-left 420ms cubic-bezier(0.16, 1, 0.3, 1);
   box-shadow: 0 0 50px rgba(0, 0, 0, 0.8);
 }
 
@@ -2837,17 +2838,12 @@ h3 {
   background: var(--bg);
   display: flex;
   flex-direction: column;
-  animation: activity-slide-in-left 300ms cubic-bezier(0.16, 1, 0.3, 1);
+  animation: activity-slide-in-left 420ms cubic-bezier(0.16, 1, 0.3, 1);
   box-shadow: 0 0 50px rgba(0, 0, 0, 0.8);
 }
 
 .knowledge-drawer.task-drawer {
-  animation-name: task-drawer-slide-in-right;
-}
-
-@keyframes task-drawer-slide-in-right {
-  from { transform: translateX(100%); }
-  to { transform: translateX(0); }
+  animation: activity-slide-in-left 420ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .activity-drawer-head {
@@ -2922,7 +2918,7 @@ h3 {
 
 .task-kanban-grid {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px;
   width: 100%;
   min-height: 100%;
@@ -3408,6 +3404,15 @@ h3 {
   background: rgba(255, 92, 104, 0.2);
 }
 
+.task-editor-hint {
+  display: block;
+  margin-top: 6px;
+  color: var(--muted);
+  font: 9px/1.4 'Share Tech Mono', monospace;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 .task-kanban-card:hover,
 .note-drawer-card:hover {
   border-color: rgba(0, 229, 255, 0.35);
@@ -3737,4 +3742,3 @@ h3 {
   border-radius: 6px;
   border: 1px solid rgba(248, 113, 113, 0.2);
 }
-

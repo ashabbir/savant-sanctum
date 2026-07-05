@@ -18,15 +18,21 @@ const STATUS_COLORS = {
 export function BottomBar({
   workspaces = [],
   sessions = [],
+  activeModel,
+  activeProvider,
 }: {
   workspaces?: Array<{ id: string }>;
   sessions?: Array<{ id: string }>;
+  activeModel?: string;
+  activeProvider?: string;
 }) {
   const [userName, setUserName] = useState("operator");
   const [gatewayStatus, setGatewayStatus] = useState<"online" | "offline">("offline");
   const [savantStatus, setSavantStatus] = useState<"online" | "offline">("offline");
   const [defaultDir, setDefaultDir] = useState("~/code");
   const [dbStatus, setDbStatus] = useState<"connected" | "offline">("offline");
+  const [athenaProvider, setAthenaProvider] = useState(activeProvider ?? "");
+  const [athenaModel, setAthenaModel] = useState(activeModel ?? "");
 
   // Gateway Runs Monitor States
   const [gatewayUrl, setGatewayUrl] = useState("http://127.0.0.1:3100");
@@ -83,6 +89,13 @@ export function BottomBar({
           gUrl = settings["gateway:config"].url || gUrl;
           gEnabled = settings["gateway:config"].enabled !== false;
         }
+
+        const athenaEngine = settings["athena:engine"];
+        const providerChain = Array.isArray(settings["provider:chain"]) ? settings["provider:chain"][0] : null;
+        const persistedProvider = typeof athenaEngine?.provider === "string" ? athenaEngine.provider : typeof providerChain?.provider === "string" ? providerChain.provider : activeProvider ?? "";
+        const persistedModel = typeof athenaEngine?.model === "string" ? athenaEngine.model : typeof providerChain?.model === "string" ? providerChain.model : activeModel ?? "";
+        setAthenaProvider(persistedProvider);
+        setAthenaModel(persistedModel);
 
         if (settings["server:config"]) {
           sUrl = settings["server:config"].url || sUrl;
@@ -149,7 +162,7 @@ export function BottomBar({
     checkStatuses();
     const interval = setInterval(checkStatuses, 4000);
     return () => clearInterval(interval);
-  }, []);
+  }, [activeModel, activeProvider]);
 
   // Poll selected run events
   useEffect(() => {
@@ -257,6 +270,11 @@ export function BottomBar({
 
         {/* center/right: runs monitor button */}
         <div className="ml-auto px-3 flex items-center gap-3">
+          {(athenaProvider || athenaModel) ? (
+            <span style={{ color: "var(--cp-cyan)", border: "1px solid rgba(0, 229, 255, 0.15)", background: "rgba(0, 229, 255, 0.03)", padding: "2px 8px", fontSize: "10.5px", fontWeight: "bold", textTransform: "uppercase", borderRadius: "2px" }}>
+              ACTIVE ENGINE:{athenaProvider || 'UNKNOWN'} ({athenaModel || 'UNKNOWN'})
+            </span>
+          ) : null}
           <button
             onClick={() => {
               setIsMonitorOpen(!isMonitorOpen);
