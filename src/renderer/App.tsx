@@ -57,22 +57,13 @@ import {
 import { getSessionAdapter, inferSessionProvider, type SessionConversationMessage, type SessionFileGroup } from './services/sessionAdapters';
 import { DetailBlock, DetailRow, IntelligencePulse, KnowledgeNetwork, Metric, PanelHeader, Row, StatusOrb } from './components/WorkspacePrimitives';
 import {
-  buildAthenaPromptSections,
   fetchWorkspaceKnowledgeGraph,
-  formatWorkspaceKnowledgeGraph,
   fetchGatewayMCPs,
-  formatGatewayMCPs,
 } from './lib/athenaContext';
+import { buildWorkspaceAthenaPrompt, type ChatMessage } from './services/athenaService';
 import type { Artifact, Task } from './data';
 
 const STORAGE_KEY = 'savant-sanctum:ui-state';
-
-type ChatMessage = {
-  id: string;
-  sender: 'user' | 'assistant';
-  text: string;
-  timestamp: string;
-};
 
 type WorkspaceChatState = {
   messages: ChatMessage[];
@@ -448,11 +439,6 @@ function App() {
     setAuthReady(false);
   };
 
-  const saveWorkspaceChat = async (workspaceId: string, messages: ChatMessage[], input: string) => {
-    if (!window.system?.saveSetting) return;
-    await window.system.saveSetting(`athena:chat:${workspaceId}`, { messages, input });
-  };
-
   const refreshProviders = async (gatewayUrl?: string) => {
     try {
       if (window.system?.listProviders) {
@@ -467,27 +453,12 @@ function App() {
     }
   };
 
-  const athenaChatKey = (wsId: string) => `athena:chat:${wsId}`;
-
-  const loadAthenaChatFromStorage = (wsId: string): ChatMessage[] => {
-    try {
-      const stored = localStorage.getItem(athenaChatKey(wsId));
-      return stored ? JSON.parse(stored) : [];
-    } catch { return []; }
-  };
-
-  const saveAthenaChatToStorage = (wsId: string, messages: ChatMessage[]) => {
-    try {
-      localStorage.setItem(athenaChatKey(wsId), JSON.stringify(messages));
-    } catch {}
-  };
-
   const handleClearAthenaChat = (wsId: string) => {
-    localStorage.removeItem(athenaChatKey(wsId));
     setAthenaChats(prev => ({
       ...prev,
       [wsId]: { messages: [], isLoading: false, error: '', input: '' },
     }));
+    void window.system?.saveAthenaThread?.({ threadKey: `athena:chat:${wsId}`, messages: [], input: '' });
   };
 
   const runAgentViaGateway = async (prompt: string, wsId: string, mcpData?: any, providerOverride?: string, modelOverride?: string): Promise<string> => {
@@ -537,11 +508,7 @@ function App() {
     let currentMessages: ChatMessage[] = [];
     setAthenaChats(prev => {
       const chat = prev[workspaceId] || { messages: [], isLoading: false, error: '', input: '' };
-      // Merge with localStorage in case state is stale
-      const stored = loadAthenaChatFromStorage(workspaceId);
-      const base = chat.messages.length >= stored.length ? chat.messages : stored;
-      currentMessages = [...base, userMessage];
-      saveAthenaChatToStorage(workspaceId, currentMessages);
+      currentMessages = [...chat.messages, userMessage];
       return {
         ...prev,
         [workspaceId]: { messages: currentMessages, isLoading: true, error: '', input: '' },
@@ -565,27 +532,24 @@ function App() {
       const provider = selectedProvider;
       const model = selectedModel;
 
-      const prompt = activeSection === 'tasks'
-        ? buildAthenaPromptSections([
-            ['TASK CONTEXT', formatTasks(taskList)],
-            ['AVAILABLE MCPS', formatGatewayMCPs(mcpData)],
-            ['CONVERSATION HISTORY', formatHistory(currentMessages.slice(0, -1))],
-            ['NEW USER QUESTION', userText],
-          ])
-        : buildAthenaPromptSections([
-            ['WORKSPACE', formatWorkspace(targetWorkspace, workspaceId)],
-            ['WORKSPACE KNOWLEDGE GRAPH', formatWorkspaceKnowledgeGraph(graph.nodes, graph.edges)],
-            ['LINKED SESSIONS', formatSessionsFull(targetSessions, targetFileGroups, targetConversations)],
-            ['TASK CONTEXT', formatTasks(targetTasks)],
-            ['AVAILABLE MCPS', formatGatewayMCPs(mcpData)],
-            ['NOTES', formatNotes(targetNotes, targetSessions)],
-            ['MERGE REQUESTS', formatMergeRequests(mergeRequestList)],
-            ['JIRA TICKETS', formatJiraTickets(jiraTicketList)],
-            ['ARTIFACTS', formatArtifacts(targetArtifacts, targetSessions)],
-            ['ACTIVITY SUMMARY', `${workspaceActivitySummary.detail}\nLatest: ${workspaceActivitySummary.latest}\nTotal signals: ${workspaceActivitySummary.total}`],
-            ['CONVERSATION HISTORY', formatHistory(currentMessages.slice(0, -1))],
-            ['NEW USER QUESTION', userText],
-          ]);
+      const prompt = buildWorkspaceAthenaPrompt({
+        workspace: targetWorkspace,
+        workspaceId,
+        graph,
+        sessions: targetSessions,
+        fileGroups: targetFileGroups,
+        conversations: targetConversations,
+        tasks: targetTasks,
+        notes: targetNotes,
+        mergeRequests: mergeRequestList,
+        jiraTickets: jiraTicketList,
+        artifacts: targetArtifacts,
+        activitySummary: workspaceActivitySummary,
+        messages: currentMessages,
+        userText,
+        mcpData,
+        athenaType: activeSection === 'tasks' ? 'task_manager' : 'workspace',
+      });
 
       const response = await runAgentViaGateway(prompt, workspaceId, mcpData, provider, model);
 
@@ -599,7 +563,7 @@ function App() {
       setAthenaChats(prev => {
         const chat = prev[workspaceId] || { messages: [], isLoading: false, error: '', input: '' };
         const updatedMessages = [...chat.messages, assistantMessage];
-        saveAthenaChatToStorage(workspaceId, updatedMessages);
+        void window.system?.saveAthenaThread?.({ threadKey: `athena:chat:${workspaceId}`, messages: updatedMessages, input: chat.input });
         return {
           ...prev,
           [workspaceId]: { messages: updatedMessages, isLoading: false, error: '', input: chat.input },
@@ -633,7 +597,7 @@ function App() {
           messages: updatedMessages,
         }
       };
-      void saveWorkspaceChat(workspaceId, updatedMessages, chat.input);
+      void window.system?.saveAthenaThread?.({ threadKey: `athena:chat:${workspaceId}`, messages: updatedMessages, input: chat.input });
       return next;
     });
   };
@@ -648,46 +612,24 @@ function App() {
           input: text,
         }
       };
-      void saveWorkspaceChat(workspaceId, chat.messages, text);
+      void window.system?.saveAthenaThread?.({ threadKey: `athena:chat:${workspaceId}`, messages: chat.messages, input: text });
       return next;
     });
   };
 
-  const saveTaskChat = async (taskId: string, messages: ChatMessage[], input: string) => {
-    if (!window.system?.saveSetting) return;
-    await window.system.saveSetting(`athena:task-chat:${taskId}`, { messages, input });
-  };
-
-  const taskAthenaChatKey = (taskId: string) => `athena:task-chat:${taskId}`;
-
-  const loadTaskAthenaChatFromStorage = (taskId: string): ChatMessage[] => {
-    try {
-      const stored = localStorage.getItem(taskAthenaChatKey(taskId));
-      return stored ? JSON.parse(stored) : [];
-    } catch {
-      return [];
-    }
-  };
-
-  const saveTaskAthenaChatToStorage = (taskId: string, messages: ChatMessage[]) => {
-    try {
-      localStorage.setItem(taskAthenaChatKey(taskId), JSON.stringify(messages));
-    } catch {}
-  };
-
   const handleClearTaskAthenaChat = (taskId: string) => {
-    localStorage.removeItem(taskAthenaChatKey(taskId));
     setTaskAthenaChats(prev => ({
       ...prev,
       [taskId]: { messages: [], isLoading: false, error: '', input: '' },
     }));
-    void saveTaskChat(taskId, [], '');
+    void window.system?.saveAthenaThread?.({ threadKey: `athena:task-chat:${taskId}`, messages: [], input: '' });
   };
 
   const handleSendTaskAthenaMessage = async (taskId: string, text: string) => {
     const activeTask = taskList.find(t => t.id === taskId);
     if (!activeTask) return;
 
+    let currentMessages: ChatMessage[] = [];
     setTaskAthenaChats(prev => {
       const chat = prev[taskId] || { messages: [], isLoading: false, error: '', input: '' };
       const userMsg: ChatMessage = {
@@ -696,8 +638,7 @@ function App() {
         text,
         timestamp: new Date().toISOString(),
       };
-      const currentMessages = [...chat.messages, userMsg];
-      saveTaskAthenaChatToStorage(taskId, currentMessages);
+      currentMessages = [...chat.messages, userMsg];
       return {
         ...prev,
         [taskId]: { messages: currentMessages, isLoading: true, error: '', input: '' },
@@ -707,18 +648,26 @@ function App() {
     try {
       const gatewayUrl = (gatewayDraft || 'http://127.0.0.1:3100').trim().replace(/\/+$/, '');
       const mcpData = await fetchGatewayMCPs(gatewayUrl);
-      
       const provider = selectedProvider;
       const model = selectedModel;
-
-      const currentMessages = loadTaskAthenaChatFromStorage(taskId);
-
-      const prompt = buildAthenaPromptSections([
-        ['TASK UNDER DISCUSSION', formatTasks([activeTask])],
-        ['AVAILABLE MCPS', formatGatewayMCPs(mcpData)],
-        ['CONVERSATION HISTORY', formatHistory(currentMessages.slice(0, -1))],
-        ['NEW USER QUESTION', text],
-      ]);
+      const prompt = buildWorkspaceAthenaPrompt({
+        workspace: undefined,
+        workspaceId: activeTask.workspaceId,
+        graph: { nodes: [], edges: [] },
+        sessions: [],
+        fileGroups: {},
+        conversations: {},
+        tasks: [activeTask],
+        notes: [],
+        mergeRequests: [],
+        jiraTickets: [],
+        artifacts: [],
+        activitySummary: { total: 0, detail: '', latest: '' },
+        messages: currentMessages,
+        userText: text,
+        mcpData,
+        athenaType: 'task_manager',
+      });
 
       const response = await runAgentViaGateway(prompt, activeTask.workspaceId, mcpData, provider, model);
 
@@ -732,8 +681,7 @@ function App() {
       setTaskAthenaChats(prev => {
         const chat = prev[taskId] || { messages: [], isLoading: false, error: '', input: '' };
         const updatedMessages = [...chat.messages, assistantMessage];
-        saveTaskAthenaChatToStorage(taskId, updatedMessages);
-        void saveTaskChat(taskId, updatedMessages, chat.input);
+        void window.system?.saveAthenaThread?.({ threadKey: `athena:task-chat:${taskId}`, messages: updatedMessages, input: chat.input });
         return {
           ...prev,
           [taskId]: { messages: updatedMessages, isLoading: false, error: '', input: chat.input },
@@ -761,7 +709,7 @@ function App() {
           messages: updatedMessages,
         }
       };
-      void saveTaskChat(taskId, updatedMessages, chat.input);
+      void window.system?.saveAthenaThread?.({ threadKey: `athena:task-chat:${taskId}`, messages: updatedMessages, input: chat.input });
       return next;
     });
   };
@@ -776,13 +724,14 @@ function App() {
           input: text,
         }
       };
-      void saveTaskChat(taskId, chat.messages, text);
+      void window.system?.saveAthenaThread?.({ threadKey: `athena:task-chat:${taskId}`, messages: chat.messages, input: text });
       return next;
     });
   };
 
   const loadAuthSettings = async () => {
     const settings = window.system?.getSettings ? await window.system.getSettings() : {};
+    const persistedThreads = window.system?.loadAthenaThreads ? await window.system.loadAthenaThreads() : {};
     const storedApiKey = window.localStorage.getItem('user:apiKey') ?? '';
     const activeKey = String(settings['user:apiKey'] ?? storedApiKey).trim();
     const cleanServerUrl = String(settings['server:config']?.url ?? 'http://127.0.0.1:8090').trim();
@@ -814,62 +763,29 @@ function App() {
       }
     }
 
-    // Load persisted chats from localStorage (primary) + SQLite settings (fallback)
     const initialChats: Record<string, WorkspaceChatState> = {};
-    // Scan localStorage for all athena chat keys
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key?.startsWith('athena:chat:')) {
-        const wsId = key.replace('athena:chat:', '');
-        try {
-          const stored = localStorage.getItem(key);
-          const messages = stored ? JSON.parse(stored) : [];
-          initialChats[wsId] = { messages: Array.isArray(messages) ? messages : [], isLoading: false, error: '', input: '' };
-        } catch {}
-      }
-    }
-    // Also pull from SQLite settings as fallback for any workspace not in localStorage
-    for (const key of Object.keys(settings)) {
-      if (key.startsWith('athena:chat:')) {
-        const wsId = key.replace('athena:chat:', '');
-        if (!initialChats[wsId]) {
-          const data = settings[key] || {};
-          initialChats[wsId] = {
-            messages: Array.isArray(data.messages) ? data.messages : [],
-            isLoading: false,
-            error: '',
-            input: typeof data.input === 'string' ? data.input : '',
-          };
-        }
-      }
+    for (const [threadKey, data] of Object.entries(persistedThreads)) {
+      if (!threadKey.startsWith('athena:chat:')) continue;
+      const wsId = threadKey.replace('athena:chat:', '');
+      initialChats[wsId] = {
+        messages: Array.isArray(data.messages) ? data.messages : [],
+        isLoading: false,
+        error: '',
+        input: typeof data.input === 'string' ? data.input : '',
+      };
     }
     setAthenaChats(initialChats);
 
     const initialTaskChats: Record<string, WorkspaceChatState> = {};
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key?.startsWith('athena:task-chat:')) {
-        const tId = key.replace('athena:task-chat:', '');
-        try {
-          const stored = localStorage.getItem(key);
-          const messages = stored ? JSON.parse(stored) : [];
-          initialTaskChats[tId] = { messages: Array.isArray(messages) ? messages : [], isLoading: false, error: '', input: '' };
-        } catch {}
-      }
-    }
-    for (const key of Object.keys(settings)) {
-      if (key.startsWith('athena:task-chat:')) {
-        const tId = key.replace('athena:task-chat:', '');
-        if (!initialTaskChats[tId]) {
-          const data = settings[key] || {};
-          initialTaskChats[tId] = {
-            messages: Array.isArray(data.messages) ? data.messages : [],
-            isLoading: false,
-            error: '',
-            input: typeof data.input === 'string' ? data.input : '',
-          };
-        }
-      }
+    for (const [threadKey, data] of Object.entries(persistedThreads)) {
+      if (!threadKey.startsWith('athena:task-chat:')) continue;
+      const tId = threadKey.replace('athena:task-chat:', '');
+      initialTaskChats[tId] = {
+        messages: Array.isArray(data.messages) ? data.messages : [],
+        isLoading: false,
+        error: '',
+        input: typeof data.input === 'string' ? data.input : '',
+      };
     }
     setTaskAthenaChats(initialTaskChats);
 
@@ -2341,124 +2257,3 @@ function App() {
 }
 
 export default App;
-
-function formatWorkspace(workspace: Workspace | undefined, workspaceId: string) {
-  if (!workspace) return `Workspace ID: ${workspaceId}`;
-  return [
-    `Name: ${workspace.name}`,
-    `Workspace ID: ${workspaceId}`,
-    `Status: ${workspace.status}`,
-    `Priority: ${workspace.priority || 'unknown'}`,
-    `Summary: ${workspace.summary || workspace.description || 'No summary available.'}`,
-  ].join('\n');
-}
-
-function formatSessions(sessions: Session[]) {
-  if (!sessions.length) return 'No sessions are linked to this workspace.';
-  return sessions.map((session) => [
-    `- ${session.title} (${session.id})`,
-    `provider=${session.provider}`,
-    `model=${session.model}`,
-    `updated=${session.updatedAt || session.updated || 'unknown'}`,
-    `files=${session.files}`,
-    `notes=${session.notes}`,
-    `jira=${session.jira}`,
-    `merge_requests=${session.mergeRequests}`,
-    `tree=${session.tree}`,
-  ].join(' | ')).join('\n');
-}
-
-function formatSessionsFull(
-  sessions: Session[],
-  fileGroups: Record<string, any>,
-  conversations: Record<string, any[]>,
-) {
-  if (!sessions.length) return 'No sessions are linked to this workspace.';
-  return sessions.map((session) => {
-    const lines: string[] = [
-      `### Session: ${session.title}`,
-      `ID: ${session.id}`,
-      `Provider: ${session.provider} / Model: ${session.model}`,
-      `Updated: ${session.updatedAt || session.updated || 'unknown'}`,
-      `Stats: files=${session.files} notes=${session.notes} jira=${session.jira} mrs=${session.mergeRequests}`,
-    ];
-    if (session.tree) lines.push(`Directory: ${session.tree}`);
-    // Files
-    const fg = fileGroups[session.id];
-    if (fg) {
-      const allFiles: string[] = [];
-      if (Array.isArray(fg)) {
-        fg.forEach((f: any) => allFiles.push(f.path || f.name || String(f)));
-      } else if (typeof fg === 'object') {
-        Object.values(fg).forEach((group: any) => {
-          if (Array.isArray(group)) group.forEach((f: any) => allFiles.push(f.path || f.name || String(f)));
-        });
-      }
-      if (allFiles.length) lines.push(`Files (${allFiles.length}):\n${allFiles.slice(0, 60).map(f => `  ${f}`).join('\n')}`);
-    }
-    // Conversation excerpt
-    const convo = conversations[session.id];
-    if (convo && convo.length) {
-      lines.push(`Conversation (last ${Math.min(6, convo.length)} turns):`);
-      convo.slice(-6).forEach((msg: any) => {
-        const role = msg.role || msg.sender || 'unknown';
-        const content = String(msg.content || msg.text || '').slice(0, 200);
-        lines.push(`  [${role.toUpperCase()}] ${content}`);
-      });
-    }
-    return lines.join('\n');
-  }).join('\n\n---\n\n');
-}
-
-function formatTasks(tasks: Task[]) {
-  if (!tasks.length) return 'No tasks are currently loaded for this workspace.';
-  return [
-    `Total tasks: ${tasks.length}`,
-    '',
-    ...tasks.map((task) => {
-      const flags = [
-        task.state ? `state=${task.state}` : '',
-        task.priority ? `priority=${task.priority}` : '',
-        task.owner ? `owner=${task.owner}` : '',
-        task.due ? `due=${task.due}` : '',
-        task.dependsOn?.length ? `dependsOn=${task.dependsOn.join(',')}` : '',
-        task.comments?.length ? `comments=${task.comments.slice(-3).join(' || ')}` : '',
-        task.description ? `description=${task.description}` : '',
-        task.createdAt ? `createdAt=${task.createdAt}` : '',
-        task.updatedAt ? `updatedAt=${task.updatedAt}` : '',
-      ].filter(Boolean).join(' | ');
-      return `- ${task.title} (${task.id})${flags ? ` :: ${flags}` : ''}`;
-    }),
-  ].join('\n');
-}
-
-function formatNotes(notes: any[], sessions: Session[]) {
-  if (!notes.length) return 'No notes are currently loaded for this workspace.';
-  return notes.slice(0, 40).map((note) => {
-    const session = sessions.find((candidate) => candidate.id === note.sessionId);
-    return `- ${note.title} [${session?.title || note.sessionId}] ${note.body}`;
-  }).join('\n');
-}
-
-function formatMergeRequests(items: any[]) {
-  if (!items.length) return 'No merge requests are registered for this workspace.';
-  return items.map((item) => `- ${item.mrId}: ${item.title} (${item.status})`).join('\n');
-}
-
-function formatJiraTickets(items: any[]) {
-  if (!items.length) return 'No Jira tickets are registered for this workspace.';
-  return items.map((item) => `- ${item.ticketKey}: ${item.title} (${item.status})`).join('\n');
-}
-
-function formatArtifacts(artifacts: Artifact[], sessions: Session[]) {
-  if (!artifacts.length) return 'No artifacts are currently loaded for this workspace.';
-  return artifacts.map((artifact) => {
-    const session = sessions.find((candidate) => candidate.id === artifact.sessionId);
-    return `- ${artifact.title} (${artifact.kind}, count=${artifact.count}) session=${session?.title || artifact.sessionId}`;
-  }).join('\n');
-}
-
-function formatHistory(messages: ChatMessage[]) {
-  if (!messages.length) return 'No previous messages in this workspace Athena chat.';
-  return messages.map((message) => `${message.sender === 'user' ? 'User' : 'Athena'}: ${message.text}`).join('\n');
-}

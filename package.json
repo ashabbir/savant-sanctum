@@ -11,7 +11,8 @@
   "type": "module",
   "main": "dist-electron/main.js",
   "scripts": {
-    "dev": "concurrently -k \"npm:dev:renderer\" \"npm:dev:electron\"",
+    "rebuild:native": "npm_config_runtime=electron npm_config_target=31.7.7 npm_config_disturl=https://electronjs.org/headers npm install --prefix ../node_modules/better-sqlite3 --build-from-source",
+    "dev": "concurrently \"npm:dev:renderer\" \"npm:dev:electron\"",
     "dev:renderer": "vite",
     "dev:electron": "node -e \"require('fs').rmSync('dist-electron', { recursive: true, force: true })\" && wait-on http://127.0.0.1:5175 && tsc -p tsconfig.electron.json && tsc -p tsconfig.preload.json && cross-env VITE_DEV_SERVER_URL=http://127.0.0.1:5175 electron .",
     "build": "vite build && node -e \"require('fs').rmSync('dist-electron', { recursive: true, force: true })\" && tsc -p tsconfig.electron.json && tsc -p tsconfig.preload.json && electron-builder",

@@ -13,6 +13,8 @@ interface Window {
   system: {
     getSettings: () => Promise<Record<string, any>>;
     saveSetting: (key: string, value: any) => Promise<boolean>;
+    saveAthenaThread: (payload: { threadKey: string; messages: Array<{ id: string; sender: 'user' | 'assistant'; text: string; timestamp: string }>; input: string }) => Promise<boolean>;
+    loadAthenaThreads: () => Promise<Record<string, { messages: Array<{ id: string; sender: 'user' | 'assistant'; text: string; timestamp: string }>; input: string; updatedAt?: string }>>;
     getUser: () => Promise<string>;
     listProviders: (gatewayUrl?: string) => Promise<any>;
     getDbStatus: () => Promise<string>;

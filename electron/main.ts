@@ -1,6 +1,7 @@
 import { app, BrowserWindow, ipcMain } from 'electron';
 import path from 'node:path';
 import fs from 'node:fs/promises';
+import fsSync from 'node:fs';
 import os from 'node:os';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
@@ -11,6 +12,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const SAVANT_DIR = path.join(os.homedir(), '.savant');
 const SANCTUM_DB_PATH = path.join(SAVANT_DIR, 'sanctum.db');
+const SANCTUM_SETTINGS_PATH = path.join(SAVANT_DIR, 'sanctum.settings.json');
 const CODEX_DIR = path.join(os.homedir(), '.codex');
 const CLAUDE_DIR = path.join(os.homedir(), '.claude');
 const COPILOT_DIR = path.join(os.homedir(), '.copilot');
@@ -23,6 +25,68 @@ const COPILOT_SESSION_DB_PATH = path.join(COPILOT_DIR, 'session-store.db');
 let db: any;
 let codexLogsDb: any;
 
+function loadBetterSqlite3() {
+  try {
+    const require = createRequire(import.meta.url);
+    return require('better-sqlite3');
+  } catch (error) {
+    console.warn('better-sqlite3 unavailable, using in-memory settings store for dev:', error);
+    return null;
+  }
+}
+
+function createMemoryDb() {
+  const settings = new Map<string, string>();
+  try {
+    if (fsSync.existsSync(SANCTUM_SETTINGS_PATH)) {
+      const raw = fsSync.readFileSync(SANCTUM_SETTINGS_PATH, 'utf8');
+      const parsed = JSON.parse(raw) as Record<string, string>;
+      for (const [key, value] of Object.entries(parsed)) settings.set(key, value);
+    }
+  } catch {
+    // Ignore corrupt dev fallback state and start fresh.
+  }
+
+  const persist = () => {
+    try {
+      fsSync.writeFileSync(SANCTUM_SETTINGS_PATH, JSON.stringify(Object.fromEntries(settings.entries()), null, 2));
+    } catch {
+      // Ignore persistence failures in dev fallback mode.
+    }
+  };
+
+  return {
+    exec: () => undefined,
+    prepare(sql: string) {
+      const normalized = sql.trim().toLowerCase();
+      if (normalized.startsWith('select key, value from settings')) {
+        return {
+          all: () => Array.from(settings.entries()).map(([key, value]) => ({ key, value })),
+        };
+      }
+      if (normalized.startsWith('select value from settings where key = ?')) {
+        return {
+          get: (key: string) => (settings.has(key) ? { value: settings.get(key) } : undefined),
+        };
+      }
+      if (normalized.startsWith('insert into settings')) {
+        return {
+          run: (key: string, value: string) => {
+            settings.set(key, value);
+            persist();
+            return { changes: 1, lastInsertRowid: 0 };
+          },
+        };
+      }
+      return {
+        all: () => [],
+        get: () => undefined,
+        run: () => ({ changes: 0, lastInsertRowid: 0 }),
+      };
+    },
+  };
+}
+
 type RunAgentPayload = {
   prompt?: string;
   chain?: Array<{ provider: string; model?: string }>;
@@ -32,11 +96,16 @@ type RunAgentPayload = {
 
 async function initDb() {
   await fs.mkdir(SAVANT_DIR, { recursive: true });
-  const require = createRequire(import.meta.url);
-  const Database = require('better-sqlite3');
-  db = new Database(SANCTUM_DB_PATH);
+  const Database = loadBetterSqlite3();
   try {
-    codexLogsDb = new Database(CODEX_LOGS_PATH, { readonly: true, fileMustExist: true });
+    if (!Database) throw new Error('better-sqlite3 unavailable');
+    db = new Database(SANCTUM_DB_PATH);
+  } catch (error) {
+    console.warn('better-sqlite3 failed to load, using in-memory settings store for dev:', error);
+    db = createMemoryDb();
+  }
+  try {
+    codexLogsDb = Database ? new Database(CODEX_LOGS_PATH, { readonly: true, fileMustExist: true }) : null;
   } catch {
     codexLogsDb = null;
   }
@@ -44,6 +113,12 @@ async function initDb() {
     CREATE TABLE IF NOT EXISTS settings (
       key TEXT PRIMARY KEY,
       value TEXT
+    );
+    CREATE TABLE IF NOT EXISTS athena_threads (
+      thread_key TEXT PRIMARY KEY,
+      messages TEXT NOT NULL,
+      input TEXT NOT NULL DEFAULT '',
+      updated_at TEXT NOT NULL
     );
   `);
 
@@ -244,8 +319,8 @@ async function loadCopilotConversation(sessionId: string): Promise<LocalConversa
   const sid = String(sessionId || '').trim();
   if (!sid) return [];
   try {
-    const require = createRequire(import.meta.url);
-    const Database = require('better-sqlite3');
+    const Database = loadBetterSqlite3();
+    if (!Database) return [];
     const copilotDb = new Database(COPILOT_SESSION_DB_PATH, { readonly: true, fileMustExist: true });
     try {
       const rows = copilotDb
@@ -311,8 +386,8 @@ async function loadGeminiConversation(sessionId: string): Promise<LocalConversat
     const files = await fs.readdir(convoDir);
     const dbFile = files.find((file) => file === `${sid}.db` || file.includes(sid));
     if (!dbFile) return [];
-    const require = createRequire(import.meta.url);
-    const Database = require('better-sqlite3');
+    const Database = loadBetterSqlite3();
+    if (!Database) return [];
     const geminiDb = new Database(path.join(convoDir, dbFile), { readonly: true, fileMustExist: true });
     try {
       const tables = geminiDb.prepare("SELECT name FROM sqlite_master WHERE type='table'").all() as Array<{ name: string }>;
@@ -347,8 +422,8 @@ async function loadGeminiConversation(sessionId: string): Promise<LocalConversat
 
 async function loadConversationFromSqlite(filePath: string, provider: string, sessionId: string): Promise<LocalConversationMessage[]> {
   try {
-    const require = createRequire(import.meta.url);
-    const Database = require('better-sqlite3');
+    const Database = loadBetterSqlite3();
+    if (!Database) return [];
     const sqliteDb = new Database(filePath, { readonly: true, fileMustExist: true });
     try {
       const tables = sqliteDb.prepare("SELECT name FROM sqlite_master WHERE type='table'").all() as Array<{ name: string }>;
@@ -538,6 +613,41 @@ ipcMain.handle('save-setting', async (_event, { key, value }) => {
     ON CONFLICT(key) DO UPDATE SET value = excluded.value
   `).run(key, val);
   return true;
+});
+
+ipcMain.handle('save-athena-thread', async (_event, payload) => {
+  if (!db) return false;
+  const threadKey = String(payload?.threadKey || '').trim();
+  if (!threadKey) throw new Error('threadKey is required');
+  const messages = Array.isArray(payload?.messages) ? payload.messages : [];
+  const input = String(payload?.input || '');
+  db.prepare(`
+    INSERT INTO athena_threads (thread_key, messages, input, updated_at)
+    VALUES (?, ?, ?, ?)
+    ON CONFLICT(thread_key) DO UPDATE SET
+      messages = excluded.messages,
+      input = excluded.input,
+      updated_at = excluded.updated_at
+  `).run(threadKey, JSON.stringify(messages), input, new Date().toISOString());
+  return true;
+});
+
+ipcMain.handle('load-athena-threads', async () => {
+  if (!db) return {};
+  const rows = db.prepare('SELECT thread_key, messages, input, updated_at FROM athena_threads ORDER BY updated_at DESC').all();
+  const threads: Record<string, { messages: any[]; input: string; updatedAt: string }> = {};
+  for (const row of rows) {
+    try {
+      threads[row.thread_key] = {
+        messages: JSON.parse(row.messages),
+        input: String(row.input || ''),
+        updatedAt: String(row.updated_at || ''),
+      };
+    } catch {
+      threads[row.thread_key] = { messages: [], input: String(row.input || ''), updatedAt: String(row.updated_at || '') };
+    }
+  }
+  return threads;
 });
 
 ipcMain.handle('get-user', async () => {

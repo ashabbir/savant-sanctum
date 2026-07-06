@@ -66,6 +66,8 @@ async function invokeRunAgent(payload: RunAgentPayload) {
 contextBridge.exposeInMainWorld('system', {
   getSettings: () => ipcRenderer.invoke('get-settings'),
   saveSetting: (key: string, value: any) => ipcRenderer.invoke('save-setting', { key, value }),
+  saveAthenaThread: (payload: { threadKey: string; messages: any[]; input: string }) => ipcRenderer.invoke('save-athena-thread', payload),
+  loadAthenaThreads: () => ipcRenderer.invoke('load-athena-threads'),
   getUser: () => ipcRenderer.invoke('get-user'),
   listProviders: (gatewayUrl?: string) => ipcRenderer.invoke('list-providers', gatewayUrl),
   getDbStatus: () => ipcRenderer.invoke('get-db-status'),

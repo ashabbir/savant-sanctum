@@ -3,13 +3,7 @@ import { Copy, Loader2, Send, Sparkles, Trash2, X } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import type { Artifact, Session, Task, Workspace } from '../data';
-
-type ChatMessage = {
-  id: string;
-  sender: 'user' | 'assistant';
-  text: string;
-  timestamp: string;
-};
+import type { ChatMessage } from '../services/athenaService';
 
 type WorkspaceAthenaDrawerProps = {
   isOpen: boolean;
@@ -204,63 +198,6 @@ export function WorkspaceAthenaDrawer({
       </aside>
     </div>
   );
-}
-
-function formatWorkspace(workspace: Workspace | undefined, workspaceId: string) {
-  if (!workspace) return `Workspace ID: ${workspaceId}`;
-  return [
-    `Name: ${workspace.name}`,
-    `Workspace ID: ${workspaceId}`,
-    `Status: ${workspace.status}`,
-    `Priority: ${workspace.priority || 'unknown'}`,
-    `Summary: ${workspace.summary || workspace.description || 'No summary available.'}`,
-  ].join('\n');
-}
-
-function formatSessions(sessions: Session[]) {
-  if (!sessions.length) return 'No sessions are linked to this workspace.';
-  return sessions.map((session) => [
-    `- ${session.title} (${session.id})`,
-    `provider=${session.provider}`,
-    `model=${session.model}`,
-    `updated=${session.updatedAt || session.updated || 'unknown'}`,
-    `files=${session.files}`,
-    `notes=${session.notes}`,
-    `jira=${session.jira}`,
-    `merge_requests=${session.mergeRequests}`,
-    `tree=${session.tree}`,
-  ].join(' | ')).join('\n');
-}
-
-function formatTasks(tasks: Task[]) {
-  if (!tasks.length) return 'No tasks are currently loaded for this workspace.';
-  return tasks.map((task) => `- ${task.title} (${task.state}, ${task.priority}) owner=${task.owner}${task.description ? ` :: ${task.description}` : ''}`).join('\n');
-}
-
-function formatNotes(notes: WorkspaceAthenaDrawerProps['workspaceNotes'], sessions: Session[]) {
-  if (!notes.length) return 'No notes are currently loaded for this workspace.';
-  return notes.slice(0, 40).map((note) => {
-    const session = sessions.find((candidate) => candidate.id === note.sessionId);
-    return `- ${note.title} [${session?.title || note.sessionId}] ${note.body}`;
-  }).join('\n');
-}
-
-function formatMergeRequests(items: WorkspaceAthenaDrawerProps['workspaceMergeRequests']) {
-  if (!items.length) return 'No merge requests are registered for this workspace.';
-  return items.map((item) => `- ${item.mrId}: ${item.title} (${item.status})`).join('\n');
-}
-
-function formatJiraTickets(items: WorkspaceAthenaDrawerProps['workspaceJiraTickets']) {
-  if (!items.length) return 'No Jira tickets are registered for this workspace.';
-  return items.map((item) => `- ${item.ticketKey}: ${item.title} (${item.status})`).join('\n');
-}
-
-function formatArtifacts(artifacts: Artifact[], sessions: Session[]) {
-  if (!artifacts.length) return 'No artifacts are currently loaded for this workspace.';
-  return artifacts.map((artifact) => {
-    const session = sessions.find((candidate) => candidate.id === artifact.sessionId);
-    return `- ${artifact.title} (${artifact.kind}, count=${artifact.count}) session=${session?.title || artifact.sessionId}`;
-  }).join('\n');
 }
 
 function formatHistory(messages: ChatMessage[]) {
