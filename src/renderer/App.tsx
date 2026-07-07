@@ -1575,6 +1575,40 @@ function App() {
     }, 3200);
   };
 
+  const handleDeleteSession = async (sessionId: string) => {
+    const session = sessionList.find(s => s.id === sessionId);
+    if (!session) return;
+    
+    const confirmDelete = window.confirm(`Are you sure you want to remove session "${session.title}" from this workspace?`);
+    if (!confirmDelete) return;
+
+    try {
+      const serverUrl = serverDraft.trim() || 'http://127.0.0.1:8090';
+      const cleanServerUrl = serverUrl.replace(/\/+$/, "");
+      const provider = session.provider || 'savant';
+      
+      const res = await fetch(`${cleanServerUrl}/api/workspaces/${encodeURIComponent(activeWorkspaceId)}/session-links/${encodeURIComponent(provider)}/${encodeURIComponent(sessionId)}`, {
+        method: 'DELETE',
+        headers: {
+          'X-API-Key': apiKey || ''
+        }
+      });
+      
+      if (res.ok) {
+        setSessionList((current) => current.filter((s) => s.id !== sessionId));
+        setSessionIndex(0);
+        pushToast('Session deleted', `${session.title} removed from the workspace.`, 'warning');
+      } else {
+        const errText = await res.text();
+        console.error('Failed to delete session link:', res.status, errText);
+        pushToast('Delete failed', `Failed to delete session link: ${res.statusText}`, 'warning');
+      }
+    } catch (e) {
+      console.error('Failed to delete session link:', e);
+      pushToast('Delete failed', 'Could not connect to Savant server.', 'warning');
+    }
+  };
+
   const handleLogout = async () => {
     await handleAuthLogout();
     const resetState: SavedUiState = {
@@ -2217,6 +2251,7 @@ function App() {
         reminderFlags={reminderFlags}
         setReminderFlags={setReminderFlags}
         pushToast={pushToast}
+        onDeleteSession={handleDeleteSession}
         activeWorkspaceId={activeWorkspaceId}
         serverBaseUrl={serverBaseUrl}
         apiKey={apiKey}

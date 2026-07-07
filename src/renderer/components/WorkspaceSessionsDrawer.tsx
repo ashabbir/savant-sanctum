@@ -10,10 +10,11 @@ type WorkspaceSessionsDrawerProps = {
   sessionFileGroups?: Record<string, SessionFileGroup>;
   activeSessionId: string;
   onSelectSession: (sessionId: string) => void;
+  onDeleteSession?: (sessionId: string) => void;
   onClose: () => void;
 };
 
-export function WorkspaceSessionsDrawer({ open, workspaceName, sessions, sessionFileGroups = {}, activeSessionId, onSelectSession, onClose }: WorkspaceSessionsDrawerProps) {
+export function WorkspaceSessionsDrawer({ open, workspaceName, sessions, sessionFileGroups = {}, activeSessionId, onSelectSession, onDeleteSession, onClose }: WorkspaceSessionsDrawerProps) {
   useEffect(() => {
     if (!open) return;
 
@@ -61,6 +62,7 @@ export function WorkspaceSessionsDrawer({ open, workspaceName, sessions, session
                 files={sessionFileGroups[session.id]}
                 active={session.id === activeSessionId}
                 onSelect={onSelectSession}
+                onDelete={onDeleteSession}
               />
             )) : (
               <div className="activity-empty">No sessions in this workspace.</div>

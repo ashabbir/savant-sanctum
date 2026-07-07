@@ -94,6 +94,7 @@ type AppOverlaysProps = {
   onSaveSettings: () => Promise<void> | void;
   onLogout: () => Promise<void> | void;
   onRefreshProviders?: () => Promise<void> | void;
+  onDeleteSession?: (sessionId: string) => void;
   recentAlerts: {
     id: string;
     title: string;
@@ -196,6 +197,7 @@ export function AppOverlays(props: AppOverlaysProps) {
     onSaveSettings,
     onLogout,
     onRefreshProviders,
+    onDeleteSession,
     recentAlerts,
     editDraft,
     setEditDraft,
@@ -937,6 +939,7 @@ export function AppOverlays(props: AppOverlaysProps) {
           setSelectedSessionId(sessionId);
           setIsSessionsDrawerOpen(false);
         }}
+        onDeleteSession={onDeleteSession}
         onClose={() => {
           setSelectedSessionId(null);
           setIsSessionsDrawerOpen(false);

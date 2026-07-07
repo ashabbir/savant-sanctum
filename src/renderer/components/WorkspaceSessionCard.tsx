@@ -1,4 +1,5 @@
 import type { MouseEvent } from 'react';
+import { Trash2 } from 'lucide-react';
 import type { Session } from '../data';
 import type { SessionFileGroup } from '../services/sessionAdapters';
 
@@ -7,6 +8,7 @@ type WorkspaceSessionCardProps = {
   active: boolean;
   files?: SessionFileGroup;
   onSelect: (sessionId: string) => void;
+  onDelete?: (sessionId: string) => void;
 };
 
 function statusTone(provider: string) {
@@ -30,7 +32,7 @@ function getResumeCommand(session: Session, files?: SessionFileGroup) {
   return `cd ${sessionDir || '.'} && ${provider} start --session ${sessionTarget} --yolo`;
 }
 
-export function WorkspaceSessionCard({ session, active, files, onSelect }: WorkspaceSessionCardProps) {
+export function WorkspaceSessionCard({ session, active, files, onSelect, onDelete }: WorkspaceSessionCardProps) {
   const resumeCommand = getResumeCommand(session, files);
 
   const handleResume = async (event: MouseEvent<HTMLButtonElement>) => {
@@ -57,15 +59,32 @@ export function WorkspaceSessionCard({ session, active, files, onSelect }: Works
     >
       <div className="session-drawer-card-head">
         <div className="note-drawer-title truncate">{session.title}</div>
-        <button
-          type="button"
-          className="ghost-btn icon-only session-resume-btn"
-          aria-label="Copy resume command"
-          title={resumeCommand}
-          onClick={handleResume}
-        >
-          <span aria-hidden="true">↻</span>
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+          <button
+            type="button"
+            className="ghost-btn icon-only session-resume-btn"
+            aria-label="Copy resume command"
+            title={resumeCommand}
+            onClick={handleResume}
+          >
+            <span aria-hidden="true">↻</span>
+          </button>
+          {onDelete && (
+            <button
+              type="button"
+              className="ghost-btn icon-only"
+              style={{ color: '#ff2244' }}
+              aria-label="Delete session"
+              title="Delete session"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete(session.id);
+              }}
+            >
+              <Trash2 size={12} />
+            </button>
+          )}
+        </div>
       </div>
       <div className="note-drawer-meta truncate">{session.provider} · {session.model}</div>
       <p className="session-drawer-summary">{session.tree}</p>
