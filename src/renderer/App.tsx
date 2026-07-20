@@ -407,7 +407,7 @@ function App() {
       window.localStorage.setItem('user:apiKey', clean);
       try {
         const response = await fetch(`${targetServerUrl}/api/auth/validate`, {
-          headers: { 'X-API-Key': clean, 'X-App-Name': 'savant-sanctum' }
+          headers: { 'X-API-Key': clean }
         });
         if (response.ok) {
           const data = await response.json();
