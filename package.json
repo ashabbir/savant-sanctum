@@ -11,7 +11,7 @@
   "type": "module",
   "main": "dist-electron/main.js",
   "scripts": {
-    "rebuild:native": "npx @electron/rebuild -v 41.7.1 -f -m ../node_modules/better-sqlite3",
+    "rebuild:native": "mkdir -p node_modules && cp -R ../node_modules/better-sqlite3 node_modules/ 2>/dev/null || true; npx @electron/rebuild -v 41.7.1 -f -m node_modules/better-sqlite3",
     "dev": "concurrently \"npm:dev:renderer\" \"npm:dev:electron\"",
     "dev:renderer": "vite",
     "dev:electron": "node -e \"require('fs').rmSync('dist-electron', { recursive: true, force: true })\" && wait-on http://127.0.0.1:5175 && tsc -p tsconfig.electron.json && tsc -p tsconfig.preload.json && cross-env VITE_DEV_SERVER_URL=http://127.0.0.1:5175 electron .",
