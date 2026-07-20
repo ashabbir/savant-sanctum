@@ -67,3 +67,5 @@ __pycache__/
 # Misc
 .antigravitycli/
 .ralph-tui/
+
+.codegraph
