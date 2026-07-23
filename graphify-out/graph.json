@@ -1085,7 +1085,7 @@
       "label": "WorkspaceChatState",
       "file_type": "code",
       "source_file": "src/renderer/App.tsx",
-      "source_location": "L69",
+      "source_location": "L70",
       "_origin": "ast",
       "id": "renderer_app_workspacechatstate",
       "community": 5,
@@ -1095,7 +1095,7 @@
       "label": "SavedUiState",
       "file_type": "code",
       "source_file": "src/renderer/App.tsx",
-      "source_location": "L76",
+      "source_location": "L77",
       "_origin": "ast",
       "id": "renderer_app_saveduistate",
       "community": 5,
@@ -1105,7 +1105,7 @@
       "label": "ActivityItem",
       "file_type": "code",
       "source_file": "src/renderer/App.tsx",
-      "source_location": "L96",
+      "source_location": "L97",
       "_origin": "ast",
       "id": "renderer_app_activityitem",
       "community": 5,
@@ -1115,7 +1115,7 @@
       "label": "Toast",
       "file_type": "code",
       "source_file": "src/renderer/App.tsx",
-      "source_location": "L106",
+      "source_location": "L107",
       "_origin": "ast",
       "id": "renderer_app_toast",
       "community": 5,
@@ -1125,7 +1125,7 @@
       "label": "ServerSession",
       "file_type": "code",
       "source_file": "src/renderer/App.tsx",
-      "source_location": "L114",
+      "source_location": "L115",
       "_origin": "ast",
       "id": "renderer_app_serversession",
       "community": 5,
@@ -1135,7 +1135,7 @@
       "label": "ServerMergeRequest",
       "file_type": "code",
       "source_file": "src/renderer/App.tsx",
-      "source_location": "L116",
+      "source_location": "L117",
       "_origin": "ast",
       "id": "renderer_app_servermergerequest",
       "community": 5,
@@ -1145,7 +1145,7 @@
       "label": "ServerJiraTicket",
       "file_type": "code",
       "source_file": "src/renderer/App.tsx",
-      "source_location": "L118",
+      "source_location": "L119",
       "_origin": "ast",
       "id": "renderer_app_serverjiraticket",
       "community": 5,
@@ -1155,7 +1155,7 @@
       "label": "ServerNote",
       "file_type": "code",
       "source_file": "src/renderer/App.tsx",
-      "source_location": "L120",
+      "source_location": "L121",
       "_origin": "ast",
       "id": "renderer_app_servernote",
       "community": 5,
@@ -1165,7 +1165,7 @@
       "label": "WorkspaceMergeRequest",
       "file_type": "code",
       "source_file": "src/renderer/App.tsx",
-      "source_location": "L127",
+      "source_location": "L128",
       "_origin": "ast",
       "id": "renderer_app_workspacemergerequest",
       "community": 5,
@@ -1175,7 +1175,7 @@
       "label": "WorkspaceJiraTicket",
       "file_type": "code",
       "source_file": "src/renderer/App.tsx",
-      "source_location": "L140",
+      "source_location": "L141",
       "_origin": "ast",
       "id": "renderer_app_workspacejiraticket",
       "community": 5,
@@ -1185,7 +1185,7 @@
       "label": "WorkspaceSessionFileGroups",
       "file_type": "code",
       "source_file": "src/renderer/App.tsx",
-      "source_location": "L153",
+      "source_location": "L154",
       "_origin": "ast",
       "id": "renderer_app_workspacesessionfilegroups",
       "community": 5,
@@ -1195,7 +1195,7 @@
       "label": "AthenaEngineSettings",
       "file_type": "code",
       "source_file": "src/renderer/App.tsx",
-      "source_location": "L154",
+      "source_location": "L155",
       "_origin": "ast",
       "id": "renderer_app_athenaenginesettings",
       "community": 5,
@@ -1205,7 +1205,7 @@
       "label": "normalizeServerNote()",
       "file_type": "code",
       "source_file": "src/renderer/App.tsx",
-      "source_location": "L159",
+      "source_location": "L160",
       "_origin": "ast",
       "id": "renderer_app_normalizeservernote",
       "community": 5,
@@ -1215,7 +1215,7 @@
       "label": "normalizeServerMergeRequest()",
       "file_type": "code",
       "source_file": "src/renderer/App.tsx",
-      "source_location": "L172",
+      "source_location": "L173",
       "_origin": "ast",
       "id": "renderer_app_normalizeservermergerequest",
       "community": 5,
@@ -1225,7 +1225,7 @@
       "label": "normalizeServerJiraTicket()",
       "file_type": "code",
       "source_file": "src/renderer/App.tsx",
-      "source_location": "L189",
+      "source_location": "L190",
       "_origin": "ast",
       "id": "renderer_app_normalizeserverjiraticket",
       "community": 5,
@@ -1235,7 +1235,7 @@
       "label": "sectionIcons",
       "file_type": "code",
       "source_file": "src/renderer/App.tsx",
-      "source_location": "L206",
+      "source_location": "L207",
       "_origin": "ast",
       "id": "renderer_app_sectionicons",
       "community": 5,
@@ -1245,7 +1245,7 @@
       "label": "providerRoutePrefix",
       "file_type": "code",
       "source_file": "src/renderer/App.tsx",
-      "source_location": "L221",
+      "source_location": "L222",
       "_origin": "ast",
       "id": "renderer_app_providerrouteprefix",
       "community": 5,
@@ -1255,7 +1255,7 @@
       "label": "SessionFlags",
       "file_type": "code",
       "source_file": "src/renderer/App.tsx",
-      "source_location": "L229",
+      "source_location": "L230",
       "_origin": "ast",
       "id": "renderer_app_sessionflags",
       "community": 5,
@@ -1265,7 +1265,7 @@
       "label": "EntityFlags",
       "file_type": "code",
       "source_file": "src/renderer/App.tsx",
-      "source_location": "L234",
+      "source_location": "L235",
       "_origin": "ast",
       "id": "renderer_app_entityflags",
       "community": 5,
@@ -1275,7 +1275,7 @@
       "label": "App()",
       "file_type": "code",
       "source_file": "src/renderer/App.tsx",
-      "source_location": "L242",
+      "source_location": "L243",
       "_origin": "ast",
       "id": "renderer_app_app",
       "community": 6,
@@ -1398,7 +1398,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "components_appoverlays",
-      "community": 0,
+      "community": 16,
       "norm_label": "appoverlays.tsx"
     },
     {
@@ -1408,7 +1408,7 @@
       "source_location": "L14",
       "_origin": "ast",
       "id": "components_appoverlays_workspacemergerequest",
-      "community": 0,
+      "community": 16,
       "norm_label": "workspacemergerequest"
     },
     {
@@ -1418,7 +1418,7 @@
       "source_location": "L25",
       "_origin": "ast",
       "id": "components_appoverlays_workspacejiraticket",
-      "community": 0,
+      "community": 16,
       "norm_label": "workspacejiraticket"
     },
     {
@@ -1428,7 +1428,7 @@
       "source_location": "L36",
       "_origin": "ast",
       "id": "components_appoverlays_entityeditorstate",
-      "community": 0,
+      "community": 16,
       "norm_label": "entityeditorstate"
     },
     {
@@ -1438,7 +1438,7 @@
       "source_location": "L40",
       "_origin": "ast",
       "id": "components_appoverlays_activityitem",
-      "community": 0,
+      "community": 16,
       "norm_label": "activityitem"
     },
     {
@@ -1448,7 +1448,7 @@
       "source_location": "L50",
       "_origin": "ast",
       "id": "components_appoverlays_appoverlaysprops",
-      "community": 0,
+      "community": 16,
       "norm_label": "appoverlaysprops"
     },
     {
@@ -1458,7 +1458,7 @@
       "source_location": "L152",
       "_origin": "ast",
       "id": "components_appoverlays_appoverlays",
-      "community": 6,
+      "community": 16,
       "norm_label": "appoverlays()"
     },
     {
@@ -1468,7 +1468,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "components_bottombar",
-      "community": 17,
+      "community": 0,
       "norm_label": "bottombar.tsx"
     },
     {
@@ -1478,7 +1478,7 @@
       "source_location": "L6",
       "_origin": "ast",
       "id": "components_bottombar_statusdot",
-      "community": 17,
+      "community": 0,
       "norm_label": "statusdot"
     },
     {
@@ -1488,7 +1488,7 @@
       "source_location": "L12",
       "_origin": "ast",
       "id": "components_bottombar_status_colors",
-      "community": 17,
+      "community": 0,
       "norm_label": "status_colors"
     },
     {
@@ -1498,7 +1498,7 @@
       "source_location": "L18",
       "_origin": "ast",
       "id": "components_bottombar_bottombar",
-      "community": 17,
+      "community": 0,
       "norm_label": "bottombar()"
     },
     {
@@ -1668,7 +1668,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "components_shellchrome",
-      "community": 17,
+      "community": 0,
       "norm_label": "shellchrome.tsx"
     },
     {
@@ -1678,7 +1678,7 @@
       "source_location": "L6",
       "_origin": "ast",
       "id": "components_shellchrome_navitem",
-      "community": 17,
+      "community": 0,
       "norm_label": "navitem"
     },
     {
@@ -1688,7 +1688,7 @@
       "source_location": "L12",
       "_origin": "ast",
       "id": "components_shellchrome_toastlike",
-      "community": 17,
+      "community": 0,
       "norm_label": "toastlike"
     },
     {
@@ -1698,7 +1698,7 @@
       "source_location": "L19",
       "_origin": "ast",
       "id": "components_shellchrome_activityitem",
-      "community": 17,
+      "community": 0,
       "norm_label": "activityitem"
     },
     {
@@ -1708,7 +1708,7 @@
       "source_location": "L29",
       "_origin": "ast",
       "id": "components_shellchrome_shellchromeprops",
-      "community": 17,
+      "community": 0,
       "norm_label": "shellchromeprops"
     },
     {
@@ -1718,7 +1718,7 @@
       "source_location": "L58",
       "_origin": "ast",
       "id": "components_shellchrome_shellchrome",
-      "community": 17,
+      "community": 0,
       "norm_label": "shellchrome()"
     },
     {
@@ -2188,7 +2188,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "components_workspacesurface",
-      "community": 0,
+      "community": 16,
       "norm_label": "workspacesurface.tsx"
     },
     {
@@ -2198,7 +2198,7 @@
       "source_location": "L11",
       "_origin": "ast",
       "id": "components_workspacesurface_sessionfilegroup",
-      "community": 0,
+      "community": 16,
       "norm_label": "sessionfilegroup"
     },
     {
@@ -2208,7 +2208,7 @@
       "source_location": "L20",
       "_origin": "ast",
       "id": "components_workspacesurface_sectionhero",
-      "community": 0,
+      "community": 16,
       "norm_label": "sectionhero"
     },
     {
@@ -2218,7 +2218,7 @@
       "source_location": "L26",
       "_origin": "ast",
       "id": "components_workspacesurface_workspacesurfaceprops",
-      "community": 0,
+      "community": 16,
       "norm_label": "workspacesurfaceprops"
     },
     {
@@ -2318,7 +2318,7 @@
       "source_location": "L15",
       "_origin": "ast",
       "id": "renderer_data_surfacemode",
-      "community": 5,
+      "community": 16,
       "norm_label": "surfacemode"
     },
     {
@@ -2348,7 +2348,7 @@
       "source_location": "L69",
       "_origin": "ast",
       "id": "renderer_data_task",
-      "community": 0,
+      "community": 16,
       "norm_label": "task"
     },
     {
@@ -2398,7 +2398,7 @@
       "source_location": "L120",
       "_origin": "ast",
       "id": "renderer_data_provider",
-      "community": 0,
+      "community": 16,
       "norm_label": "provider"
     },
     {
@@ -2528,7 +2528,7 @@
       "source_location": "L380",
       "_origin": "ast",
       "id": "renderer_data_localsetup",
-      "community": 5,
+      "community": 16,
       "norm_label": "localsetup"
     },
     {
@@ -2538,7 +2538,7 @@
       "source_location": "L388",
       "_origin": "ast",
       "id": "renderer_data_apisurface",
-      "community": 5,
+      "community": 16,
       "norm_label": "apisurface"
     },
     {
@@ -2548,7 +2548,7 @@
       "source_location": "L396",
       "_origin": "ast",
       "id": "renderer_data_mcpsurface",
-      "community": 5,
+      "community": 16,
       "norm_label": "mcpsurface"
     },
     {
@@ -2618,7 +2618,7 @@
       "source_location": "L37",
       "_origin": "ast",
       "id": "lib_athenacontext_fetchworkspaceknowledgegraph",
-      "community": 16,
+      "community": 20,
       "norm_label": "fetchworkspaceknowledgegraph()"
     },
     {
@@ -2668,7 +2668,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "lib_taskboard",
-      "community": 0,
+      "community": 16,
       "norm_label": "taskboard.ts"
     },
     {
@@ -2678,7 +2678,7 @@
       "source_location": "L3",
       "_origin": "ast",
       "id": "lib_taskboard_taskflagstate",
-      "community": 0,
+      "community": 16,
       "norm_label": "taskflagstate"
     },
     {
@@ -2688,7 +2688,7 @@
       "source_location": "L11",
       "_origin": "ast",
       "id": "lib_taskboard_istaskblocked",
-      "community": 0,
+      "community": 16,
       "norm_label": "istaskblocked()"
     },
     {
@@ -2698,7 +2698,7 @@
       "source_location": "L15",
       "_origin": "ast",
       "id": "lib_taskboard_taskworkflowstate",
-      "community": 0,
+      "community": 16,
       "norm_label": "taskworkflowstate()"
     },
     {
@@ -2708,7 +2708,7 @@
       "source_location": "L26",
       "_origin": "ast",
       "id": "lib_taskboard_taskboardstate",
-      "community": 0,
+      "community": 16,
       "norm_label": "taskboardstate()"
     },
     {
@@ -2718,7 +2718,7 @@
       "source_location": "L34",
       "_origin": "ast",
       "id": "lib_taskboard_canmovetask",
-      "community": 0,
+      "community": 16,
       "norm_label": "canmovetask()"
     },
     {
@@ -3152,6 +3152,46 @@
       "norm_label": "getsessionadapter()"
     },
     {
+      "label": "workspaceAdapters.ts",
+      "file_type": "code",
+      "source_file": "src/renderer/services/workspaceAdapters.ts",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "services_workspaceadapters",
+      "community": 5,
+      "norm_label": "workspaceadapters.ts"
+    },
+    {
+      "label": "ServerWorkspace",
+      "file_type": "code",
+      "source_file": "src/renderer/services/workspaceAdapters.ts",
+      "source_location": "L3",
+      "_origin": "ast",
+      "id": "services_workspaceadapters_serverworkspace",
+      "community": 5,
+      "norm_label": "serverworkspace"
+    },
+    {
+      "label": "numericCount()",
+      "file_type": "code",
+      "source_file": "src/renderer/services/workspaceAdapters.ts",
+      "source_location": "L13",
+      "_origin": "ast",
+      "id": "services_workspaceadapters_numericcount",
+      "community": 5,
+      "norm_label": "numericcount()"
+    },
+    {
+      "label": "normalizeServerWorkspace()",
+      "file_type": "code",
+      "source_file": "src/renderer/services/workspaceAdapters.ts",
+      "source_location": "L19",
+      "_origin": "ast",
+      "id": "services_workspaceadapters_normalizeserverworkspace",
+      "community": 5,
+      "norm_label": "normalizeserverworkspace()"
+    },
+    {
       "label": "components.test.tsx",
       "file_type": "code",
       "source_file": "src/renderer/test/components.test.tsx",
@@ -3230,6 +3270,16 @@
       "id": "test_sessionadapters_test",
       "community": 6,
       "norm_label": "sessionadapters.test.ts"
+    },
+    {
+      "label": "workspaceAdapters.test.ts",
+      "file_type": "code",
+      "source_file": "src/renderer/test/workspaceAdapters.test.ts",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "test_workspaceadapters_test",
+      "community": 5,
+      "norm_label": "workspaceadapters.test.ts"
     },
     {
       "label": "vite-env.d.ts",
@@ -4929,9 +4979,9 @@
       "source_file": "electron/main.ts",
       "source_location": "L38",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "electron_main",
-      "target": "electron_main_creatememorydb",
-      "confidence_score": 1.0
+      "target": "electron_main_creatememorydb"
     },
     {
       "relation": "contains",
@@ -5039,9 +5089,9 @@
       "source_file": "electron/main.ts",
       "source_location": "L28",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "electron_main",
-      "target": "electron_main_loadbettersqlite3",
-      "confidence_score": 1.0
+      "target": "electron_main_loadbettersqlite3"
     },
     {
       "relation": "contains",
@@ -5219,9 +5269,9 @@
       "source_file": "electron/main.ts",
       "source_location": "L15",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "electron_main",
-      "target": "electron_main_sanctum_settings_path",
-      "confidence_score": 1.0
+      "target": "electron_main_sanctum_settings_path"
     },
     {
       "relation": "contains",
@@ -5250,9 +5300,9 @@
       "source_file": "electron/main.ts",
       "source_location": "L99",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "electron_main_initdb",
-      "target": "electron_main_loadbettersqlite3",
-      "confidence_score": 1.0
+      "target": "electron_main_loadbettersqlite3"
     },
     {
       "relation": "calls",
@@ -5261,9 +5311,9 @@
       "source_file": "electron/main.ts",
       "source_location": "L425",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "electron_main_loadconversationfromsqlite",
-      "target": "electron_main_loadbettersqlite3",
-      "confidence_score": 1.0
+      "target": "electron_main_loadbettersqlite3"
     },
     {
       "relation": "calls",
@@ -5272,9 +5322,9 @@
       "source_file": "electron/main.ts",
       "source_location": "L322",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "electron_main_loadcopilotconversation",
-      "target": "electron_main_loadbettersqlite3",
-      "confidence_score": 1.0
+      "target": "electron_main_loadbettersqlite3"
     },
     {
       "relation": "calls",
@@ -5283,9 +5333,9 @@
       "source_file": "electron/main.ts",
       "source_location": "L389",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "electron_main_loadgeminiconversation",
-      "target": "electron_main_loadbettersqlite3",
-      "confidence_score": 1.0
+      "target": "electron_main_loadbettersqlite3"
     },
     {
       "relation": "calls",
@@ -5294,9 +5344,9 @@
       "source_file": "electron/main.ts",
       "source_location": "L105",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "electron_main_initdb",
-      "target": "electron_main_creatememorydb",
-      "confidence_score": 1.0
+      "target": "electron_main_creatememorydb"
     },
     {
       "relation": "calls",
@@ -5645,9 +5695,9 @@
       "source_file": "package.json",
       "source_location": "L14",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "package_scripts",
-      "target": "package_scripts_rebuild_native",
-      "confidence_score": 1.0
+      "target": "package_scripts_rebuild_native"
     },
     {
       "relation": "contains",
@@ -6807,9 +6857,9 @@
       "source_file": "src/renderer/App.tsx",
       "source_location": "L63",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "renderer_app",
-      "target": "services_athenaservice",
-      "confidence_score": 1.0
+      "target": "services_athenaservice"
     },
     {
       "relation": "imports",
@@ -6818,9 +6868,9 @@
       "source_file": "src/renderer/App.tsx",
       "source_location": "L63",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "renderer_app",
-      "target": "services_athenaservice_buildworkspaceathenaprompt",
-      "confidence_score": 1.0
+      "target": "services_athenaservice_buildworkspaceathenaprompt"
     },
     {
       "relation": "imports",
@@ -6829,9 +6879,9 @@
       "source_file": "src/renderer/App.tsx",
       "source_location": "L63",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "renderer_app",
-      "target": "services_athenaservice_chatmessage",
-      "confidence_score": 1.0
+      "target": "services_athenaservice_chatmessage"
     },
     {
       "relation": "imports_from",
@@ -6840,9 +6890,9 @@
       "source_file": "src/renderer/App.tsx",
       "source_location": "L64",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "renderer_app",
-      "target": "services_httpclient",
-      "confidence_score": 1.0
+      "target": "services_httpclient"
     },
     {
       "relation": "imports",
@@ -6851,9 +6901,9 @@
       "source_file": "src/renderer/App.tsx",
       "source_location": "L64",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "renderer_app",
-      "target": "services_httpclient_buildsavantheaders",
-      "confidence_score": 1.0
+      "target": "services_httpclient_buildsavantheaders"
     },
     {
       "relation": "imports_from",
@@ -6909,6 +6959,28 @@
       "confidence_score": 1.0,
       "source": "renderer_app",
       "target": "services_sessionadapters_sessionfilegroup"
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "src/renderer/App.tsx",
+      "source_location": "L65",
+      "weight": 1.0,
+      "source": "renderer_app",
+      "target": "services_workspaceadapters",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "src/renderer/App.tsx",
+      "source_location": "L65",
+      "weight": 1.0,
+      "source": "renderer_app",
+      "target": "services_workspaceadapters_normalizeserverworkspace",
+      "confidence_score": 1.0
     },
     {
       "relation": "calls",
@@ -7050,9 +7122,9 @@
       "source_file": "src/renderer/KnowledgeGraph.tsx",
       "source_location": "L10",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "renderer_knowledgegraph",
-      "target": "services_httpclient",
-      "confidence_score": 1.0
+      "target": "services_httpclient"
     },
     {
       "relation": "imports",
@@ -7061,9 +7133,9 @@
       "source_file": "src/renderer/KnowledgeGraph.tsx",
       "source_location": "L10",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "renderer_knowledgegraph",
-      "target": "services_httpclient_buildsavantheaders",
-      "confidence_score": 1.0
+      "target": "services_httpclient_buildsavantheaders"
     },
     {
       "relation": "imports",
@@ -7363,9 +7435,9 @@
       "source_file": "src/renderer/components/AppOverlays.tsx",
       "source_location": "L9",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "components_appoverlays",
-      "target": "services_httpclient",
-      "confidence_score": 1.0
+      "target": "services_httpclient"
     },
     {
       "relation": "imports",
@@ -7374,9 +7446,9 @@
       "source_file": "src/renderer/components/AppOverlays.tsx",
       "source_location": "L9",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "components_appoverlays",
-      "target": "services_httpclient_buildsavantheaders",
-      "confidence_score": 1.0
+      "target": "services_httpclient_buildsavantheaders"
     },
     {
       "relation": "imports_from",
@@ -7776,9 +7848,9 @@
       "source_file": "src/renderer/components/SettingsModal.tsx",
       "source_location": "L3",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "components_settingsmodal",
-      "target": "services_httpclient",
-      "confidence_score": 1.0
+      "target": "services_httpclient"
     },
     {
       "relation": "imports",
@@ -7787,9 +7859,9 @@
       "source_file": "src/renderer/components/SettingsModal.tsx",
       "source_location": "L3",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "components_settingsmodal",
-      "target": "services_httpclient_buildsavantheaders",
-      "confidence_score": 1.0
+      "target": "services_httpclient_buildsavantheaders"
     },
     {
       "relation": "imports",
@@ -7798,9 +7870,9 @@
       "source_file": "src/renderer/components/SettingsModal.tsx",
       "source_location": "L3",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "components_settingsmodal",
-      "target": "services_httpclient_savant_app_headers",
-      "confidence_score": 1.0
+      "target": "services_httpclient_savant_app_headers"
     },
     {
       "relation": "imports_from",
@@ -7831,9 +7903,9 @@
       "source_file": "src/renderer/components/SettingsModal.tsx",
       "source_location": "L76",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "components_settingsmodal_servicepanel",
-      "target": "services_httpclient_buildsavantheaders",
-      "confidence_score": 1.0
+      "target": "services_httpclient_buildsavantheaders"
     },
     {
       "relation": "imports",
@@ -8043,9 +8115,9 @@
       "source_file": "src/renderer/components/WorkspaceAthenaDrawer.tsx",
       "source_location": "L6",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "components_workspaceathenadrawer",
-      "target": "services_athenaservice",
-      "confidence_score": 1.0
+      "target": "services_athenaservice"
     },
     {
       "relation": "imports",
@@ -8054,9 +8126,9 @@
       "source_file": "src/renderer/components/WorkspaceAthenaDrawer.tsx",
       "source_location": "L6",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "components_workspaceathenadrawer",
-      "target": "services_athenaservice_chatmessage",
-      "confidence_score": 1.0
+      "target": "services_athenaservice_chatmessage"
     },
     {
       "relation": "imports_from",
@@ -9335,9 +9407,9 @@
       "source_file": "src/renderer/components/WorkspaceSurface.tsx",
       "source_location": "L9",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "components_workspacesurface",
-      "target": "services_httpclient",
-      "confidence_score": 1.0
+      "target": "services_httpclient"
     },
     {
       "relation": "imports",
@@ -9346,9 +9418,9 @@
       "source_file": "src/renderer/components/WorkspaceSurface.tsx",
       "source_location": "L9",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "components_workspacesurface",
-      "target": "services_httpclient_buildsavantheaders",
-      "confidence_score": 1.0
+      "target": "services_httpclient_buildsavantheaders"
     },
     {
       "relation": "imports_from",
@@ -9788,9 +9860,9 @@
       "source_file": "src/renderer/services/athenaService.ts",
       "source_location": "L1",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "services_athenaservice",
-      "target": "renderer_data",
-      "confidence_score": 1.0
+      "target": "renderer_data"
     },
     {
       "relation": "imports_from",
@@ -9802,6 +9874,17 @@
       "confidence_score": 1.0,
       "source": "services_sessionadapters",
       "target": "renderer_data"
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "src/renderer/services/workspaceAdapters.ts",
+      "source_location": "L1",
+      "weight": 1.0,
+      "source": "services_workspaceadapters",
+      "target": "renderer_data",
+      "confidence_score": 1.0
     },
     {
       "relation": "imports_from",
@@ -9832,7 +9915,18 @@
       "source_file": "src/renderer/services/athenaService.ts",
       "source_location": "L1",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "services_athenaservice",
+      "target": "renderer_data_workspace"
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "src/renderer/services/workspaceAdapters.ts",
+      "source_location": "L1",
+      "weight": 1.0,
+      "source": "services_workspaceadapters",
       "target": "renderer_data_workspace",
       "confidence_score": 1.0
     },
@@ -9854,9 +9948,9 @@
       "source_file": "src/renderer/services/athenaService.ts",
       "source_location": "L1",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "services_athenaservice",
-      "target": "renderer_data_session",
-      "confidence_score": 1.0
+      "target": "renderer_data_session"
     },
     {
       "relation": "imports",
@@ -9898,9 +9992,9 @@
       "source_file": "src/renderer/services/athenaService.ts",
       "source_location": "L1",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "services_athenaservice",
-      "target": "renderer_data_task",
-      "confidence_score": 1.0
+      "target": "renderer_data_task"
     },
     {
       "relation": "imports",
@@ -9931,9 +10025,9 @@
       "source_file": "src/renderer/services/athenaService.ts",
       "source_location": "L1",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "services_athenaservice",
-      "target": "renderer_data_artifact",
-      "confidence_score": 1.0
+      "target": "renderer_data_artifact"
     },
     {
       "relation": "imports",
@@ -10120,9 +10214,9 @@
       "source_file": "src/renderer/lib/athenaContext.ts",
       "source_location": "L1",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_athenacontext",
-      "target": "services_httpclient",
-      "confidence_score": 1.0
+      "target": "services_httpclient"
     },
     {
       "relation": "imports",
@@ -10131,9 +10225,9 @@
       "source_file": "src/renderer/lib/athenaContext.ts",
       "source_location": "L1",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "lib_athenacontext",
-      "target": "services_httpclient_buildsavantheaders",
-      "confidence_score": 1.0
+      "target": "services_httpclient_buildsavantheaders"
     },
     {
       "relation": "imports_from",
@@ -10142,9 +10236,9 @@
       "source_file": "src/renderer/services/athenaService.ts",
       "source_location": "L2",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "services_athenaservice",
-      "target": "lib_athenacontext",
-      "confidence_score": 1.0
+      "target": "lib_athenacontext"
     },
     {
       "relation": "imports",
@@ -10153,9 +10247,9 @@
       "source_file": "src/renderer/services/athenaService.ts",
       "source_location": "L2",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "services_athenaservice",
-      "target": "lib_athenacontext_buildathenapromptsections",
-      "confidence_score": 1.0
+      "target": "lib_athenacontext_buildathenapromptsections"
     },
     {
       "relation": "calls",
@@ -10186,9 +10280,9 @@
       "source_file": "src/renderer/services/athenaService.ts",
       "source_location": "L2",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "services_athenaservice",
-      "target": "lib_athenacontext_formatworkspaceknowledgegraph",
-      "confidence_score": 1.0
+      "target": "lib_athenacontext_formatworkspaceknowledgegraph"
     },
     {
       "relation": "calls",
@@ -10290,9 +10384,9 @@
       "source_file": "src/renderer/services/athenaService.ts",
       "source_location": "L11",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "services_athenaservice",
-      "target": "services_athenaservice_buildworkspaceathenaprompt",
-      "confidence_score": 1.0
+      "target": "services_athenaservice_buildworkspaceathenaprompt"
     },
     {
       "relation": "contains",
@@ -10300,9 +10394,9 @@
       "source_file": "src/renderer/services/athenaService.ts",
       "source_location": "L4",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "services_athenaservice",
-      "target": "services_athenaservice_chatmessage",
-      "confidence_score": 1.0
+      "target": "services_athenaservice_chatmessage"
     },
     {
       "relation": "contains",
@@ -10310,9 +10404,9 @@
       "source_file": "src/renderer/services/athenaService.ts",
       "source_location": "L155",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "services_athenaservice",
-      "target": "services_athenaservice_formatartifacts",
-      "confidence_score": 1.0
+      "target": "services_athenaservice_formatartifacts"
     },
     {
       "relation": "contains",
@@ -10320,9 +10414,9 @@
       "source_file": "src/renderer/services/athenaService.ts",
       "source_location": "L168",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "services_athenaservice",
-      "target": "services_athenaservice_formatgatewaymcps",
-      "confidence_score": 1.0
+      "target": "services_athenaservice_formatgatewaymcps"
     },
     {
       "relation": "contains",
@@ -10330,9 +10424,9 @@
       "source_file": "src/renderer/services/athenaService.ts",
       "source_location": "L163",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "services_athenaservice",
-      "target": "services_athenaservice_formathistory",
-      "confidence_score": 1.0
+      "target": "services_athenaservice_formathistory"
     },
     {
       "relation": "contains",
@@ -10340,9 +10434,9 @@
       "source_file": "src/renderer/services/athenaService.ts",
       "source_location": "L150",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "services_athenaservice",
-      "target": "services_athenaservice_formatjiratickets",
-      "confidence_score": 1.0
+      "target": "services_athenaservice_formatjiratickets"
     },
     {
       "relation": "contains",
@@ -10350,9 +10444,9 @@
       "source_file": "src/renderer/services/athenaService.ts",
       "source_location": "L145",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "services_athenaservice",
-      "target": "services_athenaservice_formatmergerequests",
-      "confidence_score": 1.0
+      "target": "services_athenaservice_formatmergerequests"
     },
     {
       "relation": "contains",
@@ -10360,9 +10454,9 @@
       "source_file": "src/renderer/services/athenaService.ts",
       "source_location": "L137",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "services_athenaservice",
-      "target": "services_athenaservice_formatnotes",
-      "confidence_score": 1.0
+      "target": "services_athenaservice_formatnotes"
     },
     {
       "relation": "contains",
@@ -10370,9 +10464,9 @@
       "source_file": "src/renderer/services/athenaService.ts",
       "source_location": "L79",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "services_athenaservice",
-      "target": "services_athenaservice_formatsessionsfull",
-      "confidence_score": 1.0
+      "target": "services_athenaservice_formatsessionsfull"
     },
     {
       "relation": "contains",
@@ -10380,9 +10474,9 @@
       "source_file": "src/renderer/services/athenaService.ts",
       "source_location": "L115",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "services_athenaservice",
-      "target": "services_athenaservice_formattasks",
-      "confidence_score": 1.0
+      "target": "services_athenaservice_formattasks"
     },
     {
       "relation": "contains",
@@ -10390,9 +10484,9 @@
       "source_file": "src/renderer/services/athenaService.ts",
       "source_location": "L68",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "services_athenaservice",
-      "target": "services_athenaservice_formatworkspace",
-      "confidence_score": 1.0
+      "target": "services_athenaservice_formatworkspace"
     },
     {
       "relation": "calls",
@@ -10401,9 +10495,9 @@
       "source_file": "src/renderer/services/athenaService.ts",
       "source_location": "L59",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "services_athenaservice_buildworkspaceathenaprompt",
-      "target": "services_athenaservice_formatartifacts",
-      "confidence_score": 1.0
+      "target": "services_athenaservice_formatartifacts"
     },
     {
       "relation": "calls",
@@ -10412,9 +10506,9 @@
       "source_file": "src/renderer/services/athenaService.ts",
       "source_location": "L62",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "services_athenaservice_buildworkspaceathenaprompt",
-      "target": "services_athenaservice_formatgatewaymcps",
-      "confidence_score": 1.0
+      "target": "services_athenaservice_formatgatewaymcps"
     },
     {
       "relation": "calls",
@@ -10423,9 +10517,9 @@
       "source_file": "src/renderer/services/athenaService.ts",
       "source_location": "L63",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "services_athenaservice_buildworkspaceathenaprompt",
-      "target": "services_athenaservice_formathistory",
-      "confidence_score": 1.0
+      "target": "services_athenaservice_formathistory"
     },
     {
       "relation": "calls",
@@ -10434,9 +10528,9 @@
       "source_file": "src/renderer/services/athenaService.ts",
       "source_location": "L58",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "services_athenaservice_buildworkspaceathenaprompt",
-      "target": "services_athenaservice_formatjiratickets",
-      "confidence_score": 1.0
+      "target": "services_athenaservice_formatjiratickets"
     },
     {
       "relation": "calls",
@@ -10445,9 +10539,9 @@
       "source_file": "src/renderer/services/athenaService.ts",
       "source_location": "L57",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "services_athenaservice_buildworkspaceathenaprompt",
-      "target": "services_athenaservice_formatmergerequests",
-      "confidence_score": 1.0
+      "target": "services_athenaservice_formatmergerequests"
     },
     {
       "relation": "calls",
@@ -10456,9 +10550,9 @@
       "source_file": "src/renderer/services/athenaService.ts",
       "source_location": "L56",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "services_athenaservice_buildworkspaceathenaprompt",
-      "target": "services_athenaservice_formatnotes",
-      "confidence_score": 1.0
+      "target": "services_athenaservice_formatnotes"
     },
     {
       "relation": "calls",
@@ -10467,9 +10561,9 @@
       "source_file": "src/renderer/services/athenaService.ts",
       "source_location": "L54",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "services_athenaservice_buildworkspaceathenaprompt",
-      "target": "services_athenaservice_formatsessionsfull",
-      "confidence_score": 1.0
+      "target": "services_athenaservice_formatsessionsfull"
     },
     {
       "relation": "calls",
@@ -10478,9 +10572,9 @@
       "source_file": "src/renderer/services/athenaService.ts",
       "source_location": "L50",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "services_athenaservice_buildworkspaceathenaprompt",
-      "target": "services_athenaservice_formattasks",
-      "confidence_score": 1.0
+      "target": "services_athenaservice_formattasks"
     },
     {
       "relation": "calls",
@@ -10489,9 +10583,9 @@
       "source_file": "src/renderer/services/athenaService.ts",
       "source_location": "L52",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "services_athenaservice_buildworkspaceathenaprompt",
-      "target": "services_athenaservice_formatworkspace",
-      "confidence_score": 1.0
+      "target": "services_athenaservice_formatworkspace"
     },
     {
       "relation": "contains",
@@ -10499,9 +10593,9 @@
       "source_file": "src/renderer/services/httpClient.ts",
       "source_location": "L3",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "services_httpclient",
-      "target": "services_httpclient_buildsavantheaders",
-      "confidence_score": 1.0
+      "target": "services_httpclient_buildsavantheaders"
     },
     {
       "relation": "contains",
@@ -10509,9 +10603,9 @@
       "source_file": "src/renderer/services/httpClient.ts",
       "source_location": "L1",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "services_httpclient",
-      "target": "services_httpclient_savant_app_headers",
-      "confidence_score": 1.0
+      "target": "services_httpclient_savant_app_headers"
     },
     {
       "relation": "imports_from",
@@ -10520,9 +10614,9 @@
       "source_file": "src/renderer/test/httpClient.test.ts",
       "source_location": "L2",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "test_httpclient_test",
-      "target": "services_httpclient",
-      "confidence_score": 1.0
+      "target": "services_httpclient"
     },
     {
       "relation": "imports",
@@ -10531,9 +10625,9 @@
       "source_file": "src/renderer/test/httpClient.test.ts",
       "source_location": "L2",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "test_httpclient_test",
-      "target": "services_httpclient_buildsavantheaders",
-      "confidence_score": 1.0
+      "target": "services_httpclient_buildsavantheaders"
     },
     {
       "relation": "contains",
@@ -10958,6 +11052,69 @@
       "confidence_score": 1.0,
       "source": "test_sessionadapters_test",
       "target": "services_sessionadapters_getsessionadapter"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/renderer/services/workspaceAdapters.ts",
+      "source_location": "L19",
+      "weight": 1.0,
+      "source": "services_workspaceadapters",
+      "target": "services_workspaceadapters_normalizeserverworkspace",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/renderer/services/workspaceAdapters.ts",
+      "source_location": "L13",
+      "weight": 1.0,
+      "source": "services_workspaceadapters",
+      "target": "services_workspaceadapters_numericcount",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/renderer/services/workspaceAdapters.ts",
+      "source_location": "L3",
+      "weight": 1.0,
+      "source": "services_workspaceadapters",
+      "target": "services_workspaceadapters_serverworkspace",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "src/renderer/test/workspaceAdapters.test.ts",
+      "source_location": "L2",
+      "weight": 1.0,
+      "source": "test_workspaceadapters_test",
+      "target": "services_workspaceadapters",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "src/renderer/services/workspaceAdapters.ts",
+      "source_location": "L23",
+      "weight": 1.0,
+      "source": "services_workspaceadapters_normalizeserverworkspace",
+      "target": "services_workspaceadapters_numericcount",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "src/renderer/test/workspaceAdapters.test.ts",
+      "source_location": "L2",
+      "weight": 1.0,
+      "source": "test_workspaceadapters_test",
+      "target": "services_workspaceadapters_normalizeserverworkspace",
+      "confidence_score": 1.0
     },
     {
       "relation": "contains",
@@ -12541,5 +12698,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "14337e88d7fbde1ec991ce6eb38bd35d34c8e055"
+  "built_at_commit": "9f85c8fd16ed4cb470526c22f6169ba242724d20"
 }

@@ -5,8 +5,8 @@
     "semantic_hash": ""
   },
   "package.json": {
-    "mtime": 1784766648.6250072,
-    "ast_hash": "47dc7a25e7e9d3d7e751b79a5fd23a66",
+    "mtime": 1784766929.7459009,
+    "ast_hash": "80c2c1dbe9fffa336849aff3381f2ebd",
     "semantic_hash": ""
   },
   "src/main.tsx": {
@@ -15,8 +15,8 @@
     "semantic_hash": ""
   },
   "src/renderer/App.tsx": {
-    "mtime": 1784766628.2136292,
-    "ast_hash": "38fac3fff4665c5b521eb9c31e117356",
+    "mtime": 1784766929.7449632,
+    "ast_hash": "c6985ae98b9eab5439b6bf67db156d8b",
     "semantic_hash": ""
   },
   "src/renderer/KnowledgeGraph.tsx": {
@@ -30,8 +30,8 @@
     "semantic_hash": ""
   },
   "src/renderer/components/BottomBar.tsx": {
-    "mtime": 1784766648.623088,
-    "ast_hash": "18e359eaa5fd80f719c7a8247d898fab",
+    "mtime": 1784766929.7490191,
+    "ast_hash": "fa1c4ce137272c1d888aa0b7ca2f880b",
     "semantic_hash": ""
   },
   "src/renderer/components/LoginScreen.tsx": {
@@ -212,6 +212,16 @@
   "src/renderer/test/httpClient.test.ts": {
     "mtime": 1784766648.6272728,
     "ast_hash": "29542fbd70f53130ee1a303f1d9b03a5",
+    "semantic_hash": ""
+  },
+  "src/renderer/services/workspaceAdapters.ts": {
+    "mtime": 1784766935.6941133,
+    "ast_hash": "e054300024d9c556757e3b6cc3d72d85",
+    "semantic_hash": ""
+  },
+  "src/renderer/test/workspaceAdapters.test.ts": {
+    "mtime": 1784766929.74928,
+    "ast_hash": "e66b1d0481c407f9d5dc1747eaa1f0b9",
     "semantic_hash": ""
   }
 }

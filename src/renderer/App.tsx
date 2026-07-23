@@ -62,6 +62,7 @@ import {
 } from './lib/athenaContext';
 import { buildWorkspaceAthenaPrompt, type ChatMessage } from './services/athenaService';
 import { buildSavantHeaders } from './services/httpClient';
+import { normalizeServerWorkspace } from './services/workspaceAdapters';
 import type { Artifact, Task } from './data';
 
 const STORAGE_KEY = 'savant-sanctum:ui-state';
@@ -850,16 +851,10 @@ function App() {
             : [];
         if (!cancelled && serverWorkspaces.length > 0) {
           const merged = [...serverWorkspaces].reduce<Workspace[]>((acc, workspace) => {
-            const id = workspace.id || (workspace as any).workspace_id || (workspace as any).workspaceId;
-            if (!id) return acc;
-
+            const normalized = normalizeServerWorkspace(workspace as any);
+            if (!normalized) return acc;
+            const id = normalized.id;
             const existingIndex = acc.findIndex((item) => item.id === id);
-            const normalized = {
-              ...workspace,
-              id,
-              name: workspace.name || id,
-            };
-
             if (existingIndex >= 0) {
               acc[existingIndex] = {
                 ...acc[existingIndex],

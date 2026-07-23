@@ -1,16 +1,16 @@
 # Graph Report - savant-sanctum  (2026-07-22)
 
 ## Corpus Check
-- 39 files · ~48,909 words
+- 41 files · ~49,120 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 483 nodes · 740 edges · 27 communities (25 shown, 2 thin omitted)
+- 488 nodes · 750 edges · 26 communities (24 shown, 2 thin omitted)
 - Extraction: 100% EXTRACTED · 0% INFERRED · 0% AMBIGUOUS
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `14337e88`
+- Built from commit: `9f85c8fd`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -32,7 +32,6 @@
 - [[_COMMUNITY_Community 14|Community 14]]
 - [[_COMMUNITY_Community 15|Community 15]]
 - [[_COMMUNITY_Community 16|Community 16]]
-- [[_COMMUNITY_Community 17|Community 17]]
 - [[_COMMUNITY_Community 20|Community 20]]
 - [[_COMMUNITY_Community 22|Community 22]]
 - [[_COMMUNITY_Community 23|Community 23]]
@@ -49,31 +48,31 @@
 4. `Session` - 15 edges
 5. `buildWorkspaceAthenaPrompt()` - 13 edges
 6. `16. Visual Examples` - 13 edges
-7. `buildSavantHeaders()` - 12 edges
-8. `8. Feature Inventory` - 12 edges
-9. `scripts` - 11 edges
-10. `Workspace` - 11 edges
+7. `Workspace` - 12 edges
+8. `buildSavantHeaders()` - 12 edges
+9. `8. Feature Inventory` - 12 edges
+10. `scripts` - 11 edges
 
 ## Surprising Connections (you probably didn't know these)
-- `AppOverlays()` --calls--> `isTaskBlocked()`  [EXTRACTED]
-  src/renderer/components/AppOverlays.tsx → src/renderer/lib/taskBoard.ts
-- `AppOverlays()` --calls--> `buildSavantHeaders()`  [EXTRACTED]
-  src/renderer/components/AppOverlays.tsx → src/renderer/services/httpClient.ts
+- `AppOverlays()` --calls--> `getSessionAdapter()`  [EXTRACTED]
+  src/renderer/components/AppOverlays.tsx → src/renderer/services/sessionAdapters.ts
+- `AppOverlays()` --calls--> `inferSessionProvider()`  [EXTRACTED]
+  src/renderer/components/AppOverlays.tsx → src/renderer/services/sessionAdapters.ts
+- `fetchWorkspaceKnowledgeGraph()` --calls--> `buildSavantHeaders()`  [EXTRACTED]
+  src/renderer/lib/athenaContext.ts → src/renderer/services/httpClient.ts
 - `App()` --calls--> `getSessionAdapter()`  [EXTRACTED]
   src/renderer/App.tsx → src/renderer/services/sessionAdapters.ts
 - `App()` --calls--> `inferSessionProvider()`  [EXTRACTED]
   src/renderer/App.tsx → src/renderer/services/sessionAdapters.ts
-- `AppOverlays()` --calls--> `getSessionAdapter()`  [EXTRACTED]
-  src/renderer/components/AppOverlays.tsx → src/renderer/services/sessionAdapters.ts
 
 ## Import Cycles
 - None detected.
 
-## Communities (27 total, 2 thin omitted)
+## Communities (26 total, 2 thin omitted)
 
 ### Community 0 - "Community 0"
-Cohesion: 0.07
-Nodes (46): ActivityItem, AppOverlaysProps, EntityEditorState, WorkspaceJiraTicket, WorkspaceMergeRequest, LoginScreen(), LoginScreenProps, SessionConversation() (+38 more)
+Cohesion: 0.06
+Nodes (39): BottomBar(), STATUS_COLORS, StatusDot, LoginScreen(), LoginScreenProps, SessionConversation(), SessionConversationProps, ActivityItem (+31 more)
 
 ### Community 1 - "Community 1"
 Cohesion: 0.05
@@ -93,11 +92,11 @@ Nodes (32): AGY_DIR, CLAUDE_DIR, CODEX_DIR, CODEX_HISTORY_PATH, CODEX_LOGS_PATH,
 
 ### Community 5 - "Community 5"
 Cohesion: 0.06
-Nodes (48): buildWorkspaceEditorPayload(), createWorkspaceEditorDraft(), createWorkspaceEditorDraftFromWorkspace(), WorkspaceEditorDraft, WorkspaceEditorMode, DetailBlock(), DetailRow(), IntelligencePulse() (+40 more)
+Nodes (47): buildWorkspaceEditorPayload(), createWorkspaceEditorDraft(), createWorkspaceEditorDraftFromWorkspace(), WorkspaceEditorDraft, WorkspaceEditorMode, DetailBlock(), DetailRow(), IntelligencePulse() (+39 more)
 
 ### Community 6 - "Community 6"
 Cohesion: 0.11
-Nodes (25): AppOverlays(), App(), adapterRegistry, buildSessionTree(), cleanPath(), formatSessionUpdated(), getConversationItems(), getSessionAdapter() (+17 more)
+Nodes (24): App(), adapterRegistry, buildSessionTree(), cleanPath(), formatSessionUpdated(), getConversationItems(), getSessionAdapter(), inferProviderFromFiles() (+16 more)
 
 ### Community 7 - "Community 7"
 Cohesion: 0.09
@@ -136,16 +135,12 @@ Cohesion: 0.17
 Nodes (12): 8.10 Terminal and Local Execution, 8.11 Knowledge and Analysis, 8.1 Core Work Management, 8.2 Session Experience, 8.3 Workspace Experience, 8.4 Provider and Session Adapter System, 8.5 API Surface, 8.6 MCP Surface (+4 more)
 
 ### Community 16 - "Community 16"
-Cohesion: 0.09
-Nodes (23): ConnectionStatus, FALLBACK_PROVIDERS, normalizeUrl(), ServiceConfig, ServicePanel(), SettingsModal(), SettingsModalProps, TabId (+15 more)
-
-### Community 17 - "Community 17"
-Cohesion: 0.22
-Nodes (8): BottomBar(), STATUS_COLORS, StatusDot, ActivityItem, NavItem, ShellChrome(), ShellChromeProps, ToastLike
+Cohesion: 0.07
+Nodes (42): ActivityItem, AppOverlays(), AppOverlaysProps, EntityEditorState, WorkspaceJiraTicket, WorkspaceMergeRequest, ConnectionStatus, FALLBACK_PROVIDERS (+34 more)
 
 ### Community 20 - "Community 20"
-Cohesion: 0.17
-Nodes (17): ATHENA_SYSTEM_DIRECTIVE, AthenaKnowledgeEdge, AthenaKnowledgeNode, buildAthenaPromptSections(), fetchGatewayMCPs(), formatGatewayMCPs(), formatWorkspaceKnowledgeGraph(), buildWorkspaceAthenaPrompt() (+9 more)
+Cohesion: 0.16
+Nodes (18): ATHENA_SYSTEM_DIRECTIVE, AthenaKnowledgeEdge, AthenaKnowledgeNode, buildAthenaPromptSections(), fetchGatewayMCPs(), fetchWorkspaceKnowledgeGraph(), formatGatewayMCPs(), formatWorkspaceKnowledgeGraph() (+10 more)
 
 ### Community 22 - "Community 22"
 Cohesion: 0.33
@@ -168,7 +163,7 @@ Cohesion: 0.67
 Nodes (3): 5.1 Primary Hierarchy, 5.2 Secondary Hierarchy, 5. Navigation and Information Hierarchy
 
 ## Knowledge Gaps
-- **277 isolated node(s):** `__filename`, `__dirname`, `SAVANT_DIR`, `SANCTUM_DB_PATH`, `SANCTUM_SETTINGS_PATH` (+272 more)
+- **278 isolated node(s):** `__filename`, `__dirname`, `SAVANT_DIR`, `SANCTUM_DB_PATH`, `SANCTUM_SETTINGS_PATH` (+273 more)
   These have ≤1 connection - possible missing edges or undocumented components.
 - **2 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
@@ -176,15 +171,15 @@ Nodes (3): 5.1 Primary Hierarchy, 5.2 Secondary Hierarchy, 5. Navigation and Inf
 _Questions this graph is uniquely positioned to answer:_
 
 - **Why does `Sanctum Roadmap PRD` connect `Community 1` to `Community 15`?**
-  _High betweenness centrality (0.012) - this node is a cross-community bridge._
-- **Why does `Sanctum Style Guide` connect `Community 2` to `Community 11`, `Community 14`, `Community 22`, `Community 23`, `Community 26`, `Community 28`, `Community 29`?**
   _High betweenness centrality (0.011) - this node is a cross-community bridge._
-- **Why does `Session` connect `Community 0` to `Community 5`, `Community 6`, `Community 10`, `Community 17`, `Community 20`?**
+- **Why does `Sanctum Style Guide` connect `Community 2` to `Community 11`, `Community 14`, `Community 22`, `Community 23`, `Community 26`, `Community 28`, `Community 29`?**
+  _High betweenness centrality (0.010) - this node is a cross-community bridge._
+- **Why does `Session` connect `Community 0` to `Community 5`, `Community 6`, `Community 10`, `Community 16`, `Community 20`?**
   _High betweenness centrality (0.009) - this node is a cross-community bridge._
 - **What connects `__filename`, `__dirname`, `SAVANT_DIR` to the rest of the system?**
-  _277 weakly-connected nodes found - possible documentation gaps or missing edges._
+  _278 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `Community 0` be split into smaller, more focused modules?**
-  _Cohesion score 0.06830601092896176 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.0602322206095791 - nodes in this community are weakly interconnected._
 - **Should `Community 1` be split into smaller, more focused modules?**
   _Cohesion score 0.045454545454545456 - nodes in this community are weakly interconnected._
 - **Should `Community 3` be split into smaller, more focused modules?**
