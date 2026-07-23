@@ -182,14 +182,20 @@ export function ShellChrome({
               <div className="workspace-pane-list">
                 {filteredWorkspaces.length > 0 ? filteredWorkspaces.map((workspace) => {
                   const index = workspaceList.findIndex((ws) => ws.id === workspace.id);
-                  const count = workspace.counts?.total ?? workspace.sessions ?? 0;
+                  const density = Number(workspace.nodeDensity ?? (workspace.knowledgeEdges / Math.max(1, workspace.knowledgeNodes)));
                   return (
                     <button key={workspace.id} className={`workspace-pane-item ${index === workspaceIndex ? 'is-active' : ''}`} onClick={() => onWorkspaceSelect(index)}>
                       <div className="workspace-tree-node">
                         <ChevronRight size={12} className="tree-chevron" />
                         <Folder size={14} className="tree-icon" />
                         <span className="workspace-pane-name">{workspace.name}</span>
-                        <span className="workspace-count-badge">{count}</span>
+                      </div>
+                      <div className="workspace-tree-metrics" aria-label={`${workspace.sessions} sessions, ${workspace.tasks} tasks, ${workspace.notes ?? 0} notes, ${workspace.knowledgeNodes} knowledge graph nodes, ${density.toFixed(2)} node density`}>
+                        <span><b>{workspace.sessions}</b> sessions</span>
+                        <span><b>{workspace.tasks}</b> tasks</span>
+                        <span><b>{workspace.notes ?? 0}</b> notes</span>
+                        <span><b>{workspace.knowledgeNodes}</b> KG nodes</span>
+                        <span><b>{density.toFixed(2)}</b> density</span>
                       </div>
                     </button>
                   );

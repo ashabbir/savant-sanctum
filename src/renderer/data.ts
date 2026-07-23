@@ -33,11 +33,13 @@ export type Workspace = {
     savant?: number;
   };
   tasks: number;
+  notes?: number;
   reminders: number;
   summary: string;
   files: number;
   knowledgeNodes: number;
   knowledgeEdges: number;
+  nodeDensity?: number;
   kg_stats?: {
     total_nodes: number;
     total_edges: number;

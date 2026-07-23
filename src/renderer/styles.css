@@ -510,6 +510,27 @@ body,
   text-align: center;
 }
 
+.workspace-tree-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 2px 8px;
+  margin: 5px 0 0 32px;
+  color: var(--muted-text);
+  font-family: "Share Tech Mono", monospace;
+  font-size: 9px;
+  line-height: 1.35;
+  text-transform: uppercase;
+}
+
+.workspace-tree-metrics span:last-child {
+  grid-column: 1 / -1;
+}
+
+.workspace-tree-metrics b {
+  color: var(--cyan);
+  font-weight: 500;
+}
+
 .drawer-shell {
   display: grid;
   gap: 10px;

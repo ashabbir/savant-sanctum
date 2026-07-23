@@ -870,6 +870,47 @@ function App() {
           setWorkspaceSearch('');
           setWorkspaceIndex(0);
           setSessionIndex(0);
+
+          void (async () => {
+            const headers = buildSavantHeaders(apiKey);
+            const tasksResponse = await fetch(`${serverBaseUrl}/api/tasks`, { headers }).catch(() => null);
+            const allTasks = tasksResponse?.ok ? await tasksResponse.json().catch(() => []) : [];
+            const tasksByWorkspace = new Map<string, number>();
+            if (Array.isArray(allTasks)) {
+              allTasks.forEach((task: any) => {
+                const workspaceId = String(task.workspace_id ?? task.workspaceId ?? '');
+                if (workspaceId) tasksByWorkspace.set(workspaceId, (tasksByWorkspace.get(workspaceId) ?? 0) + 1);
+              });
+            }
+
+            const enriched = await Promise.all(merged.map(async (workspace) => {
+              const raw = serverWorkspaces.find((item: any) => String(item.id ?? item.workspace_id ?? item.workspaceId) === workspace.id) as any;
+              const sessionLinks = Array.isArray(raw?.sessions) ? raw.sessions : [];
+              const [graphResponse, noteCounts] = await Promise.all([
+                fetch(`${serverBaseUrl}/api/knowledge/graph?workspace_id=${encodeURIComponent(workspace.id)}&include_staged=true&slim=true&limit=5000`, { headers }).catch(() => null),
+                Promise.all(sessionLinks.map(async (link: any) => {
+                  const sessionId = String(link.session_id ?? link.id ?? '');
+                  if (!sessionId) return 0;
+                  const response = await fetch(`${serverBaseUrl}/api/session/${encodeURIComponent(sessionId)}/notes`, { headers }).catch(() => null);
+                  if (!response?.ok) return 0;
+                  const payload = await response.json().catch(() => []);
+                  return Array.isArray(payload) ? payload.length : Array.isArray(payload?.notes) ? payload.notes.length : 0;
+                })),
+              ]);
+              const graph = graphResponse?.ok ? await graphResponse.json().catch(() => ({})) : {};
+              const nodeCount = Array.isArray(graph?.nodes) ? graph.nodes.length : 0;
+              const edgeCount = Array.isArray(graph?.edges) ? graph.edges.length : 0;
+              return {
+                ...workspace,
+                tasks: tasksByWorkspace.get(workspace.id) ?? 0,
+                notes: noteCounts.reduce((sum, count) => sum + count, 0),
+                knowledgeNodes: nodeCount,
+                knowledgeEdges: edgeCount,
+                nodeDensity: edgeCount / Math.max(1, nodeCount),
+              };
+            }));
+            if (!cancelled) setWorkspaceList(enriched);
+          })();
         } else if (!cancelled) {
           setWorkspaceList([]);
         }

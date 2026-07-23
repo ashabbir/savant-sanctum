@@ -7,6 +7,7 @@ type ServerWorkspace = Omit<Partial<Workspace>, 'sessions'> & {
   sessions?: number | unknown[];
   task_count?: number;
   reminder_count?: number;
+  note_count?: number;
   file_count?: number;
 };
 
@@ -29,11 +30,13 @@ export function normalizeServerWorkspace(raw: ServerWorkspace): Workspace | null
     sessions,
     counts: raw.counts ? { ...raw.counts, total: numericCount(raw.counts.total, sessions) } : { total: sessions },
     tasks: numericCount(raw.tasks ?? raw.task_count),
+    notes: numericCount(raw.notes ?? raw.note_count),
     reminders: numericCount(raw.reminders ?? raw.reminder_count),
     summary: String(raw.summary ?? raw.description ?? ''),
     files: numericCount(raw.files ?? raw.file_count),
     knowledgeNodes: numericCount(raw.knowledgeNodes ?? raw.kg_stats?.total_nodes),
     knowledgeEdges: numericCount(raw.knowledgeEdges ?? raw.kg_stats?.total_edges),
+    nodeDensity: numericCount(raw.nodeDensity, numericCount(raw.knowledgeEdges ?? raw.kg_stats?.total_edges) / Math.max(1, numericCount(raw.knowledgeNodes ?? raw.kg_stats?.total_nodes))),
     aiIntelligence: raw.aiIntelligence ?? { providers: [] },
   };
 }

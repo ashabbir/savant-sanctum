@@ -5,8 +5,8 @@
     "semantic_hash": ""
   },
   "package.json": {
-    "mtime": 1784766929.7459009,
-    "ast_hash": "80c2c1dbe9fffa336849aff3381f2ebd",
+    "mtime": 1784767921.861701,
+    "ast_hash": "67853d89a722857f3425efd646bb24c9",
     "semantic_hash": ""
   },
   "src/main.tsx": {
@@ -15,8 +15,8 @@
     "semantic_hash": ""
   },
   "src/renderer/App.tsx": {
-    "mtime": 1784766929.7449632,
-    "ast_hash": "c6985ae98b9eab5439b6bf67db156d8b",
+    "mtime": 1784767841.8536086,
+    "ast_hash": "b98a3842c081aab6a601d263be3b83e5",
     "semantic_hash": ""
   },
   "src/renderer/KnowledgeGraph.tsx": {
@@ -30,8 +30,8 @@
     "semantic_hash": ""
   },
   "src/renderer/components/BottomBar.tsx": {
-    "mtime": 1784766929.7490191,
-    "ast_hash": "fa1c4ce137272c1d888aa0b7ca2f880b",
+    "mtime": 1784767921.8648772,
+    "ast_hash": "22ddd9d4832be26c013f128d3e1b4016",
     "semantic_hash": ""
   },
   "src/renderer/components/LoginScreen.tsx": {
@@ -50,8 +50,8 @@
     "semantic_hash": ""
   },
   "src/renderer/components/ShellChrome.tsx": {
-    "mtime": 1783283948.8098273,
-    "ast_hash": "e5bf57fbbfce91ccb290189854c26faf",
+    "mtime": 1784767841.855622,
+    "ast_hash": "7ec179693b85645a5847de31fafa9c42",
     "semantic_hash": ""
   },
   "src/renderer/components/WorkspaceAthenaDrawer.tsx": {
@@ -105,8 +105,8 @@
     "semantic_hash": ""
   },
   "src/renderer/data.ts": {
-    "mtime": 1783268515.0740898,
-    "ast_hash": "fd9c7395195ec5c8117a98c876d35219",
+    "mtime": 1784767841.852069,
+    "ast_hash": "9617b586a84811a8754067984898737a",
     "semantic_hash": ""
   },
   "src/renderer/lib/athenaContext.ts": {
@@ -215,13 +215,13 @@
     "semantic_hash": ""
   },
   "src/renderer/services/workspaceAdapters.ts": {
-    "mtime": 1784766935.6941133,
-    "ast_hash": "e054300024d9c556757e3b6cc3d72d85",
+    "mtime": 1784767841.852759,
+    "ast_hash": "020168e41266c3e0e37ad040e1aa5051",
     "semantic_hash": ""
   },
   "src/renderer/test/workspaceAdapters.test.ts": {
-    "mtime": 1784766929.74928,
-    "ast_hash": "e66b1d0481c407f9d5dc1747eaa1f0b9",
+    "mtime": 1784767849.1424356,
+    "ast_hash": "56fc5c4209d12b7939242ef3d960c974",
     "semantic_hash": ""
   }
 }
