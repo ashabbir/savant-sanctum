@@ -1,16 +1,16 @@
 # Graph Report - savant-sanctum  (2026-07-22)
 
 ## Corpus Check
-- 41 files · ~49,400 words
+- 42 files · ~49,615 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 488 nodes · 750 edges · 26 communities (24 shown, 2 thin omitted)
+- 490 nodes · 755 edges · 30 communities (28 shown, 2 thin omitted)
 - Extraction: 100% EXTRACTED · 0% INFERRED · 0% AMBIGUOUS
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `ac49c04a`
+- Built from commit: `32ee5e61`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -32,13 +32,17 @@
 - [[_COMMUNITY_Community 14|Community 14]]
 - [[_COMMUNITY_Community 15|Community 15]]
 - [[_COMMUNITY_Community 16|Community 16]]
+- [[_COMMUNITY_Community 17|Community 17]]
+- [[_COMMUNITY_Community 18|Community 18]]
+- [[_COMMUNITY_Community 19|Community 19]]
 - [[_COMMUNITY_Community 20|Community 20]]
+- [[_COMMUNITY_Community 21|Community 21]]
 - [[_COMMUNITY_Community 22|Community 22]]
 - [[_COMMUNITY_Community 23|Community 23]]
 - [[_COMMUNITY_Community 24|Community 24]]
 - [[_COMMUNITY_Community 26|Community 26]]
+- [[_COMMUNITY_Community 27|Community 27]]
 - [[_COMMUNITY_Community 28|Community 28]]
-- [[_COMMUNITY_Community 29|Community 29]]
 - [[_COMMUNITY_Community 30|Community 30]]
 
 ## God Nodes (most connected - your core abstractions)
@@ -46,9 +50,9 @@
 2. `compilerOptions` - 18 edges
 3. `Sanctum Style Guide` - 18 edges
 4. `Session` - 15 edges
-5. `buildWorkspaceAthenaPrompt()` - 13 edges
-6. `16. Visual Examples` - 13 edges
-7. `Workspace` - 12 edges
+5. `Workspace` - 13 edges
+6. `buildWorkspaceAthenaPrompt()` - 13 edges
+7. `16. Visual Examples` - 13 edges
 8. `buildSavantHeaders()` - 12 edges
 9. `8. Feature Inventory` - 12 edges
 10. `scripts` - 11 edges
@@ -58,29 +62,29 @@
   src/renderer/components/AppOverlays.tsx → src/renderer/services/sessionAdapters.ts
 - `AppOverlays()` --calls--> `inferSessionProvider()`  [EXTRACTED]
   src/renderer/components/AppOverlays.tsx → src/renderer/services/sessionAdapters.ts
-- `fetchWorkspaceKnowledgeGraph()` --calls--> `buildSavantHeaders()`  [EXTRACTED]
-  src/renderer/lib/athenaContext.ts → src/renderer/services/httpClient.ts
 - `App()` --calls--> `getSessionAdapter()`  [EXTRACTED]
   src/renderer/App.tsx → src/renderer/services/sessionAdapters.ts
 - `App()` --calls--> `inferSessionProvider()`  [EXTRACTED]
   src/renderer/App.tsx → src/renderer/services/sessionAdapters.ts
+- `AppOverlays()` --calls--> `isTaskBlocked()`  [EXTRACTED]
+  src/renderer/components/AppOverlays.tsx → src/renderer/lib/taskBoard.ts
 
 ## Import Cycles
 - None detected.
 
-## Communities (26 total, 2 thin omitted)
+## Communities (30 total, 2 thin omitted)
 
 ### Community 0 - "Community 0"
-Cohesion: 0.06
-Nodes (39): BottomBar(), STATUS_COLORS, StatusDot, LoginScreen(), LoginScreenProps, SessionConversation(), SessionConversationProps, ActivityItem (+31 more)
+Cohesion: 0.08
+Nodes (31): LoginScreen(), LoginScreenProps, SessionConversation(), SessionConversationProps, WorkspaceAthenaDrawer(), WorkspaceAthenaDrawerProps, WorkspaceHeader(), WorkspaceHeaderProps (+23 more)
 
 ### Community 1 - "Community 1"
-Cohesion: 0.05
-Nodes (43): 10. Phase Plan, 11.1 Workspace Roadmap, 11.2 Session Roadmap, 11.3 Task and Reminder Roadmap, 11.4 Integration Roadmap, 11.5 Local Setup Roadmap, 11. Detailed Roadmap, 12.1 Reuse (+35 more)
+Cohesion: 0.13
+Nodes (14): 13. User Experience Requirements, 14. Technical Requirements, 15. Performance Requirements, 16. Quality Requirements, 17. Risks, 18. Open Questions, 19. Acceptance Criteria, 1. Product Summary (+6 more)
 
 ### Community 2 - "Community 2"
-Cohesion: 0.17
-Nodes (11): 10. Motion, 11. Sanctum-Specific Product Framing, 12. Implementation Notes, 13. What Sanctum Should Not Look Like, 14. Reference Alignment, 15. Design Checklist, 1. Design Direction, 2. App Shell (+3 more)
+Cohesion: 0.05
+Nodes (40): 10. Motion, 11. Sanctum-Specific Product Framing, 12. Implementation Notes, 13. What Sanctum Should Not Look Like, 14. Reference Alignment, 15. Design Checklist, 1. Design Direction, 2. App Shell (+32 more)
 
 ### Community 3 - "Community 3"
 Cohesion: 0.05
@@ -91,8 +95,8 @@ Cohesion: 0.07
 Nodes (32): AGY_DIR, CLAUDE_DIR, CODEX_DIR, CODEX_HISTORY_PATH, CODEX_LOGS_PATH, codexEventToMessage(), COPILOT_DIR, COPILOT_SESSION_DB_PATH (+24 more)
 
 ### Community 5 - "Community 5"
-Cohesion: 0.06
-Nodes (47): buildWorkspaceEditorPayload(), createWorkspaceEditorDraft(), createWorkspaceEditorDraftFromWorkspace(), WorkspaceEditorDraft, WorkspaceEditorMode, DetailBlock(), DetailRow(), IntelligencePulse() (+39 more)
+Cohesion: 0.09
+Nodes (23): DetailBlock(), DetailRow(), IntelligencePulse(), KnowledgeNetwork(), Metric(), Row(), StatusOrb(), ActivityItem (+15 more)
 
 ### Community 6 - "Community 6"
 Cohesion: 0.11
@@ -127,8 +131,8 @@ Cohesion: 0.15
 Nodes (12): compilerOptions, allowSyntheticDefaultImports, esModuleInterop, module, moduleResolution, outDir, rootDir, skipLibCheck (+4 more)
 
 ### Community 14 - "Community 14"
-Cohesion: 0.33
-Nodes (6): 3.1 Top Header, 3.2 Left Navigation Rail, 3.3 Center Workspace, 3.4 Right Context Rail, 3.5 Bottom Status Bar, 3. Layout Model
+Cohesion: 0.17
+Nodes (15): artifacts, LocalSetupItem, navigation, notes, providers, reminders, SectionId, SectionProfile (+7 more)
 
 ### Community 15 - "Community 15"
 Cohesion: 0.17
@@ -136,51 +140,67 @@ Nodes (12): 8.10 Terminal and Local Execution, 8.11 Knowledge and Analysis, 8.1 
 
 ### Community 16 - "Community 16"
 Cohesion: 0.07
-Nodes (42): ActivityItem, AppOverlays(), AppOverlaysProps, EntityEditorState, WorkspaceJiraTicket, WorkspaceMergeRequest, ConnectionStatus, FALLBACK_PROVIDERS (+34 more)
+Nodes (43): ActivityItem, AppOverlays(), AppOverlaysProps, EntityEditorState, WorkspaceJiraTicket, WorkspaceMergeRequest, ConnectionStatus, FALLBACK_PROVIDERS (+35 more)
+
+### Community 17 - "Community 17"
+Cohesion: 0.19
+Nodes (10): BottomBar(), STATUS_COLORS, StatusDot, ActivityItem, NavItem, ShellChrome(), ShellChromeProps, ToastLike (+2 more)
+
+### Community 18 - "Community 18"
+Cohesion: 0.29
+Nodes (7): 10. Phase Plan, Phase 0: Discovery and Contract Freeze, Phase 1: App Scaffold, Phase 2: Core Domain, Phase 3: Integration Surfaces, Phase 4: Deep Session Features, Phase 5: Knowledge and Power Features
+
+### Community 19 - "Community 19"
+Cohesion: 0.40
+Nodes (5): buildWorkspaceEditorPayload(), createWorkspaceEditorDraft(), createWorkspaceEditorDraftFromWorkspace(), WorkspaceEditorDraft, WorkspaceEditorMode
 
 ### Community 20 - "Community 20"
-Cohesion: 0.16
-Nodes (18): ATHENA_SYSTEM_DIRECTIVE, AthenaKnowledgeEdge, AthenaKnowledgeNode, buildAthenaPromptSections(), fetchGatewayMCPs(), fetchWorkspaceKnowledgeGraph(), formatGatewayMCPs(), formatWorkspaceKnowledgeGraph() (+10 more)
+Cohesion: 0.17
+Nodes (17): ATHENA_SYSTEM_DIRECTIVE, AthenaKnowledgeEdge, AthenaKnowledgeNode, buildAthenaPromptSections(), fetchGatewayMCPs(), formatGatewayMCPs(), formatWorkspaceKnowledgeGraph(), buildWorkspaceAthenaPrompt() (+9 more)
+
+### Community 21 - "Community 21"
+Cohesion: 0.33
+Nodes (6): 11.1 Workspace Roadmap, 11.2 Session Roadmap, 11.3 Task and Reminder Roadmap, 11.4 Integration Roadmap, 11.5 Local Setup Roadmap, 11. Detailed Roadmap
 
 ### Community 22 - "Community 22"
-Cohesion: 0.33
-Nodes (6): 6.1 Cards, 6.2 Tables and Lists, 6.3 Tabs and Subtabs, 6.4 Modals, 6.5 Toasts, 6. Component Patterns
+Cohesion: 0.60
+Nodes (3): normalizeServerWorkspace(), numericCount(), ServerWorkspace
 
 ### Community 23 - "Community 23"
-Cohesion: 0.40
-Nodes (5): 4.1 Overall Tone, 4.2 Typography, 4.3 Color, 4.4 Surfaces, 4. Visual Language
+Cohesion: 0.50
+Nodes (4): 12.1 Reuse, 12.2 Rebuild, 12.3 Drop or Defer, 12. Migration Strategy
 
 ### Community 26 - "Community 26"
-Cohesion: 0.40
-Nodes (5): 7.1 Header, 7.2 Left Bar, 7.3 Right Bar, 7.4 Bottom Bar, 7. Shell-Specific Guidance
+Cohesion: 0.50
+Nodes (4): 5.1 Primary Entities, 5.2 Session-Attached Entities, 5.3 Support Entities, 5. Core Domain Model
+
+### Community 27 - "Community 27"
+Cohesion: 0.50
+Nodes (4): 6.1 Ownership and Scope, 6.2 Key Relationships, 6.3 Source of Truth, 6. Relationship Model
 
 ### Community 28 - "Community 28"
 Cohesion: 0.50
-Nodes (4): 9.1 Loading, 9.2 Empty States, 9.3 Error States, 9. State and Feedback
-
-### Community 29 - "Community 29"
-Cohesion: 0.67
-Nodes (3): 5.1 Primary Hierarchy, 5.2 Secondary Hierarchy, 5. Navigation and Information Hierarchy
+Nodes (4): 7.1 Layers, 7.2 Interaction Paths, 7.3 Architectural Constraint, 7. System Architecture
 
 ## Knowledge Gaps
-- **278 isolated node(s):** `__filename`, `__dirname`, `SAVANT_DIR`, `SANCTUM_DB_PATH`, `SANCTUM_SETTINGS_PATH` (+273 more)
+- **279 isolated node(s):** `__filename`, `__dirname`, `SAVANT_DIR`, `SANCTUM_DB_PATH`, `SANCTUM_SETTINGS_PATH` (+274 more)
   These have ≤1 connection - possible missing edges or undocumented components.
 - **2 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `Sanctum Roadmap PRD` connect `Community 1` to `Community 15`?**
+- **Why does `Sanctum Roadmap PRD` connect `Community 1` to `Community 15`, `Community 18`, `Community 21`, `Community 23`, `Community 26`, `Community 27`, `Community 28`?**
   _High betweenness centrality (0.011) - this node is a cross-community bridge._
-- **Why does `Sanctum Style Guide` connect `Community 2` to `Community 11`, `Community 14`, `Community 22`, `Community 23`, `Community 26`, `Community 28`, `Community 29`?**
+- **Why does `Sanctum Style Guide` connect `Community 2` to `Community 11`?**
   _High betweenness centrality (0.010) - this node is a cross-community bridge._
-- **Why does `Session` connect `Community 0` to `Community 5`, `Community 6`, `Community 10`, `Community 16`, `Community 20`?**
+- **Why does `Session` connect `Community 0` to `Community 5`, `Community 6`, `Community 10`, `Community 14`, `Community 16`, `Community 17`, `Community 20`?**
   _High betweenness centrality (0.009) - this node is a cross-community bridge._
 - **What connects `__filename`, `__dirname`, `SAVANT_DIR` to the rest of the system?**
-  _278 weakly-connected nodes found - possible documentation gaps or missing edges._
+  _279 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `Community 0` be split into smaller, more focused modules?**
-  _Cohesion score 0.0602322206095791 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.07751937984496124 - nodes in this community are weakly interconnected._
 - **Should `Community 1` be split into smaller, more focused modules?**
-  _Cohesion score 0.045454545454545456 - nodes in this community are weakly interconnected._
-- **Should `Community 3` be split into smaller, more focused modules?**
+  _Cohesion score 0.13333333333333333 - nodes in this community are weakly interconnected._
+- **Should `Community 2` be split into smaller, more focused modules?**
   _Cohesion score 0.04878048780487805 - nodes in this community are weakly interconnected._

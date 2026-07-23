@@ -478,6 +478,34 @@ body,
   gap: 6px;
 }
 
+.workspace-tree-toggle,
+.workspace-tree-select {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.workspace-tree-toggle {
+  display: grid;
+  flex: 0 0 16px;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  place-items: center;
+  color: var(--muted-text);
+}
+
+.workspace-tree-select {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  align-items: center;
+  gap: 5px;
+  padding: 0;
+  text-align: left;
+}
+
 .tree-chevron {
   color: var(--muted-text);
   opacity: 0.5;
@@ -494,6 +522,25 @@ body,
   font-size: 12px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+}
+
+.workspace-title-counts {
+  display: inline-flex;
+  gap: 4px;
+  font-family: "Share Tech Mono", monospace;
+  font-size: 9px;
+  white-space: nowrap;
+}
+
+.workspace-title-counts span {
+  min-width: 20px;
+  padding: 0 4px;
+  border: 1px solid rgba(0, 229, 255, 0.32);
+  border-radius: 999px;
+  background: rgba(0, 229, 255, 0.08);
+  color: var(--cyan);
+  line-height: 15px;
+  text-align: center;
 }
 
 .workspace-count-badge {

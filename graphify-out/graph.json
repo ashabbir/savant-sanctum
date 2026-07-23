@@ -1468,7 +1468,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "components_bottombar",
-      "community": 0,
+      "community": 17,
       "norm_label": "bottombar.tsx"
     },
     {
@@ -1478,7 +1478,7 @@
       "source_location": "L6",
       "_origin": "ast",
       "id": "components_bottombar_statusdot",
-      "community": 0,
+      "community": 17,
       "norm_label": "statusdot"
     },
     {
@@ -1488,7 +1488,7 @@
       "source_location": "L12",
       "_origin": "ast",
       "id": "components_bottombar_status_colors",
-      "community": 0,
+      "community": 17,
       "norm_label": "status_colors"
     },
     {
@@ -1498,7 +1498,7 @@
       "source_location": "L18",
       "_origin": "ast",
       "id": "components_bottombar_bottombar",
-      "community": 0,
+      "community": 17,
       "norm_label": "bottombar()"
     },
     {
@@ -1668,7 +1668,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "components_shellchrome",
-      "community": 0,
+      "community": 17,
       "norm_label": "shellchrome.tsx"
     },
     {
@@ -1678,7 +1678,7 @@
       "source_location": "L6",
       "_origin": "ast",
       "id": "components_shellchrome_navitem",
-      "community": 0,
+      "community": 17,
       "norm_label": "navitem"
     },
     {
@@ -1688,7 +1688,7 @@
       "source_location": "L12",
       "_origin": "ast",
       "id": "components_shellchrome_toastlike",
-      "community": 0,
+      "community": 17,
       "norm_label": "toastlike"
     },
     {
@@ -1698,7 +1698,7 @@
       "source_location": "L19",
       "_origin": "ast",
       "id": "components_shellchrome_activityitem",
-      "community": 0,
+      "community": 17,
       "norm_label": "activityitem"
     },
     {
@@ -1708,7 +1708,7 @@
       "source_location": "L29",
       "_origin": "ast",
       "id": "components_shellchrome_shellchromeprops",
-      "community": 0,
+      "community": 17,
       "norm_label": "shellchromeprops"
     },
     {
@@ -1718,7 +1718,7 @@
       "source_location": "L58",
       "_origin": "ast",
       "id": "components_shellchrome_shellchrome",
-      "community": 0,
+      "community": 17,
       "norm_label": "shellchrome()"
     },
     {
@@ -2238,7 +2238,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "components_workspaceeditor",
-      "community": 5,
+      "community": 19,
       "norm_label": "workspaceeditor.ts"
     },
     {
@@ -2248,7 +2248,7 @@
       "source_location": "L3",
       "_origin": "ast",
       "id": "components_workspaceeditor_workspaceeditormode",
-      "community": 5,
+      "community": 19,
       "norm_label": "workspaceeditormode"
     },
     {
@@ -2258,7 +2258,7 @@
       "source_location": "L5",
       "_origin": "ast",
       "id": "components_workspaceeditor_workspaceeditordraft",
-      "community": 5,
+      "community": 19,
       "norm_label": "workspaceeditordraft"
     },
     {
@@ -2268,7 +2268,7 @@
       "source_location": "L13",
       "_origin": "ast",
       "id": "components_workspaceeditor_createworkspaceeditordraft",
-      "community": 5,
+      "community": 19,
       "norm_label": "createworkspaceeditordraft()"
     },
     {
@@ -2278,7 +2278,7 @@
       "source_location": "L23",
       "_origin": "ast",
       "id": "components_workspaceeditor_createworkspaceeditordraftfromworkspace",
-      "community": 5,
+      "community": 19,
       "norm_label": "createworkspaceeditordraftfromworkspace()"
     },
     {
@@ -2288,7 +2288,7 @@
       "source_location": "L33",
       "_origin": "ast",
       "id": "components_workspaceeditor_buildworkspaceeditorpayload",
-      "community": 5,
+      "community": 19,
       "norm_label": "buildworkspaceeditorpayload()"
     },
     {
@@ -2298,7 +2298,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "renderer_data",
-      "community": 5,
+      "community": 14,
       "norm_label": "data.ts"
     },
     {
@@ -2308,7 +2308,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "renderer_data_sectionid",
-      "community": 5,
+      "community": 14,
       "norm_label": "sectionid"
     },
     {
@@ -2328,7 +2328,7 @@
       "source_location": "L17",
       "_origin": "ast",
       "id": "renderer_data_workspace",
-      "community": 5,
+      "community": 17,
       "norm_label": "workspace"
     },
     {
@@ -2388,7 +2388,7 @@
       "source_location": "L113",
       "_origin": "ast",
       "id": "renderer_data_sessionevent",
-      "community": 5,
+      "community": 14,
       "norm_label": "sessionevent"
     },
     {
@@ -2408,7 +2408,7 @@
       "source_location": "L130",
       "_origin": "ast",
       "id": "renderer_data_localsetupitem",
-      "community": 5,
+      "community": 14,
       "norm_label": "localsetupitem"
     },
     {
@@ -2418,7 +2418,7 @@
       "source_location": "L137",
       "_origin": "ast",
       "id": "renderer_data_surfaceitem",
-      "community": 5,
+      "community": 14,
       "norm_label": "surfaceitem"
     },
     {
@@ -2428,7 +2428,7 @@
       "source_location": "L144",
       "_origin": "ast",
       "id": "renderer_data_sectionprofile",
-      "community": 5,
+      "community": 14,
       "norm_label": "sectionprofile"
     },
     {
@@ -2438,7 +2438,7 @@
       "source_location": "L153",
       "_origin": "ast",
       "id": "renderer_data_navigation",
-      "community": 5,
+      "community": 14,
       "norm_label": "navigation"
     },
     {
@@ -2448,7 +2448,7 @@
       "source_location": "L167",
       "_origin": "ast",
       "id": "renderer_data_workspaces",
-      "community": 5,
+      "community": 14,
       "norm_label": "workspaces"
     },
     {
@@ -2458,7 +2458,7 @@
       "source_location": "L206",
       "_origin": "ast",
       "id": "renderer_data_sessions",
-      "community": 5,
+      "community": 14,
       "norm_label": "sessions"
     },
     {
@@ -2468,7 +2468,7 @@
       "source_location": "L251",
       "_origin": "ast",
       "id": "renderer_data_tasks",
-      "community": 5,
+      "community": 14,
       "norm_label": "tasks"
     },
     {
@@ -2478,7 +2478,7 @@
       "source_location": "L298",
       "_origin": "ast",
       "id": "renderer_data_reminders",
-      "community": 5,
+      "community": 14,
       "norm_label": "reminders"
     },
     {
@@ -2488,7 +2488,7 @@
       "source_location": "L304",
       "_origin": "ast",
       "id": "renderer_data_notes",
-      "community": 5,
+      "community": 14,
       "norm_label": "notes"
     },
     {
@@ -2498,7 +2498,7 @@
       "source_location": "L325",
       "_origin": "ast",
       "id": "renderer_data_artifacts",
-      "community": 5,
+      "community": 14,
       "norm_label": "artifacts"
     },
     {
@@ -2508,7 +2508,7 @@
       "source_location": "L332",
       "_origin": "ast",
       "id": "renderer_data_sessionevents",
-      "community": 5,
+      "community": 14,
       "norm_label": "sessionevents"
     },
     {
@@ -2518,7 +2518,7 @@
       "source_location": "L375",
       "_origin": "ast",
       "id": "renderer_data_providers",
-      "community": 5,
+      "community": 14,
       "norm_label": "providers"
     },
     {
@@ -2558,7 +2558,7 @@
       "source_location": "L406",
       "_origin": "ast",
       "id": "renderer_data_sectionprofiles",
-      "community": 5,
+      "community": 14,
       "norm_label": "sectionprofiles"
     },
     {
@@ -2618,7 +2618,7 @@
       "source_location": "L37",
       "_origin": "ast",
       "id": "lib_athenacontext_fetchworkspaceknowledgegraph",
-      "community": 20,
+      "community": 16,
       "norm_label": "fetchworkspaceknowledgegraph()"
     },
     {
@@ -3158,7 +3158,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "services_workspaceadapters",
-      "community": 5,
+      "community": 22,
       "norm_label": "workspaceadapters.ts"
     },
     {
@@ -3168,7 +3168,7 @@
       "source_location": "L3",
       "_origin": "ast",
       "id": "services_workspaceadapters_serverworkspace",
-      "community": 5,
+      "community": 22,
       "norm_label": "serverworkspace"
     },
     {
@@ -3178,7 +3178,7 @@
       "source_location": "L14",
       "_origin": "ast",
       "id": "services_workspaceadapters_numericcount",
-      "community": 5,
+      "community": 22,
       "norm_label": "numericcount()"
     },
     {
@@ -3188,8 +3188,28 @@
       "source_location": "L20",
       "_origin": "ast",
       "id": "services_workspaceadapters_normalizeserverworkspace",
-      "community": 5,
+      "community": 22,
       "norm_label": "normalizeserverworkspace()"
+    },
+    {
+      "label": "ShellChrome.test.tsx",
+      "file_type": "code",
+      "source_file": "src/renderer/test/ShellChrome.test.tsx",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "test_shellchrome_test",
+      "community": 17,
+      "norm_label": "shellchrome.test.tsx"
+    },
+    {
+      "label": "workspace",
+      "file_type": "code",
+      "source_file": "src/renderer/test/ShellChrome.test.tsx",
+      "source_location": "L6",
+      "_origin": "ast",
+      "id": "test_shellchrome_test_workspace",
+      "community": 17,
+      "norm_label": "workspace"
     },
     {
       "label": "components.test.tsx",
@@ -3258,7 +3278,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "test_sanctum_test",
-      "community": 5,
+      "community": 14,
       "norm_label": "sanctum.test.ts"
     },
     {
@@ -3278,7 +3298,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "test_workspaceadapters_test",
-      "community": 5,
+      "community": 22,
       "norm_label": "workspaceadapters.test.ts"
     },
     {
@@ -3858,7 +3878,7 @@
       "source_location": "L41",
       "_origin": "ast",
       "id": "sanctum_roadmap_prd_5_core_domain_model",
-      "community": 1,
+      "community": 26,
       "norm_label": "5. core domain model"
     },
     {
@@ -3868,7 +3888,7 @@
       "source_location": "L43",
       "_origin": "ast",
       "id": "sanctum_roadmap_prd_5_1_primary_entities",
-      "community": 1,
+      "community": 26,
       "norm_label": "5.1 primary entities"
     },
     {
@@ -3878,7 +3898,7 @@
       "source_location": "L51",
       "_origin": "ast",
       "id": "sanctum_roadmap_prd_5_2_session_attached_entities",
-      "community": 1,
+      "community": 26,
       "norm_label": "5.2 session-attached entities"
     },
     {
@@ -3888,7 +3908,7 @@
       "source_location": "L64",
       "_origin": "ast",
       "id": "sanctum_roadmap_prd_5_3_support_entities",
-      "community": 1,
+      "community": 26,
       "norm_label": "5.3 support entities"
     },
     {
@@ -3898,7 +3918,7 @@
       "source_location": "L75",
       "_origin": "ast",
       "id": "sanctum_roadmap_prd_6_relationship_model",
-      "community": 1,
+      "community": 27,
       "norm_label": "6. relationship model"
     },
     {
@@ -3908,7 +3928,7 @@
       "source_location": "L77",
       "_origin": "ast",
       "id": "sanctum_roadmap_prd_6_1_ownership_and_scope",
-      "community": 1,
+      "community": 27,
       "norm_label": "6.1 ownership and scope"
     },
     {
@@ -3918,7 +3938,7 @@
       "source_location": "L86",
       "_origin": "ast",
       "id": "sanctum_roadmap_prd_6_2_key_relationships",
-      "community": 1,
+      "community": 27,
       "norm_label": "6.2 key relationships"
     },
     {
@@ -3928,7 +3948,7 @@
       "source_location": "L103",
       "_origin": "ast",
       "id": "sanctum_roadmap_prd_6_3_source_of_truth",
-      "community": 1,
+      "community": 27,
       "norm_label": "6.3 source of truth"
     },
     {
@@ -3938,7 +3958,7 @@
       "source_location": "L110",
       "_origin": "ast",
       "id": "sanctum_roadmap_prd_7_system_architecture",
-      "community": 1,
+      "community": 28,
       "norm_label": "7. system architecture"
     },
     {
@@ -3948,7 +3968,7 @@
       "source_location": "L112",
       "_origin": "ast",
       "id": "sanctum_roadmap_prd_7_1_layers",
-      "community": 1,
+      "community": 28,
       "norm_label": "7.1 layers"
     },
     {
@@ -3958,7 +3978,7 @@
       "source_location": "L121",
       "_origin": "ast",
       "id": "sanctum_roadmap_prd_7_2_interaction_paths",
-      "community": 1,
+      "community": 28,
       "norm_label": "7.2 interaction paths"
     },
     {
@@ -3968,7 +3988,7 @@
       "source_location": "L128",
       "_origin": "ast",
       "id": "sanctum_roadmap_prd_7_3_architectural_constraint",
-      "community": 1,
+      "community": 28,
       "norm_label": "7.3 architectural constraint"
     },
     {
@@ -4108,7 +4128,7 @@
       "source_location": "L285",
       "_origin": "ast",
       "id": "sanctum_roadmap_prd_10_phase_plan",
-      "community": 1,
+      "community": 18,
       "norm_label": "10. phase plan"
     },
     {
@@ -4118,7 +4138,7 @@
       "source_location": "L287",
       "_origin": "ast",
       "id": "sanctum_roadmap_prd_phase_0_discovery_and_contract_freeze",
-      "community": 1,
+      "community": 18,
       "norm_label": "phase 0: discovery and contract freeze"
     },
     {
@@ -4128,7 +4148,7 @@
       "source_location": "L302",
       "_origin": "ast",
       "id": "sanctum_roadmap_prd_phase_1_app_scaffold",
-      "community": 1,
+      "community": 18,
       "norm_label": "phase 1: app scaffold"
     },
     {
@@ -4138,7 +4158,7 @@
       "source_location": "L317",
       "_origin": "ast",
       "id": "sanctum_roadmap_prd_phase_2_core_domain",
-      "community": 1,
+      "community": 18,
       "norm_label": "phase 2: core domain"
     },
     {
@@ -4148,7 +4168,7 @@
       "source_location": "L334",
       "_origin": "ast",
       "id": "sanctum_roadmap_prd_phase_3_integration_surfaces",
-      "community": 1,
+      "community": 18,
       "norm_label": "phase 3: integration surfaces"
     },
     {
@@ -4158,7 +4178,7 @@
       "source_location": "L349",
       "_origin": "ast",
       "id": "sanctum_roadmap_prd_phase_4_deep_session_features",
-      "community": 1,
+      "community": 18,
       "norm_label": "phase 4: deep session features"
     },
     {
@@ -4168,7 +4188,7 @@
       "source_location": "L364",
       "_origin": "ast",
       "id": "sanctum_roadmap_prd_phase_5_knowledge_and_power_features",
-      "community": 1,
+      "community": 18,
       "norm_label": "phase 5: knowledge and power features"
     },
     {
@@ -4178,7 +4198,7 @@
       "source_location": "L378",
       "_origin": "ast",
       "id": "sanctum_roadmap_prd_11_detailed_roadmap",
-      "community": 1,
+      "community": 21,
       "norm_label": "11. detailed roadmap"
     },
     {
@@ -4188,7 +4208,7 @@
       "source_location": "L380",
       "_origin": "ast",
       "id": "sanctum_roadmap_prd_11_1_workspace_roadmap",
-      "community": 1,
+      "community": 21,
       "norm_label": "11.1 workspace roadmap"
     },
     {
@@ -4198,7 +4218,7 @@
       "source_location": "L389",
       "_origin": "ast",
       "id": "sanctum_roadmap_prd_11_2_session_roadmap",
-      "community": 1,
+      "community": 21,
       "norm_label": "11.2 session roadmap"
     },
     {
@@ -4208,7 +4228,7 @@
       "source_location": "L400",
       "_origin": "ast",
       "id": "sanctum_roadmap_prd_11_3_task_and_reminder_roadmap",
-      "community": 1,
+      "community": 21,
       "norm_label": "11.3 task and reminder roadmap"
     },
     {
@@ -4218,7 +4238,7 @@
       "source_location": "L408",
       "_origin": "ast",
       "id": "sanctum_roadmap_prd_11_4_integration_roadmap",
-      "community": 1,
+      "community": 21,
       "norm_label": "11.4 integration roadmap"
     },
     {
@@ -4228,7 +4248,7 @@
       "source_location": "L416",
       "_origin": "ast",
       "id": "sanctum_roadmap_prd_11_5_local_setup_roadmap",
-      "community": 1,
+      "community": 21,
       "norm_label": "11.5 local setup roadmap"
     },
     {
@@ -4238,7 +4258,7 @@
       "source_location": "L425",
       "_origin": "ast",
       "id": "sanctum_roadmap_prd_12_migration_strategy",
-      "community": 1,
+      "community": 23,
       "norm_label": "12. migration strategy"
     },
     {
@@ -4248,7 +4268,7 @@
       "source_location": "L427",
       "_origin": "ast",
       "id": "sanctum_roadmap_prd_12_1_reuse",
-      "community": 1,
+      "community": 23,
       "norm_label": "12.1 reuse"
     },
     {
@@ -4258,7 +4278,7 @@
       "source_location": "L435",
       "_origin": "ast",
       "id": "sanctum_roadmap_prd_12_2_rebuild",
-      "community": 1,
+      "community": 23,
       "norm_label": "12.2 rebuild"
     },
     {
@@ -4268,7 +4288,7 @@
       "source_location": "L444",
       "_origin": "ast",
       "id": "sanctum_roadmap_prd_12_3_drop_or_defer",
-      "community": 1,
+      "community": 23,
       "norm_label": "12.3 drop or defer"
     },
     {
@@ -4408,7 +4428,7 @@
       "source_location": "L57",
       "_origin": "ast",
       "id": "sanctum_style_guide_3_layout_model",
-      "community": 14,
+      "community": 2,
       "norm_label": "3. layout model"
     },
     {
@@ -4418,7 +4438,7 @@
       "source_location": "L59",
       "_origin": "ast",
       "id": "sanctum_style_guide_3_1_top_header",
-      "community": 14,
+      "community": 2,
       "norm_label": "3.1 top header"
     },
     {
@@ -4428,7 +4448,7 @@
       "source_location": "L79",
       "_origin": "ast",
       "id": "sanctum_style_guide_3_2_left_navigation_rail",
-      "community": 14,
+      "community": 2,
       "norm_label": "3.2 left navigation rail"
     },
     {
@@ -4438,7 +4458,7 @@
       "source_location": "L111",
       "_origin": "ast",
       "id": "sanctum_style_guide_3_3_center_workspace",
-      "community": 14,
+      "community": 2,
       "norm_label": "3.3 center workspace"
     },
     {
@@ -4448,7 +4468,7 @@
       "source_location": "L131",
       "_origin": "ast",
       "id": "sanctum_style_guide_3_4_right_context_rail",
-      "community": 14,
+      "community": 2,
       "norm_label": "3.4 right context rail"
     },
     {
@@ -4458,7 +4478,7 @@
       "source_location": "L153",
       "_origin": "ast",
       "id": "sanctum_style_guide_3_5_bottom_status_bar",
-      "community": 14,
+      "community": 2,
       "norm_label": "3.5 bottom status bar"
     },
     {
@@ -4468,7 +4488,7 @@
       "source_location": "L175",
       "_origin": "ast",
       "id": "sanctum_style_guide_4_visual_language",
-      "community": 23,
+      "community": 2,
       "norm_label": "4. visual language"
     },
     {
@@ -4478,7 +4498,7 @@
       "source_location": "L177",
       "_origin": "ast",
       "id": "sanctum_style_guide_4_1_overall_tone",
-      "community": 23,
+      "community": 2,
       "norm_label": "4.1 overall tone"
     },
     {
@@ -4488,7 +4508,7 @@
       "source_location": "L185",
       "_origin": "ast",
       "id": "sanctum_style_guide_4_2_typography",
-      "community": 23,
+      "community": 2,
       "norm_label": "4.2 typography"
     },
     {
@@ -4498,7 +4518,7 @@
       "source_location": "L200",
       "_origin": "ast",
       "id": "sanctum_style_guide_4_3_color",
-      "community": 23,
+      "community": 2,
       "norm_label": "4.3 color"
     },
     {
@@ -4508,7 +4528,7 @@
       "source_location": "L223",
       "_origin": "ast",
       "id": "sanctum_style_guide_4_4_surfaces",
-      "community": 23,
+      "community": 2,
       "norm_label": "4.4 surfaces"
     },
     {
@@ -4518,7 +4538,7 @@
       "source_location": "L236",
       "_origin": "ast",
       "id": "sanctum_style_guide_5_navigation_and_information_hierarchy",
-      "community": 29,
+      "community": 2,
       "norm_label": "5. navigation and information hierarchy"
     },
     {
@@ -4528,7 +4548,7 @@
       "source_location": "L238",
       "_origin": "ast",
       "id": "sanctum_style_guide_5_1_primary_hierarchy",
-      "community": 29,
+      "community": 2,
       "norm_label": "5.1 primary hierarchy"
     },
     {
@@ -4538,7 +4558,7 @@
       "source_location": "L246",
       "_origin": "ast",
       "id": "sanctum_style_guide_5_2_secondary_hierarchy",
-      "community": 29,
+      "community": 2,
       "norm_label": "5.2 secondary hierarchy"
     },
     {
@@ -4548,7 +4568,7 @@
       "source_location": "L258",
       "_origin": "ast",
       "id": "sanctum_style_guide_6_component_patterns",
-      "community": 22,
+      "community": 2,
       "norm_label": "6. component patterns"
     },
     {
@@ -4558,7 +4578,7 @@
       "source_location": "L260",
       "_origin": "ast",
       "id": "sanctum_style_guide_6_1_cards",
-      "community": 22,
+      "community": 2,
       "norm_label": "6.1 cards"
     },
     {
@@ -4568,7 +4588,7 @@
       "source_location": "L280",
       "_origin": "ast",
       "id": "sanctum_style_guide_6_2_tables_and_lists",
-      "community": 22,
+      "community": 2,
       "norm_label": "6.2 tables and lists"
     },
     {
@@ -4578,7 +4598,7 @@
       "source_location": "L298",
       "_origin": "ast",
       "id": "sanctum_style_guide_6_3_tabs_and_subtabs",
-      "community": 22,
+      "community": 2,
       "norm_label": "6.3 tabs and subtabs"
     },
     {
@@ -4588,7 +4608,7 @@
       "source_location": "L314",
       "_origin": "ast",
       "id": "sanctum_style_guide_6_4_modals",
-      "community": 22,
+      "community": 2,
       "norm_label": "6.4 modals"
     },
     {
@@ -4598,7 +4618,7 @@
       "source_location": "L329",
       "_origin": "ast",
       "id": "sanctum_style_guide_6_5_toasts",
-      "community": 22,
+      "community": 2,
       "norm_label": "6.5 toasts"
     },
     {
@@ -4608,7 +4628,7 @@
       "source_location": "L349",
       "_origin": "ast",
       "id": "sanctum_style_guide_7_shell_specific_guidance",
-      "community": 26,
+      "community": 2,
       "norm_label": "7. shell-specific guidance"
     },
     {
@@ -4618,7 +4638,7 @@
       "source_location": "L351",
       "_origin": "ast",
       "id": "sanctum_style_guide_7_1_header",
-      "community": 26,
+      "community": 2,
       "norm_label": "7.1 header"
     },
     {
@@ -4628,7 +4648,7 @@
       "source_location": "L366",
       "_origin": "ast",
       "id": "sanctum_style_guide_7_2_left_bar",
-      "community": 26,
+      "community": 2,
       "norm_label": "7.2 left bar"
     },
     {
@@ -4638,7 +4658,7 @@
       "source_location": "L383",
       "_origin": "ast",
       "id": "sanctum_style_guide_7_3_right_bar",
-      "community": 26,
+      "community": 2,
       "norm_label": "7.3 right bar"
     },
     {
@@ -4648,7 +4668,7 @@
       "source_location": "L392",
       "_origin": "ast",
       "id": "sanctum_style_guide_7_4_bottom_bar",
-      "community": 26,
+      "community": 2,
       "norm_label": "7.4 bottom bar"
     },
     {
@@ -4668,7 +4688,7 @@
       "source_location": "L428",
       "_origin": "ast",
       "id": "sanctum_style_guide_9_state_and_feedback",
-      "community": 28,
+      "community": 2,
       "norm_label": "9. state and feedback"
     },
     {
@@ -4678,7 +4698,7 @@
       "source_location": "L430",
       "_origin": "ast",
       "id": "sanctum_style_guide_9_1_loading",
-      "community": 28,
+      "community": 2,
       "norm_label": "9.1 loading"
     },
     {
@@ -4688,7 +4708,7 @@
       "source_location": "L438",
       "_origin": "ast",
       "id": "sanctum_style_guide_9_2_empty_states",
-      "community": 28,
+      "community": 2,
       "norm_label": "9.2 empty states"
     },
     {
@@ -4698,7 +4718,7 @@
       "source_location": "L446",
       "_origin": "ast",
       "id": "sanctum_style_guide_9_3_error_states",
-      "community": 28,
+      "community": 2,
       "norm_label": "9.3 error states"
     },
     {
@@ -8013,6 +8033,17 @@
       "target": "components_shellchrome"
     },
     {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "src/renderer/test/ShellChrome.test.tsx",
+      "source_location": "L3",
+      "weight": 1.0,
+      "source": "test_shellchrome_test",
+      "target": "components_shellchrome",
+      "confidence_score": 1.0
+    },
+    {
       "relation": "imports",
       "context": "import",
       "confidence": "EXTRACTED",
@@ -8022,6 +8053,17 @@
       "confidence_score": 1.0,
       "source": "test_components_test",
       "target": "components_shellchrome_shellchrome"
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "src/renderer/test/ShellChrome.test.tsx",
+      "source_location": "L3",
+      "weight": 1.0,
+      "source": "test_shellchrome_test",
+      "target": "components_shellchrome_shellchrome",
+      "confidence_score": 1.0
     },
     {
       "relation": "contains",
@@ -9909,6 +9951,17 @@
       "target": "renderer_data"
     },
     {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "src/renderer/test/ShellChrome.test.tsx",
+      "source_location": "L4",
+      "weight": 1.0,
+      "source": "test_shellchrome_test",
+      "target": "renderer_data",
+      "confidence_score": 1.0
+    },
+    {
       "relation": "imports",
       "context": "import",
       "confidence": "EXTRACTED",
@@ -9940,6 +9993,17 @@
       "confidence_score": 1.0,
       "source": "test_components_test",
       "target": "renderer_data_workspace"
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "src/renderer/test/ShellChrome.test.tsx",
+      "source_location": "L4",
+      "weight": 1.0,
+      "source": "test_shellchrome_test",
+      "target": "renderer_data_workspace",
+      "confidence_score": 1.0
     },
     {
       "relation": "imports",
@@ -11115,6 +11179,16 @@
       "confidence_score": 1.0,
       "source": "test_workspaceadapters_test",
       "target": "services_workspaceadapters_normalizeserverworkspace"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/renderer/test/ShellChrome.test.tsx",
+      "source_location": "L6",
+      "weight": 1.0,
+      "source": "test_shellchrome_test",
+      "target": "test_shellchrome_test_workspace",
+      "confidence_score": 1.0
     },
     {
       "relation": "contains",
@@ -12698,5 +12772,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "ac49c04a3bdd30210c7beb69e0f3aeab13cffe7f"
+  "built_at_commit": "32ee5e61c69dc27f112c583e2c85e7cdcd5fab02"
 }

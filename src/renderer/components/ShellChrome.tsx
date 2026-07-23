@@ -1,5 +1,5 @@
-import { type ReactNode } from 'react';
-import { Bell, ChevronLeft, ChevronRight, Folder, Keyboard, ListChecks, LogOut, Plus, Settings } from 'lucide-react';
+import { useState, type ReactNode } from 'react';
+import { Bell, ChevronDown, ChevronLeft, ChevronRight, Folder, Keyboard, ListChecks, LogOut, Plus, Settings } from 'lucide-react';
 import type { Session, Workspace } from '../data';
 import { BottomBar } from './BottomBar';
 
@@ -83,6 +83,7 @@ export function ShellChrome({
   children,
   footerItems,
 }: ShellChromeProps) {
+  const [expandedWorkspaceIds, setExpandedWorkspaceIds] = useState<Set<string>>(() => new Set());
   const filteredWorkspaces = workspaceList.filter((ws) => ws.name.toLowerCase().includes(workspaceSearch.toLowerCase()));
   const showWorkspacePane = isWorkspacePaneOpen && activeSection !== 'tasks';
 
@@ -183,21 +184,44 @@ export function ShellChrome({
                 {filteredWorkspaces.length > 0 ? filteredWorkspaces.map((workspace) => {
                   const index = workspaceList.findIndex((ws) => ws.id === workspace.id);
                   const density = Number(workspace.nodeDensity ?? (workspace.knowledgeEdges / Math.max(1, workspace.knowledgeNodes)));
+                  const isExpanded = expandedWorkspaceIds.has(workspace.id);
                   return (
-                    <button key={workspace.id} className={`workspace-pane-item ${index === workspaceIndex ? 'is-active' : ''}`} onClick={() => onWorkspaceSelect(index)}>
+                    <div key={workspace.id} className={`workspace-pane-item ${index === workspaceIndex ? 'is-active' : ''}`}>
                       <div className="workspace-tree-node">
-                        <ChevronRight size={12} className="tree-chevron" />
+                        <button
+                          type="button"
+                          className="workspace-tree-toggle"
+                          onClick={() => setExpandedWorkspaceIds((current) => {
+                            const next = new Set(current);
+                            if (next.has(workspace.id)) next.delete(workspace.id);
+                            else next.add(workspace.id);
+                            return next;
+                          })}
+                          aria-expanded={isExpanded}
+                          aria-label={`${isExpanded ? 'Collapse' : 'Expand'} ${workspace.name} workspace statistics`}
+                        >
+                          {isExpanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+                        </button>
                         <Folder size={14} className="tree-icon" />
-                        <span className="workspace-pane-name">{workspace.name}</span>
+                        <button type="button" className="workspace-tree-select" onClick={() => onWorkspaceSelect(index)}>
+                          <span className="workspace-pane-name">{workspace.name}</span>
+                          {!isExpanded && (
+                            <span className="workspace-title-counts" aria-label={`${workspace.sessions} sessions, ${workspace.tasks} tasks, ${workspace.knowledgeNodes} knowledge graph nodes`}>
+                              <span>({workspace.sessions})</span>
+                              <span>({workspace.tasks})</span>
+                              <span>({workspace.knowledgeNodes})</span>
+                            </span>
+                          )}
+                        </button>
                       </div>
-                      <div className="workspace-tree-metrics" aria-label={`${workspace.sessions} sessions, ${workspace.tasks} tasks, ${workspace.notes ?? 0} notes, ${workspace.knowledgeNodes} knowledge graph nodes, ${density.toFixed(2)} node density`}>
+                      {isExpanded && <div className="workspace-tree-metrics" aria-label={`${workspace.sessions} sessions, ${workspace.tasks} tasks, ${workspace.notes ?? 0} notes, ${workspace.knowledgeNodes} knowledge graph nodes, ${density.toFixed(2)} node density`}>
                         <span><b>{workspace.sessions}</b> sessions</span>
                         <span><b>{workspace.tasks}</b> tasks</span>
                         <span><b>{workspace.notes ?? 0}</b> notes</span>
                         <span><b>{workspace.knowledgeNodes}</b> KG nodes</span>
                         <span><b>{density.toFixed(2)}</b> density</span>
-                      </div>
-                    </button>
+                      </div>}
+                    </div>
                   );
                 }) : (
                   <div className="workspace-pane-empty">

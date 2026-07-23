@@ -1,6 +1,6 @@
 {
   "name": "savant-sanctum",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "private": true,
   "description": "Savant Sanctum desktop shell for workspace and session operations.",
   "repository": {

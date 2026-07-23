@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { Circle, Activity, X, Terminal, StopCircle, RefreshCcw } from "lucide-react";
 
-const APP_VERSION = "1.0.4";
+const APP_VERSION = "1.0.5";
 
 interface StatusDot {
   label: string;
