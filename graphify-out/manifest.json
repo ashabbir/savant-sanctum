@@ -5,8 +5,8 @@
     "semantic_hash": ""
   },
   "package.json": {
-    "mtime": 1784768980.184759,
-    "ast_hash": "19b4781eead3b364586a600cfefe54b2",
+    "mtime": 1784774518.5396643,
+    "ast_hash": "22dee213e7d973956e6bd19a0f80c8e3",
     "semantic_hash": ""
   },
   "src/main.tsx": {
@@ -30,8 +30,8 @@
     "semantic_hash": ""
   },
   "src/renderer/components/BottomBar.tsx": {
-    "mtime": 1784768980.1878827,
-    "ast_hash": "156f9aa8f0f06ac51337a678d42e386f",
+    "mtime": 1784774518.543403,
+    "ast_hash": "f59af4207a0c46ffc9d60c16e14a7f26",
     "semantic_hash": ""
   },
   "src/renderer/components/LoginScreen.tsx": {
@@ -50,8 +50,8 @@
     "semantic_hash": ""
   },
   "src/renderer/components/ShellChrome.tsx": {
-    "mtime": 1784768980.183752,
-    "ast_hash": "5cc4df8e4efb142c7ea983d670dd2242",
+    "mtime": 1784774518.5364919,
+    "ast_hash": "5454af22aa9db1d0831149b671c21243",
     "semantic_hash": ""
   },
   "src/renderer/components/WorkspaceAthenaDrawer.tsx": {
@@ -225,8 +225,8 @@
     "semantic_hash": ""
   },
   "src/renderer/test/ShellChrome.test.tsx": {
-    "mtime": 1784768980.1841283,
-    "ast_hash": "9474c523b5e49b0d798b5137ba75b2a4",
+    "mtime": 1784774518.5390656,
+    "ast_hash": "c5635c05de572cc503e7848a89860b59",
     "semantic_hash": ""
   }
 }

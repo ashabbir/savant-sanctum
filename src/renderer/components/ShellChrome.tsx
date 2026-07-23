@@ -206,10 +206,11 @@ export function ShellChrome({
                         <button type="button" className="workspace-tree-select" onClick={() => onWorkspaceSelect(index)}>
                           <span className="workspace-pane-name">{workspace.name}</span>
                           {!isExpanded && (
-                            <span className="workspace-title-counts" aria-label={`${workspace.sessions} sessions, ${workspace.tasks} tasks, ${workspace.knowledgeNodes} knowledge graph nodes`}>
-                              <span>{workspace.sessions}</span>
-                              <span>{workspace.tasks}</span>
-                              <span>{workspace.knowledgeNodes}</span>
+                            <span className="workspace-title-counts" aria-label={`${workspace.sessions} sessions, ${workspace.tasks} tasks, ${workspace.notes ?? 0} notes, ${workspace.knowledgeNodes} knowledge graph nodes`}>
+                              <span className="workspace-count-sessions" title="Sessions">{workspace.sessions}</span>
+                              <span className="workspace-count-tasks" title="Tasks">{workspace.tasks}</span>
+                              <span className="workspace-count-notes" title="Notes">{workspace.notes ?? 0}</span>
+                              <span className="workspace-count-nodes" title="KG nodes">{workspace.knowledgeNodes}</span>
                             </span>
                           )}
                         </button>

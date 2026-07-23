@@ -543,6 +543,24 @@ body,
   text-align: center;
 }
 
+.workspace-title-counts .workspace-count-sessions {
+  border-color: rgba(0, 255, 136, 0.38);
+  background: rgba(0, 255, 136, 0.09);
+  color: var(--good);
+}
+
+.workspace-title-counts .workspace-count-tasks {
+  border-color: rgba(255, 34, 68, 0.4);
+  background: rgba(255, 34, 68, 0.09);
+  color: #ff4d66;
+}
+
+.workspace-title-counts .workspace-count-notes {
+  border-color: rgba(61, 139, 255, 0.42);
+  background: rgba(61, 139, 255, 0.1);
+  color: #66a3ff;
+}
+
 .workspace-count-badge {
   margin-left: auto;
   min-width: 1.75rem;

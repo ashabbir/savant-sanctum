@@ -52,6 +52,10 @@ describe('ShellChrome workspace tree', () => {
 
     expect(html).toContain('aria-expanded="false"');
     expect(html).toContain('workspace-title-counts');
+    expect(html).toContain('workspace-count-sessions');
+    expect(html).toContain('workspace-count-tasks');
+    expect(html).toContain('workspace-count-notes');
+    expect(html).toContain('workspace-count-nodes');
     expect(html).toContain('>3</span>');
     expect(html).toContain('>1</span>');
     expect(html).toContain('>4</span>');
