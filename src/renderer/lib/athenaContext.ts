@@ -1,3 +1,5 @@
+import { buildSavantHeaders } from '../services/httpClient';
+
 export type AthenaKnowledgeNode = {
   node_id?: string;
   id?: string;
@@ -42,7 +44,7 @@ export async function fetchWorkspaceKnowledgeGraph(baseUrl: string, apiKey: stri
     include_staged: 'true',
     _: Date.now().toString(),
   });
-  const headers = apiKey ? { 'X-API-Key': apiKey } : undefined;
+  const headers = buildSavantHeaders(apiKey);
   const res = await fetch(`${normalizedBase}/api/knowledge/graph?${params.toString()}`, { headers });
   if (!res.ok) throw new Error(`Knowledge graph fetch failed: ${res.status}`);
   const data = await res.json();

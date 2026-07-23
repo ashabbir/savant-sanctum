@@ -6,6 +6,7 @@ import { PanelHeader } from './WorkspacePrimitives';
 import { WorkspaceOverview } from './WorkspaceOverview';
 import { WorkspaceHeader } from './WorkspaceHeader';
 import { WorkspaceManagePanel, WorkspaceSessionPanel } from './WorkspacePanels';
+import { buildSavantHeaders } from '../services/httpClient';
 
 type SessionFileGroup = {
   session_id?: string;
@@ -191,7 +192,7 @@ export function WorkspaceSurface(props: WorkspaceSurfaceProps) {
     due: '',
     workspaceId: '',
   });
-  const headers = apiKey ? { 'Content-Type': 'application/json', 'X-API-Key': apiKey } : { 'Content-Type': 'application/json' };
+  const headers = buildSavantHeaders(apiKey, true);
   const normalizeTaskFromServer = (task: any, fallback: Task): Task => ({
     ...fallback,
     id: task.task_id ?? task.id ?? fallback.id,

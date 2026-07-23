@@ -61,6 +61,7 @@ import {
   fetchGatewayMCPs,
 } from './lib/athenaContext';
 import { buildWorkspaceAthenaPrompt, type ChatMessage } from './services/athenaService';
+import { buildSavantHeaders } from './services/httpClient';
 import type { Artifact, Task } from './data';
 
 const STORAGE_KEY = 'savant-sanctum:ui-state';
@@ -407,7 +408,7 @@ function App() {
       window.localStorage.setItem('user:apiKey', clean);
       try {
         const response = await fetch(`${targetServerUrl}/api/auth/validate`, {
-          headers: { 'X-API-Key': clean }
+          headers: buildSavantHeaders(clean)
         });
         if (response.ok) {
           const data = await response.json();
@@ -744,7 +745,7 @@ function App() {
     if (activeKey) {
       try {
         const response = await fetch(`${cleanServerUrl}/api/auth/validate`, {
-          headers: { 'X-API-Key': activeKey }
+          headers: buildSavantHeaders(activeKey)
         });
         if (response.ok) {
           const data = await response.json();
@@ -837,7 +838,7 @@ function App() {
       setIsWorkspaceLoading(true);
       try {
         const response = await fetch(`${serverBaseUrl}/api/workspaces?include_kg=1`, {
-          headers: apiKey ? { 'X-API-Key': apiKey } : {},
+          headers: buildSavantHeaders(apiKey),
         });
 
         if (!response.ok) return;
@@ -892,7 +893,7 @@ function App() {
 
   useEffect(() => {
     let cancelled = false;
-    const headers = apiKey ? { 'X-API-Key': apiKey } : {};
+    const headers = buildSavantHeaders(apiKey);
 
     const loadWorkspaceData = async () => {
       if (!activeWorkspaceId) return;
@@ -959,7 +960,7 @@ function App() {
     if (!activeWorkspaceId || workspaceSessions.length === 0) return;
 
     let cancelled = false;
-    const headers = apiKey ? { 'X-API-Key': apiKey } : {};
+    const headers = buildSavantHeaders(apiKey);
 
     const loadWorkspaceNotes = async () => {
       try {
@@ -1004,7 +1005,7 @@ function App() {
     if (!activeWorkspaceId) return;
 
     let cancelled = false;
-    const headers = apiKey ? { 'X-API-Key': apiKey } : {};
+    const headers = buildSavantHeaders(apiKey);
 
     const loadWorkspaceArtifacts = async () => {
       try {
@@ -1042,7 +1043,7 @@ function App() {
 
   useEffect(() => {
     let cancelled = false;
-    const headers = apiKey ? { 'X-API-Key': apiKey } : {};
+    const headers = buildSavantHeaders(apiKey);
 
     const readJson = async (path: string) => {
       const response = await fetch(`${serverBaseUrl}${path}`, { headers });
@@ -1094,7 +1095,7 @@ function App() {
 
   useEffect(() => {
     let cancelled = false;
-    const headers = apiKey ? { 'X-API-Key': apiKey } : {};
+    const headers = buildSavantHeaders(apiKey);
     const inferredProvider = inferSessionProvider(activeSession.provider, activeSession as unknown as Record<string, any>, activeSessionFileGroup);
     const adapter = getSessionAdapter(inferredProvider);
 
@@ -1181,7 +1182,7 @@ function App() {
       try {
         if (!activeWorkspaceId) return;
         const response = await fetch(`${serverBaseUrl}/api/knowledge/graph?workspace_id=${encodeURIComponent(activeWorkspaceId)}&include_staged=true&slim=false&limit=5000`, {
-          headers: apiKey ? { 'X-API-Key': apiKey } : {},
+          headers: buildSavantHeaders(apiKey),
         });
         if (!response.ok) return;
         const data = await response.json() as {
@@ -1589,9 +1590,7 @@ function App() {
       
       const res = await fetch(`${cleanServerUrl}/api/workspaces/${encodeURIComponent(activeWorkspaceId)}/session-links/${encodeURIComponent(provider)}/${encodeURIComponent(sessionId)}`, {
         method: 'DELETE',
-        headers: {
-          'X-API-Key': apiKey || ''
-        }
+        headers: buildSavantHeaders(apiKey)
       });
       
       if (res.ok) {
@@ -1653,7 +1652,7 @@ function App() {
         try {
           const response = await fetch(`${serverBaseUrl}/api/workspaces`, {
             method: 'POST',
-            headers: apiKey ? { 'Content-Type': 'application/json', 'X-API-Key': apiKey } : { 'Content-Type': 'application/json' },
+            headers: buildSavantHeaders(apiKey, true),
             body: JSON.stringify(payload),
           });
           if (response.ok) {
@@ -1670,7 +1669,7 @@ function App() {
         try {
           const response = await fetch(`${serverBaseUrl}/api/workspaces/${encodeURIComponent(activeWorkspace.id)}`, {
             method: 'PUT',
-            headers: apiKey ? { 'Content-Type': 'application/json', 'X-API-Key': apiKey } : { 'Content-Type': 'application/json' },
+            headers: buildSavantHeaders(apiKey, true),
             body: JSON.stringify(payload),
           });
           if (response.ok) {
@@ -1704,7 +1703,7 @@ function App() {
     try {
       const response = await fetch(`${serverBaseUrl}/api/session/${encodeURIComponent(activeSession.id)}/notes`, {
         method: 'POST',
-        headers: apiKey ? { 'Content-Type': 'application/json', 'X-API-Key': apiKey } : { 'Content-Type': 'application/json' },
+        headers: buildSavantHeaders(apiKey, true),
         body: JSON.stringify({ text }),
       });
 
@@ -2198,7 +2197,7 @@ function App() {
               const cleanServerUrl = serverDraft.trim() || 'http://127.0.0.1:8090';
               if (!uId) {
                 const valRes = await fetch(`${cleanServerUrl}/api/auth/validate`, {
-                  headers: { 'X-API-Key': activeKey }
+                  headers: buildSavantHeaders(activeKey)
                 });
                 if (valRes.ok) {
                   const valData = await valRes.json();
@@ -2212,10 +2211,7 @@ function App() {
               if (uId) {
                 const putRes = await fetch(`${cleanServerUrl}/api/users/${encodeURIComponent(uId)}`, {
                   method: 'PUT',
-                  headers: {
-                    'Content-Type': 'application/json',
-                    'X-API-Key': activeKey
-                  },
+                  headers: buildSavantHeaders(activeKey, true),
                   body: JSON.stringify({ name: newName })
                 });
                 if (!putRes.ok) {

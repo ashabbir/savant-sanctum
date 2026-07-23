@@ -6,6 +6,7 @@ import { KnowledgeGraph } from '../KnowledgeGraph';
 import { SettingsModal } from './SettingsModal';
 import type { Artifact, Note, Provider, Reminder, Session, Task, Workspace } from '../data';
 import { canMoveTask, isTaskBlocked, taskBoardState, taskWorkflowState, type TaskFlagState } from '../lib/taskBoard';
+import { buildSavantHeaders } from '../services/httpClient';
 import { WorkspaceSessionsDrawer } from './WorkspaceSessionsDrawer';
 import { WorkspaceSessionDetailsDrawer } from './WorkspaceSessionDetailsDrawer';
 import { getSessionAdapter, inferSessionProvider, type SessionConversationMessage, type SessionFileGroup } from '../services/sessionAdapters';
@@ -436,8 +437,8 @@ export function AppOverlays(props: AppOverlaysProps) {
   ]);
 
   const getNoteSessionTitle = (note: Note) => workspaceSessions.find((session) => session.id === note.sessionId)?.title ?? 'Workspace session';
-  const headers = apiKey ? { 'Content-Type': 'application/json', 'X-API-Key': apiKey } : { 'Content-Type': 'application/json' };
-  const authHeaders = apiKey ? { 'X-API-Key': apiKey } : {};
+  const headers = buildSavantHeaders(apiKey, true);
+  const authHeaders = buildSavantHeaders(apiKey);
   const taskStatusForServer = (state: Task['state']) => state;
   const taskStateFromServer = (status: string | undefined, fallback: Task['state']): Task['state'] => {
     if (status === 'todo' || status === 'in-progress' || status === 'review' || status === 'done') return status;

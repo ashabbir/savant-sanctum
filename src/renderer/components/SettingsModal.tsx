@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Check, X, RefreshCw, CheckCircle, XCircle, WifiOff, Folder } from 'lucide-react';
+import { buildSavantHeaders, SAVANT_APP_HEADERS } from '../services/httpClient';
 
 type ConnectionStatus = 'idle' | 'checking' | 'connected' | 'failed';
 
@@ -7,6 +8,7 @@ interface ServiceConfig {
   url: string;
   enabled: boolean;
   status: ConnectionStatus;
+  version?: string;
 }
 
 type SettingsModalProps = {
@@ -71,10 +73,12 @@ function ServicePanel({
     try {
       const res = await fetch(`${normalizeUrl(config.url)}${healthPath}`, {
         signal: controller.signal,
-        headers: includeApiKey && apiKey ? { 'X-API-Key': apiKey } : undefined,
+        headers: includeApiKey ? buildSavantHeaders(apiKey) : SAVANT_APP_HEADERS,
       });
+      let payload: any = {};
+      try { payload = await res.json(); } catch { /* Health bodies may be empty. */ }
       clearTimeout(timer);
-      onChange({ status: res.ok ? 'connected' : 'failed' });
+      onChange({ status: res.ok ? 'connected' : 'failed', version: res.ok && typeof payload?.version === 'string' ? payload.version : undefined });
     } catch {
       clearTimeout(timer);
       onChange({ status: 'failed' });
@@ -148,6 +152,7 @@ function ServicePanel({
           <div className="flex items-center gap-1.5 text-xs uppercase font-mono" style={{ color: statusColor }}>
             <StatusIcon size={13} className={config.status === 'checking' ? 'animate-spin' : ''} />
             {config.status === 'checking' ? 'checking...' : config.status}
+            {config.status === 'connected' && config.version ? ` · v${config.version}` : ''}
           </div>
         )}
       </div>
@@ -191,7 +196,7 @@ export function SettingsModal({
       setServer(prev => ({ ...prev, url: serverDraft || prev.url, status: 'idle' }));
       // Auto-fetch providers from gateway on open
       const gUrl = normalizeUrl(gatewayDraft || 'http://127.0.0.1:3100');
-      fetch(`${gUrl}/health`, { signal: AbortSignal.timeout(4000) })
+      fetch(`${gUrl}/health`, { signal: AbortSignal.timeout(4000), headers: SAVANT_APP_HEADERS })
         .then(r => r.ok ? r.json() : null)
         .then(data => {
           if (!data) return;
@@ -230,7 +235,7 @@ export function SettingsModal({
     setRefreshing(true);
     try {
       const baseUrl = normalizeUrl(gateway.url || 'http://127.0.0.1:3100');
-      const res = await fetch(`${baseUrl}/health`, { signal: AbortSignal.timeout(5000) });
+      const res = await fetch(`${baseUrl}/health`, { signal: AbortSignal.timeout(5000), headers: SAVANT_APP_HEADERS });
       if (!res.ok) throw new Error(`Gateway returned ${res.status}`);
       const data = await res.json();
       const raw: any[] = data?.providerDetails ?? data?.providers ?? [];

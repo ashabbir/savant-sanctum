@@ -1,16 +1,16 @@
-# Graph Report - savant-sanctum  (2026-07-05)
+# Graph Report - savant-sanctum  (2026-07-22)
 
 ## Corpus Check
-- 36 files · ~48,567 words
+- 39 files · ~48,909 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 481 nodes · 693 edges · 31 communities (29 shown, 2 thin omitted)
+- 483 nodes · 740 edges · 27 communities (25 shown, 2 thin omitted)
 - Extraction: 100% EXTRACTED · 0% INFERRED · 0% AMBIGUOUS
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `f9a62f5d`
+- Built from commit: `14337e88`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -33,15 +33,11 @@
 - [[_COMMUNITY_Community 15|Community 15]]
 - [[_COMMUNITY_Community 16|Community 16]]
 - [[_COMMUNITY_Community 17|Community 17]]
-- [[_COMMUNITY_Community 18|Community 18]]
-- [[_COMMUNITY_Community 19|Community 19]]
 - [[_COMMUNITY_Community 20|Community 20]]
-- [[_COMMUNITY_Community 21|Community 21]]
 - [[_COMMUNITY_Community 22|Community 22]]
 - [[_COMMUNITY_Community 23|Community 23]]
 - [[_COMMUNITY_Community 24|Community 24]]
 - [[_COMMUNITY_Community 26|Community 26]]
-- [[_COMMUNITY_Community 27|Community 27]]
 - [[_COMMUNITY_Community 28|Community 28]]
 - [[_COMMUNITY_Community 29|Community 29]]
 - [[_COMMUNITY_Community 30|Community 30]]
@@ -50,34 +46,34 @@
 1. `Sanctum Roadmap PRD` - 21 edges
 2. `compilerOptions` - 18 edges
 3. `Sanctum Style Guide` - 18 edges
-4. `Session` - 14 edges
-5. `16. Visual Examples` - 13 edges
-6. `8. Feature Inventory` - 12 edges
-7. `compilerOptions` - 11 edges
-8. `compilerOptions` - 11 edges
-9. `scripts` - 10 edges
-10. `Workspace` - 10 edges
+4. `Session` - 15 edges
+5. `buildWorkspaceAthenaPrompt()` - 13 edges
+6. `16. Visual Examples` - 13 edges
+7. `buildSavantHeaders()` - 12 edges
+8. `8. Feature Inventory` - 12 edges
+9. `scripts` - 11 edges
+10. `Workspace` - 11 edges
 
 ## Surprising Connections (you probably didn't know these)
 - `AppOverlays()` --calls--> `isTaskBlocked()`  [EXTRACTED]
   src/renderer/components/AppOverlays.tsx → src/renderer/lib/taskBoard.ts
+- `AppOverlays()` --calls--> `buildSavantHeaders()`  [EXTRACTED]
+  src/renderer/components/AppOverlays.tsx → src/renderer/services/httpClient.ts
 - `App()` --calls--> `getSessionAdapter()`  [EXTRACTED]
   src/renderer/App.tsx → src/renderer/services/sessionAdapters.ts
 - `App()` --calls--> `inferSessionProvider()`  [EXTRACTED]
   src/renderer/App.tsx → src/renderer/services/sessionAdapters.ts
 - `AppOverlays()` --calls--> `getSessionAdapter()`  [EXTRACTED]
   src/renderer/components/AppOverlays.tsx → src/renderer/services/sessionAdapters.ts
-- `AppOverlays()` --calls--> `inferSessionProvider()`  [EXTRACTED]
-  src/renderer/components/AppOverlays.tsx → src/renderer/services/sessionAdapters.ts
 
 ## Import Cycles
 - None detected.
 
-## Communities (31 total, 2 thin omitted)
+## Communities (27 total, 2 thin omitted)
 
 ### Community 0 - "Community 0"
-Cohesion: 0.05
-Nodes (51): ActivityItem, AppOverlaysProps, EntityEditorState, WorkspaceJiraTicket, WorkspaceMergeRequest, LoginScreen(), LoginScreenProps, SessionConversation() (+43 more)
+Cohesion: 0.07
+Nodes (46): ActivityItem, AppOverlaysProps, EntityEditorState, WorkspaceJiraTicket, WorkspaceMergeRequest, LoginScreen(), LoginScreenProps, SessionConversation() (+38 more)
 
 ### Community 1 - "Community 1"
 Cohesion: 0.05
@@ -89,31 +85,31 @@ Nodes (11): 10. Motion, 11. Sanctum-Specific Product Framing, 12. Implementation
 
 ### Community 3 - "Community 3"
 Cohesion: 0.05
-Nodes (43): author, build, appId, dmg, files, mac, productName, publish (+35 more)
+Nodes (40): author, dependencies, better-sqlite3, d3, lucide-react, @radix-ui/react-tooltip, react, react-dom (+32 more)
 
 ### Community 4 - "Community 4"
 Cohesion: 0.07
-Nodes (28): AGY_DIR, CLAUDE_DIR, CODEX_DIR, CODEX_HISTORY_PATH, CODEX_LOGS_PATH, codexEventToMessage(), COPILOT_DIR, COPILOT_SESSION_DB_PATH (+20 more)
+Nodes (32): AGY_DIR, CLAUDE_DIR, CODEX_DIR, CODEX_HISTORY_PATH, CODEX_LOGS_PATH, codexEventToMessage(), COPILOT_DIR, COPILOT_SESSION_DB_PATH (+24 more)
 
 ### Community 5 - "Community 5"
 Cohesion: 0.06
-Nodes (17): ActivityItem, AthenaEngineSettings, ChatMessage, EntityFlags, providerRoutePrefix, SavedUiState, sectionIcons, ServerJiraTicket (+9 more)
+Nodes (48): buildWorkspaceEditorPayload(), createWorkspaceEditorDraft(), createWorkspaceEditorDraftFromWorkspace(), WorkspaceEditorDraft, WorkspaceEditorMode, DetailBlock(), DetailRow(), IntelligencePulse() (+40 more)
 
 ### Community 6 - "Community 6"
 Cohesion: 0.11
-Nodes (21): adapterRegistry, buildSessionTree(), cleanPath(), formatSessionUpdated(), getConversationItems(), inferProviderFromFiles(), normalizeConversation(), normalizeConversationItem() (+13 more)
+Nodes (25): AppOverlays(), App(), adapterRegistry, buildSessionTree(), cleanPath(), formatSessionUpdated(), getConversationItems(), getSessionAdapter() (+17 more)
 
 ### Community 7 - "Community 7"
 Cohesion: 0.09
 Nodes (21): compilerOptions, allowJs, allowSyntheticDefaultImports, baseUrl, esModuleInterop, forceConsistentCasingInFileNames, isolatedModules, jsx (+13 more)
 
 ### Community 8 - "Community 8"
-Cohesion: 0.12
-Nodes (17): devDependencies, concurrently, cross-env, electron, electron-builder, tailwindcss, @tailwindcss/vite, tw-animate-css (+9 more)
+Cohesion: 0.18
+Nodes (11): scripts, build, build:electron, build:renderer, dev, dev:electron, dev:renderer, preview (+3 more)
 
 ### Community 9 - "Community 9"
-Cohesion: 0.17
-Nodes (15): artifacts, LocalSetupItem, navigation, notes, providers, reminders, SectionId, SectionProfile (+7 more)
+Cohesion: 0.20
+Nodes (10): build, appId, dmg, files, mac, productName, publish, icon (+2 more)
 
 ### Community 10 - "Community 10"
 Cohesion: 0.19
@@ -140,28 +136,16 @@ Cohesion: 0.17
 Nodes (12): 8.10 Terminal and Local Execution, 8.11 Knowledge and Analysis, 8.1 Core Work Management, 8.2 Session Experience, 8.3 Workspace Experience, 8.4 Provider and Session Adapter System, 8.5 API Surface, 8.6 MCP Surface (+4 more)
 
 ### Community 16 - "Community 16"
-Cohesion: 0.18
-Nodes (10): ChatMessage, DOMAIN_HULL_COLORS, Edge, KNOWLEDGE_NODE_TYPES, KnowledgeGraph(), KnowledgeGraphProps, Node, NODE_TYPE_COLORS (+2 more)
+Cohesion: 0.09
+Nodes (23): ConnectionStatus, FALLBACK_PROVIDERS, normalizeUrl(), ServiceConfig, ServicePanel(), SettingsModal(), SettingsModalProps, TabId (+15 more)
 
 ### Community 17 - "Community 17"
 Cohesion: 0.22
 Nodes (8): BottomBar(), STATUS_COLORS, StatusDot, ActivityItem, NavItem, ShellChrome(), ShellChromeProps, ToastLike
 
-### Community 18 - "Community 18"
-Cohesion: 0.22
-Nodes (9): ConnectionStatus, FALLBACK_PROVIDERS, normalizeUrl(), ServiceConfig, ServicePanel(), SettingsModal(), SettingsModalProps, TabId (+1 more)
-
-### Community 19 - "Community 19"
-Cohesion: 0.25
-Nodes (7): DetailBlock(), DetailRow(), IntelligencePulse(), KnowledgeNetwork(), Metric(), Row(), StatusOrb()
-
 ### Community 20 - "Community 20"
-Cohesion: 0.20
-Nodes (8): ATHENA_SYSTEM_DIRECTIVE, AthenaKnowledgeEdge, AthenaKnowledgeNode, buildAthenaPromptSections(), fetchGatewayMCPs(), fetchWorkspaceKnowledgeGraph(), formatGatewayMCPs(), formatWorkspaceKnowledgeGraph()
-
-### Community 21 - "Community 21"
-Cohesion: 0.33
-Nodes (6): buildWorkspaceEditorPayload(), createWorkspaceEditorDraft(), createWorkspaceEditorDraftFromWorkspace(), WorkspaceEditorDraft, WorkspaceEditorMode, Workspace
+Cohesion: 0.17
+Nodes (17): ATHENA_SYSTEM_DIRECTIVE, AthenaKnowledgeEdge, AthenaKnowledgeNode, buildAthenaPromptSections(), fetchGatewayMCPs(), formatGatewayMCPs(), formatWorkspaceKnowledgeGraph(), buildWorkspaceAthenaPrompt() (+9 more)
 
 ### Community 22 - "Community 22"
 Cohesion: 0.33
@@ -175,10 +159,6 @@ Nodes (5): 4.1 Overall Tone, 4.2 Typography, 4.3 Color, 4.4 Surfaces, 4. Visual 
 Cohesion: 0.40
 Nodes (5): 7.1 Header, 7.2 Left Bar, 7.3 Right Bar, 7.4 Bottom Bar, 7. Shell-Specific Guidance
 
-### Community 27 - "Community 27"
-Cohesion: 0.67
-Nodes (4): AppOverlays(), App(), getSessionAdapter(), inferSessionProvider()
-
 ### Community 28 - "Community 28"
 Cohesion: 0.50
 Nodes (4): 9.1 Loading, 9.2 Empty States, 9.3 Error States, 9. State and Feedback
@@ -188,7 +168,7 @@ Cohesion: 0.67
 Nodes (3): 5.1 Primary Hierarchy, 5.2 Secondary Hierarchy, 5. Navigation and Information Hierarchy
 
 ## Knowledge Gaps
-- **277 isolated node(s):** `__filename`, `__dirname`, `SAVANT_DIR`, `SANCTUM_DB_PATH`, `CODEX_DIR` (+272 more)
+- **277 isolated node(s):** `__filename`, `__dirname`, `SAVANT_DIR`, `SANCTUM_DB_PATH`, `SANCTUM_SETTINGS_PATH` (+272 more)
   These have ≤1 connection - possible missing edges or undocumented components.
 - **2 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
@@ -199,13 +179,13 @@ _Questions this graph is uniquely positioned to answer:_
   _High betweenness centrality (0.012) - this node is a cross-community bridge._
 - **Why does `Sanctum Style Guide` connect `Community 2` to `Community 11`, `Community 14`, `Community 22`, `Community 23`, `Community 26`, `Community 28`, `Community 29`?**
   _High betweenness centrality (0.011) - this node is a cross-community bridge._
-- **Why does `Session` connect `Community 0` to `Community 5`, `Community 6`, `Community 9`, `Community 10`, `Community 17`, `Community 19`?**
+- **Why does `Session` connect `Community 0` to `Community 5`, `Community 6`, `Community 10`, `Community 17`, `Community 20`?**
   _High betweenness centrality (0.009) - this node is a cross-community bridge._
 - **What connects `__filename`, `__dirname`, `SAVANT_DIR` to the rest of the system?**
   _277 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `Community 0` be split into smaller, more focused modules?**
-  _Cohesion score 0.05251141552511415 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.06830601092896176 - nodes in this community are weakly interconnected._
 - **Should `Community 1` be split into smaller, more focused modules?**
   _Cohesion score 0.045454545454545456 - nodes in this community are weakly interconnected._
 - **Should `Community 3` be split into smaller, more focused modules?**
-  _Cohesion score 0.045454545454545456 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.04878048780487805 - nodes in this community are weakly interconnected._

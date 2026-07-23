@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { buildSavantHeaders } from './services/httpClient';
 import * as Tooltip from '@radix-ui/react-tooltip';
 
 interface KnowledgeGraphProps {
@@ -149,7 +150,7 @@ export const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({
     
     try {
       const normalizedBase = baseUrl.replace(/\/+$/, '');
-      const headers = apiKey ? { 'X-API-Key': apiKey } : {};
+      const headers = buildSavantHeaders(apiKey);
       const workspaceUrl = `${normalizedBase}/api/knowledge/graph?workspace_id=${encodeURIComponent(workspaceId)}&slim=true&include_staged=true&_=${Date.now()}`;
       const fullUrl = `${normalizedBase}/api/knowledge/graph?slim=true&include_staged=true&_=${Date.now()}`;
 
@@ -291,7 +292,7 @@ export const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({
     setIsGraphMutating(true);
     try {
       const normalizedBase = baseUrl.replace(/\/+$/, '');
-      const headers = apiKey ? { 'Content-Type': 'application/json', 'X-API-Key': apiKey } : { 'Content-Type': 'application/json' };
+      const headers = buildSavantHeaders(apiKey, true);
       const response = await fetch(`${normalizedBase}/api/knowledge/nodes/merge`, {
         method: 'POST',
         headers,
@@ -316,7 +317,7 @@ export const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({
     setIsGraphMutating(true);
     try {
       const normalizedBase = baseUrl.replace(/\/+$/, '');
-      const headers = apiKey ? { 'Content-Type': 'application/json', 'X-API-Key': apiKey } : { 'Content-Type': 'application/json' };
+      const headers = buildSavantHeaders(apiKey, true);
       const response = await fetch(`${normalizedBase}/api/knowledge/nodes/bulk-delete`, {
         method: 'POST',
         headers,
@@ -556,7 +557,7 @@ export const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({
           setSelectedNode(d);
           // Lazy-fetch full content then open modal
           const base = (baseUrl || 'http://127.0.0.1:8090').replace(/\/+$/, '');
-          const headers: Record<string,string> = apiKey ? { 'X-API-Key': apiKey } : {};
+          const headers: Record<string,string> = buildSavantHeaders(apiKey);
           fetch(`${base}/api/knowledge/nodes/${d.node_id}`, { headers })
             .then(r => r.ok ? r.json() : d)
             .then(full => setSessionModal({ node: full, editTitle: full.title || '', editContent: full.content || '', saving: false }))
@@ -565,7 +566,7 @@ export const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({
           setSelectedNodes(new Map());
           // Lazy-fetch full node content
           const base = (baseUrl || 'http://127.0.0.1:8090').replace(/\/+$/, '');
-          const headers: Record<string,string> = apiKey ? { 'X-API-Key': apiKey } : {};
+          const headers: Record<string,string> = buildSavantHeaders(apiKey);
           fetch(`${base}/api/knowledge/nodes/${d.node_id}`, { headers })
             .then(r => r.ok ? r.json() : d)
             .then(full => setSelectedNode(full))
@@ -714,8 +715,7 @@ export const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({
     setSessionModal(m => m ? { ...m, saving: true } : null);
     try {
       const normalizedBase = (baseUrl || 'http://127.0.0.1:8090').replace(/\/+$/, '');
-      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-      if (apiKey) headers['X-API-Key'] = apiKey;
+      const headers = buildSavantHeaders(apiKey, true);
       const res = await fetch(`${normalizedBase}/api/knowledge/nodes/${sessionModal.node.node_id}`, {
         method: 'PUT',
         headers,
