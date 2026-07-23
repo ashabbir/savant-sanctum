@@ -207,9 +207,9 @@ export function ShellChrome({
                           <span className="workspace-pane-name">{workspace.name}</span>
                           {!isExpanded && (
                             <span className="workspace-title-counts" aria-label={`${workspace.sessions} sessions, ${workspace.tasks} tasks, ${workspace.knowledgeNodes} knowledge graph nodes`}>
-                              <span>({workspace.sessions})</span>
-                              <span>({workspace.tasks})</span>
-                              <span>({workspace.knowledgeNodes})</span>
+                              <span>{workspace.sessions}</span>
+                              <span>{workspace.tasks}</span>
+                              <span>{workspace.knowledgeNodes}</span>
                             </span>
                           )}
                         </button>

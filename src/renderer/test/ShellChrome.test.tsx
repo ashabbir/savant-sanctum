@@ -52,9 +52,10 @@ describe('ShellChrome workspace tree', () => {
 
     expect(html).toContain('aria-expanded="false"');
     expect(html).toContain('workspace-title-counts');
-    expect(html).toContain('(3)');
-    expect(html).toContain('(1)');
-    expect(html).toContain('(4)');
+    expect(html).toContain('>3</span>');
+    expect(html).toContain('>1</span>');
+    expect(html).toContain('>4</span>');
+    expect(html).not.toContain('(3)');
     expect(html).not.toContain('workspace-tree-metrics');
   });
 });
