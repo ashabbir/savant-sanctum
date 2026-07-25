@@ -651,6 +651,7 @@ export function AppOverlays(props: AppOverlaysProps) {
       dependencyId: '',
       comment: '',
     });
+    setTaskWorkspaceId(task.workspaceId);
     setIsTaskModalOpen(true);
   };
   useEffect(() => {
@@ -759,6 +760,7 @@ export function AppOverlays(props: AppOverlaysProps) {
     const title = taskEditor.title.trim();
     if (!title) return;
     const blockedState = isTaskBlocked(selectedTask, taskFlags) ? taskWorkflowState(selectedTask, taskFlags) : null;
+    const workspaceId = taskDrawerScope === 'global' ? taskWorkspaceId : selectedTask.workspaceId;
 
     const updatedLocal: Task = {
       ...selectedTask,
@@ -767,6 +769,7 @@ export function AppOverlays(props: AppOverlaysProps) {
       priority: taskEditor.priority,
       state: blockedState ?? taskEditor.state,
       due: taskEditor.due || undefined,
+      workspaceId,
     };
 
     let updated = updatedLocal;
@@ -780,6 +783,7 @@ export function AppOverlays(props: AppOverlaysProps) {
           status: taskStatusForServer(blockedState ?? taskEditor.state),
           priority: taskEditor.priority,
           date: taskEditor.due || undefined,
+          workspace_id: workspaceId,
         }),
       });
       if (response.ok) updated = normalizeTaskFromServer(await response.json(), updatedLocal);
@@ -1487,9 +1491,7 @@ export function AppOverlays(props: AppOverlaysProps) {
                     <span>Date</span>
                     <input type="date" value={taskEditor.due} onChange={(event) => setTaskEditor((current) => ({ ...current, due: event.target.value }))} />
                   </label>
-                  {selectedTask ? (
-                    <div className="detail-row"><strong>Workspace</strong><span>{workspaceList.find((workspace) => workspace.id === selectedTask.workspaceId)?.name ?? selectedTask.workspaceId}</span></div>
-                  ) : taskDrawerScope === 'global' ? (
+                  {taskDrawerScope === 'global' ? (
                     <label className="task-editor-field">
                       <span>Workspace</span>
                       <select required value={taskWorkspaceId} onChange={(event) => setTaskWorkspaceId(event.target.value)}>
@@ -1497,6 +1499,8 @@ export function AppOverlays(props: AppOverlaysProps) {
                         {workspaceList.map((workspace) => <option key={workspace.id} value={workspace.id}>{workspace.name}</option>)}
                       </select>
                     </label>
+                  ) : selectedTask ? (
+                    <div className="detail-row"><strong>Workspace</strong><span>{workspaceList.find((workspace) => workspace.id === selectedTask.workspaceId)?.name ?? selectedTask.workspaceId}</span></div>
                   ) : (
                     <div className="detail-row"><strong>Workspace</strong><span>{displayedWorkspaceName}</span></div>
                   )}
