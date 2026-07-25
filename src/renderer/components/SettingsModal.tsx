@@ -38,6 +38,7 @@ const FALLBACK_PROVIDERS = [
   { id: 'gemini', label: 'Gemini', defaultModel: 'gemini-2.5-flash', models: ['gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-2.0-flash'] },
   { id: 'codex', label: 'Codex', defaultModel: 'o4-mini', models: ['o4-mini', 'gpt-4.1', 'gpt-5-mini', 'o3'] },
   { id: 'copilot', label: 'Copilot', defaultModel: 'claude-sonnet-4.6', models: ['claude-haiku-4.5', 'claude-sonnet-4.6', 'gpt-4.1', 'gpt-5-mini'] },
+  { id: 'agy', label: 'AGY', defaultModel: 'gemini-2.5-flash', models: ['gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-2.0-flash'] },
 ];
 
 const TABS = [
