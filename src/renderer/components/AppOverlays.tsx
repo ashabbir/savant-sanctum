@@ -1,4 +1,4 @@
-import { Ban, Check, ChevronDown, Circle, FileCode, FileText, GitBranch, History, ListChecks, Network, Plus, Timer, Trash2, X, Zap, Copy, Loader2, Send, Sparkles } from 'lucide-react';
+import { Ban, Check, ChevronDown, Circle, FileCode, FileText, FolderOpen, GitBranch, History, ListChecks, Network, Plus, Timer, Trash2, X, Zap, Copy, Loader2, Send, Sparkles } from 'lucide-react';
 import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -255,9 +255,7 @@ export function AppOverlays(props: AppOverlaysProps) {
     comment: string;
     colosseumReady: boolean;
     repository: string;
-    agentProgram: string;
-    agentArgs: string;
-    validate: string;
+    provider: string;
   }>({
     title: '',
     description: '',
@@ -268,10 +266,9 @@ export function AppOverlays(props: AppOverlaysProps) {
     comment: '',
     colosseumReady: false,
     repository: '',
-    agentProgram: '',
-    agentArgs: '',
-    validate: '',
+    provider: '',
   });
+  const [colosseumProviders, setColosseumProviders] = useState<Array<{ id: string; label: string }>>([]);
   const isTaskDone = (task: Task) => task.state === 'done' || Boolean(taskFlags[task.id]?.done);
   const taskDisplayState = (task: Task) => taskBoardState(task, taskFlags);
   const taskColumns = [
@@ -471,10 +468,22 @@ export function AppOverlays(props: AppOverlaysProps) {
   const colosseumPayload = () => ({
     config: {
       repository: taskEditor.repository.trim(),
-      agent: { program: taskEditor.agentProgram.trim(), args: taskEditor.agentArgs.trim() ? taskEditor.agentArgs.trim().split(/\s+/) : [] },
-      validate: taskEditor.validate.trim() || undefined,
+      provider: taskEditor.provider,
     },
   });
+  const chooseColosseumRepository = async () => {
+    try {
+      const repository = await window.sanctum?.pickRepository?.(taskEditor.repository);
+      if (repository) setTaskEditor((current) => ({ ...current, repository }));
+    } catch (error) {
+      pushToast('Repository required', error instanceof Error ? error.message : 'Choose a Git repository.', 'warning');
+    }
+  };
+  useEffect(() => {
+    void window.sanctum?.listColosseumProviders?.().then((available) => {
+      setColosseumProviders(available.map(({ id, label }) => ({ id, label })));
+    }).catch(() => setColosseumProviders([]));
+  }, []);
   const normalizeMergeRequest = (raw: Record<string, any>): WorkspaceMergeRequest | null => {
     const id = String(raw.mr_id ?? raw.id ?? '').trim();
     if (!id) return null;
@@ -652,9 +661,7 @@ export function AppOverlays(props: AppOverlaysProps) {
       comment: '',
       colosseumReady: false,
       repository: '',
-      agentProgram: '',
-      agentArgs: '',
-      validate: '',
+      provider: '',
     });
     setTaskWorkspaceId(taskDrawerScope === 'workspace' ? activeWorkspaceId : '');
     setIsTaskModalOpen(true);
@@ -676,9 +683,7 @@ export function AppOverlays(props: AppOverlaysProps) {
       comment: '',
       colosseumReady: Boolean(task.colosseumReady),
       repository: task.colosseumConfig?.repository ?? '',
-      agentProgram: task.colosseumConfig?.agent?.program ?? '',
-      agentArgs: (task.colosseumConfig?.agent?.args ?? []).join(' '),
-      validate: task.colosseumConfig?.validate ?? '',
+      provider: task.colosseumConfig?.provider ?? '',
     });
     setTaskWorkspaceId(task.workspaceId);
     setIsTaskModalOpen(true);
@@ -779,7 +784,7 @@ export function AppOverlays(props: AppOverlaysProps) {
       if (response.ok && taskEditor.colosseumReady) {
         const ready = await fetch(`${serverBaseUrl.replace(/\/+$/, '')}/api/tasks/${encodeURIComponent(task.id)}/colosseum-ready`, { method: 'POST', headers, body: JSON.stringify(colosseumPayload()) });
         if (ready.ok) task = normalizeTaskFromServer(await ready.json(), task);
-        else { pushToast('Colosseum fields required', 'Provide an absolute repository path and agent command.', 'warning'); return; }
+        else { pushToast('Colosseum fields required', 'Choose a local repository and installed provider.', 'warning'); return; }
       }
     } catch {
       // Local optimistic task remains available when the server is offline.
@@ -824,7 +829,7 @@ export function AppOverlays(props: AppOverlaysProps) {
       if (response.ok && taskEditor.colosseumReady) {
         const ready = await fetch(`${serverBaseUrl.replace(/\/+$/, '')}/api/tasks/${encodeURIComponent(selectedTask.id)}/colosseum-ready`, { method: 'POST', headers, body: JSON.stringify(colosseumPayload()) });
         if (ready.ok) updated = normalizeTaskFromServer(await ready.json(), updated);
-        else { pushToast('Colosseum fields required', 'Provide an absolute repository path and agent command.', 'warning'); return; }
+        else { pushToast('Colosseum fields required', 'Choose a local repository and installed provider.', 'warning'); return; }
       }
     } catch {
       // Keep local edit when the server is unavailable.
@@ -1487,12 +1492,10 @@ export function AppOverlays(props: AppOverlaysProps) {
                   </label>
                   <div className="task-editor-section">
                     <div className="task-editor-section-head">Colosseum execution</div>
-                    <label className="task-editor-field"><span><input type="checkbox" checked={taskEditor.colosseumReady} onChange={(event) => setTaskEditor((current) => ({ ...current, colosseumReady: event.target.checked }))} /> Ready for Colosseum</span></label>
+                    <label className="task-editor-field colosseum-ready-toggle"><span><input type="checkbox" checked={taskEditor.colosseumReady} onChange={(event) => setTaskEditor((current) => ({ ...current, colosseumReady: event.target.checked }))} /> Ready for Colosseum</span></label>
                     {taskEditor.colosseumReady && <>
-                      <label className="task-editor-field"><span>Repository path</span><input value={taskEditor.repository} onChange={(event) => setTaskEditor((current) => ({ ...current, repository: event.target.value }))} placeholder="/absolute/path/to/repository" /></label>
-                      <label className="task-editor-field"><span>Agent command</span><input value={taskEditor.agentProgram} onChange={(event) => setTaskEditor((current) => ({ ...current, agentProgram: event.target.value }))} placeholder="codex" /></label>
-                      <label className="task-editor-field"><span>Agent arguments</span><input value={taskEditor.agentArgs} onChange={(event) => setTaskEditor((current) => ({ ...current, agentArgs: event.target.value }))} placeholder="exec --full-auto" /></label>
-                      <label className="task-editor-field"><span>Validation command</span><input value={taskEditor.validate} onChange={(event) => setTaskEditor((current) => ({ ...current, validate: event.target.value }))} placeholder="npm test" /></label>
+                      <label className="task-editor-field"><span>Repository</span><div className="task-inline-control"><input value={taskEditor.repository} onChange={(event) => setTaskEditor((current) => ({ ...current, repository: event.target.value }))} placeholder="Choose a local Git repository" /><button type="button" className="ghost-btn" onClick={() => void chooseColosseumRepository()}><FolderOpen size={14} /> Browse…</button></div><span className="task-editor-hint">Choose the checkout Colosseum should create a worktree from.</span></label>
+                      <label className="task-editor-field"><span>Installed AI provider</span><select value={taskEditor.provider} onChange={(event) => setTaskEditor((current) => ({ ...current, provider: event.target.value }))}><option value="">Choose installed provider...</option>{colosseumProviders.map((provider) => <option key={provider.id} value={provider.id}>{provider.label}</option>)}</select><span className="task-editor-hint">Colosseum runs this provider with its non-interactive full-permission profile and validates the result.</span></label>
                     </>}
                   </div>
                   <div className="task-editor-section">

@@ -77,4 +77,6 @@ contextBridge.exposeInMainWorld('system', {
 contextBridge.exposeInMainWorld('sanctum', {
   version: '1.0.0',
   runAgent: (payload: RunAgentPayload) => invokeRunAgent(payload),
+  pickRepository: (defaultPath?: string) => ipcRenderer.invoke('pick-repository', defaultPath),
+  listColosseumProviders: () => ipcRenderer.invoke('list-colosseum-providers'),
 });

@@ -1,4 +1,5 @@
-import { app, BrowserWindow, ipcMain } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain } from 'electron';
+import { execFileSync } from 'node:child_process';
 import path from 'node:path';
 import fs from 'node:fs/promises';
 import fsSync from 'node:fs';
@@ -671,6 +672,46 @@ ipcMain.handle('get-db-status', async () => {
 ipcMain.handle('get-local-conversation', async (_event, provider: string, sessionId: string) => {
   return loadLocalConversation(provider, sessionId);
 });
+
+ipcMain.handle('pick-repository', async (event, defaultPath?: string) => {
+  const options = {
+    title: 'Choose a Git repository for Colosseum',
+    defaultPath: typeof defaultPath === 'string' && defaultPath.trim() ? defaultPath.trim() : undefined,
+    buttonLabel: 'Use repository',
+    properties: ['openDirectory'] as Array<'openDirectory'>,
+  };
+  const owner = BrowserWindow.fromWebContents(event.sender);
+  const selection = owner
+    ? await dialog.showOpenDialog(owner, options)
+    : await dialog.showOpenDialog(options);
+  if (selection.canceled || !selection.filePaths[0]) return null;
+
+  try {
+    return execFileSync('git', ['-C', selection.filePaths[0], 'rev-parse', '--show-toplevel'], {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    }).trim();
+  } catch {
+    throw new Error('Choose a directory inside a Git repository.');
+  }
+});
+
+const COLOSSEUM_PROVIDERS = [
+  { id: 'hermes', label: 'Hermes', command: 'hermes' },
+  { id: 'codex', label: 'Codex', command: 'codex' },
+  { id: 'claude', label: 'Claude', command: 'claude' },
+  { id: 'copilot', label: 'GitHub Copilot', command: 'copilot' },
+  { id: 'agy', label: 'Agy', command: 'agy' },
+];
+
+ipcMain.handle('list-colosseum-providers', async () => COLOSSEUM_PROVIDERS.filter((provider) => {
+  try {
+    execFileSync('which', [provider.command], { stdio: 'ignore' });
+    return true;
+  } catch {
+    return false;
+  }
+}));
 
 ipcMain.handle('run-agent', async (_event, payload: RunAgentPayload) => {
   const prompt = String(payload?.prompt || '').trim();

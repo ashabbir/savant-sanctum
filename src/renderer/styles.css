@@ -3305,6 +3305,43 @@ h3 {
   align-items: center;
 }
 
+.colosseum-ready-toggle span {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--text);
+  letter-spacing: 0.08em;
+}
+
+.colosseum-ready-toggle input[type="checkbox"] {
+  appearance: none;
+  width: 17px;
+  height: 17px;
+  margin: 0;
+  border: 1px solid rgba(0, 229, 255, 0.46);
+  background: rgba(255, 255, 255, 0.025);
+  display: grid;
+  place-content: center;
+  cursor: pointer;
+}
+
+.colosseum-ready-toggle input[type="checkbox"]::before {
+  content: "";
+  width: 8px;
+  height: 4px;
+  border-left: 2px solid #071016;
+  border-bottom: 2px solid #071016;
+  transform: rotate(-45deg) scale(0);
+}
+
+.colosseum-ready-toggle input[type="checkbox"]:checked {
+  background: var(--cyan);
+}
+
+.colosseum-ready-toggle input[type="checkbox"]:checked::before {
+  transform: rotate(-45deg) scale(1);
+}
+
 .entity-editor-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

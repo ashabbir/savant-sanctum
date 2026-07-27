@@ -84,7 +84,7 @@ export type Task = {
   timeSpent?: number;
   complexity?: 'simple' | 'moderate' | 'complex' | 'extreme';
   colosseumReady?: boolean;
-  colosseumConfig?: { repository?: string; agent?: { program?: string; args?: string[] }; setup?: string; validate?: string; timeout_seconds?: number };
+  colosseumConfig?: { repository?: string; provider?: 'hermes' | 'codex' | 'claude' | 'copilot' | 'agy'; setup?: string; timeout_seconds?: number };
 };
 
 export type Reminder = {

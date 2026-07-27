@@ -9,6 +9,8 @@ interface Window {
       cwd?: string;
       sessionId?: string;
     }) => Promise<string>;
+    pickRepository: (defaultPath?: string) => Promise<string | null>;
+    listColosseumProviders: () => Promise<Array<{ id: string; label: string; command: string }>>;
   };
   system: {
     getSettings: () => Promise<Record<string, any>>;
