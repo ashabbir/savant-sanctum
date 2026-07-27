@@ -965,6 +965,8 @@ function App() {
                 updatedAt: task.updated_at ?? task.updatedAt,
                 timeSpent: task.timeSpent ?? task.time_spent ?? defaultTime,
                 complexity: task.complexity ?? defaultComplexity,
+                colosseumReady: Boolean(task.colosseum_ready),
+                colosseumConfig: task.colosseum_config ?? undefined,
               };
             }));
         }

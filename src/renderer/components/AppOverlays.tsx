@@ -253,6 +253,11 @@ export function AppOverlays(props: AppOverlaysProps) {
     due: string;
     dependencyId: string;
     comment: string;
+    colosseumReady: boolean;
+    repository: string;
+    agentProgram: string;
+    agentArgs: string;
+    validate: string;
   }>({
     title: '',
     description: '',
@@ -261,6 +266,11 @@ export function AppOverlays(props: AppOverlaysProps) {
     due: '',
     dependencyId: '',
     comment: '',
+    colosseumReady: false,
+    repository: '',
+    agentProgram: '',
+    agentArgs: '',
+    validate: '',
   });
   const isTaskDone = (task: Task) => task.state === 'done' || Boolean(taskFlags[task.id]?.done);
   const taskDisplayState = (task: Task) => taskBoardState(task, taskFlags);
@@ -455,6 +465,15 @@ export function AppOverlays(props: AppOverlaysProps) {
     state: taskStateFromServer(task.status, fallback.state),
     due: task.date ?? fallback.due,
     dependsOn: task.depends_on ?? task.dependencies ?? fallback.dependsOn ?? [],
+    colosseumReady: Boolean(task.colosseum_ready ?? fallback.colosseumReady),
+    colosseumConfig: task.colosseum_config ?? fallback.colosseumConfig,
+  });
+  const colosseumPayload = () => ({
+    config: {
+      repository: taskEditor.repository.trim(),
+      agent: { program: taskEditor.agentProgram.trim(), args: taskEditor.agentArgs.trim() ? taskEditor.agentArgs.trim().split(/\s+/) : [] },
+      validate: taskEditor.validate.trim() || undefined,
+    },
   });
   const normalizeMergeRequest = (raw: Record<string, any>): WorkspaceMergeRequest | null => {
     const id = String(raw.mr_id ?? raw.id ?? '').trim();
@@ -631,6 +650,11 @@ export function AppOverlays(props: AppOverlaysProps) {
       due: '',
       dependencyId: '',
       comment: '',
+      colosseumReady: false,
+      repository: '',
+      agentProgram: '',
+      agentArgs: '',
+      validate: '',
     });
     setTaskWorkspaceId(taskDrawerScope === 'workspace' ? activeWorkspaceId : '');
     setIsTaskModalOpen(true);
@@ -650,6 +674,11 @@ export function AppOverlays(props: AppOverlaysProps) {
       due: task.due ?? '',
       dependencyId: '',
       comment: '',
+      colosseumReady: Boolean(task.colosseumReady),
+      repository: task.colosseumConfig?.repository ?? '',
+      agentProgram: task.colosseumConfig?.agent?.program ?? '',
+      agentArgs: (task.colosseumConfig?.agent?.args ?? []).join(' '),
+      validate: task.colosseumConfig?.validate ?? '',
     });
     setTaskWorkspaceId(task.workspaceId);
     setIsTaskModalOpen(true);
@@ -747,6 +776,11 @@ export function AppOverlays(props: AppOverlaysProps) {
         }),
       });
       if (response.ok) task = normalizeTaskFromServer(await response.json(), localTask);
+      if (response.ok && taskEditor.colosseumReady) {
+        const ready = await fetch(`${serverBaseUrl.replace(/\/+$/, '')}/api/tasks/${encodeURIComponent(task.id)}/colosseum-ready`, { method: 'POST', headers, body: JSON.stringify(colosseumPayload()) });
+        if (ready.ok) task = normalizeTaskFromServer(await ready.json(), task);
+        else { pushToast('Colosseum fields required', 'Provide an absolute repository path and agent command.', 'warning'); return; }
+      }
     } catch {
       // Local optimistic task remains available when the server is offline.
     }
@@ -787,6 +821,11 @@ export function AppOverlays(props: AppOverlaysProps) {
         }),
       });
       if (response.ok) updated = normalizeTaskFromServer(await response.json(), updatedLocal);
+      if (response.ok && taskEditor.colosseumReady) {
+        const ready = await fetch(`${serverBaseUrl.replace(/\/+$/, '')}/api/tasks/${encodeURIComponent(selectedTask.id)}/colosseum-ready`, { method: 'POST', headers, body: JSON.stringify(colosseumPayload()) });
+        if (ready.ok) updated = normalizeTaskFromServer(await ready.json(), updated);
+        else { pushToast('Colosseum fields required', 'Provide an absolute repository path and agent command.', 'warning'); return; }
+      }
     } catch {
       // Keep local edit when the server is unavailable.
     }
@@ -1446,6 +1485,16 @@ export function AppOverlays(props: AppOverlaysProps) {
                     <span>Detail</span>
                     <textarea value={taskEditor.description} onChange={(event) => setTaskEditor((current) => ({ ...current, description: event.target.value }))} placeholder="Task detail, acceptance notes, or implementation context." />
                   </label>
+                  <div className="task-editor-section">
+                    <div className="task-editor-section-head">Colosseum execution</div>
+                    <label className="task-editor-field"><span><input type="checkbox" checked={taskEditor.colosseumReady} onChange={(event) => setTaskEditor((current) => ({ ...current, colosseumReady: event.target.checked }))} /> Ready for Colosseum</span></label>
+                    {taskEditor.colosseumReady && <>
+                      <label className="task-editor-field"><span>Repository path</span><input value={taskEditor.repository} onChange={(event) => setTaskEditor((current) => ({ ...current, repository: event.target.value }))} placeholder="/absolute/path/to/repository" /></label>
+                      <label className="task-editor-field"><span>Agent command</span><input value={taskEditor.agentProgram} onChange={(event) => setTaskEditor((current) => ({ ...current, agentProgram: event.target.value }))} placeholder="codex" /></label>
+                      <label className="task-editor-field"><span>Agent arguments</span><input value={taskEditor.agentArgs} onChange={(event) => setTaskEditor((current) => ({ ...current, agentArgs: event.target.value }))} placeholder="exec --full-auto" /></label>
+                      <label className="task-editor-field"><span>Validation command</span><input value={taskEditor.validate} onChange={(event) => setTaskEditor((current) => ({ ...current, validate: event.target.value }))} placeholder="npm test" /></label>
+                    </>}
+                  </div>
                   <div className="task-editor-section">
                     <div className="task-editor-section-head">Comments</div>
                     <div className="task-comment-list">
