@@ -188,7 +188,7 @@ export function WorkspaceSurface(props: WorkspaceSurfaceProps) {
     title: '',
     description: '',
     priority: 'medium' as Task['priority'],
-    state: 'todo' as Task['state'],
+    state: 'backlog' as Task['state'],
     due: '',
     workspaceId: '',
   });
@@ -200,7 +200,12 @@ export function WorkspaceSurface(props: WorkspaceSurfaceProps) {
     title: task.title ?? fallback.title,
     description: task.description ?? fallback.description ?? '',
     priority: task.priority ?? fallback.priority,
-    state: task.status ?? fallback.state,
+    state: (() => {
+      const s = task.status ?? fallback.state;
+      if (s === 'todo' || s === 'backlog') return 'backlog';
+      if (s === 'code-review' || s === 'review') return 'review';
+      return s;
+    })(),
     due: task.date ?? fallback.due,
     dependsOn: task.depends_on ?? task.dependencies ?? fallback.dependsOn ?? [],
     createdAt: task.created_at ?? task.createdAt ?? fallback.createdAt,
@@ -213,7 +218,15 @@ export function WorkspaceSurface(props: WorkspaceSurfaceProps) {
       setDraggingTaskId(null);
       return;
     }
-    const previousState = currentTask ? taskWorkflowState(currentTask, taskFlags) : 'todo';
+    if (state === 'ready') {
+      const hasRepo = currentTask?.colosseumConfig?.repository?.trim();
+      if (!hasRepo) {
+        pushToast('Repository required', 'Ready status requires a linked repository.', 'warning');
+        setDraggingTaskId(null);
+        return;
+      }
+    }
+    const previousState = currentTask ? taskWorkflowState(currentTask, taskFlags) : 'backlog';
     const movedAt = new Date().toISOString();
     setTaskList((current) => current.map((task) => (task.id === taskId ? { ...task, state } : task)));
     setTaskFlags((current) => ({ ...current, [taskId]: { ...(current[taskId] ?? {}), done: state === 'done', lastMovedAt: movedAt, lastMovedFrom: previousState, lastMovedTo: state } }));
@@ -260,7 +273,7 @@ export function WorkspaceSurface(props: WorkspaceSurfaceProps) {
     });
   }, [allTasks, taskFlags, taskPriorityFilter, taskStatusFilter, taskTextFilter, taskWorkspaceFilter]);
   const filteredTaskColumns = useMemo(() => {
-    return (['todo', 'in-progress', 'review', 'done'] as const).map((state) => ({
+    return (['backlog', 'ready', 'in-progress', 'review', 'done'] as const).map((state) => ({
       state,
       tasks: filteredGlobalTasks.filter((task) => (taskFlags[task.id]?.done ? 'done' : task.state) === state),
     }));
@@ -269,12 +282,13 @@ export function WorkspaceSurface(props: WorkspaceSurfaceProps) {
     const completed = filteredGlobalTasks.filter((task) => (taskFlags[task.id]?.done ? 'done' : task.state) === 'done').length;
     const blocked = filteredGlobalTasks.filter((task) => isTaskBlocked(task, taskFlags) && !taskFlags[task.id]?.done).length;
     const active = filteredGlobalTasks.filter((task) => taskWorkflowState(task, taskFlags) === 'in-progress' && !taskFlags[task.id]?.done).length;
-    const todo = filteredGlobalTasks.filter((task) => taskWorkflowState(task, taskFlags) === 'todo' && !taskFlags[task.id]?.done).length;
+    const backlog = filteredGlobalTasks.filter((task) => taskWorkflowState(task, taskFlags) === 'backlog' && !taskFlags[task.id]?.done).length;
+    const ready = filteredGlobalTasks.filter((task) => taskWorkflowState(task, taskFlags) === 'ready' && !taskFlags[task.id]?.done).length;
     const review = filteredGlobalTasks.filter((task) => taskWorkflowState(task, taskFlags) === 'review' && !taskFlags[task.id]?.done).length;
     const critical = filteredGlobalTasks.filter((task) => task.priority === 'critical' && !taskFlags[task.id]?.done && task.state !== 'done').length;
     const workspaceCount = new Set(filteredGlobalTasks.map((task) => task.workspaceId).filter(Boolean)).size;
     const completionRate = filteredGlobalTasks.length ? Math.round((completed / filteredGlobalTasks.length) * 100) : 0;
-    return { total: filteredGlobalTasks.length, todo, active, review, blocked, critical, completed, workspaceCount, completionRate };
+    return { total: filteredGlobalTasks.length, backlog, ready, active, review, blocked, critical, completed, workspaceCount, completionRate };
   }, [filteredGlobalTasks, taskFlags]);
   const globalTaskWorkflow = useMemo(() => {
     const tasksById = new Map(filteredGlobalTasks.map((task) => [task.id, task]));
@@ -484,7 +498,7 @@ export function WorkspaceSurface(props: WorkspaceSurfaceProps) {
                 <span>Status</span>
                 <select value={taskStatusFilter} onChange={(event) => setTaskStatusFilter(event.target.value)}>
                   <option value="">All statuses</option>
-                  {(['todo', 'in-progress', 'review', 'done'] as const).map((state) => <option key={state} value={state}>{state}</option>)}
+                  {(['backlog', 'ready', 'in-progress', 'review', 'done'] as const).map((state) => <option key={state} value={state}>{state}</option>)}
                 </select>
               </label>
               <label className="task-editor-field">
@@ -684,7 +698,8 @@ export function WorkspaceSurface(props: WorkspaceSurfaceProps) {
                   <div className="task-dashboard-stats">
                     {[
                       ['All tasks', globalTaskStats.total, 'all'],
-                      ['To do', globalTaskStats.todo, 'todo'],
+                      ['Backlog', globalTaskStats.backlog, 'backlog'],
+                      ['Ready', globalTaskStats.ready, 'ready'],
                       ['In progress', globalTaskStats.active, 'active'],
                       ['Review', globalTaskStats.review, 'review'],
                       ['Blocked', globalTaskStats.blocked, 'blocked'],
@@ -843,7 +858,8 @@ export function WorkspaceSurface(props: WorkspaceSurfaceProps) {
                 <label className="task-editor-field">
                   <span>Status</span>
                   <select value={globalTaskDraft.state} onChange={(event) => setGlobalTaskDraft((current) => ({ ...current, state: event.target.value as Task['state'] }))}>
-                    <option value="todo">to do</option>
+                    <option value="backlog">backlog</option>
+                    <option value="ready">ready</option>
                     <option value="in-progress">in progress</option>
                     <option value="review">review</option>
                     <option value="done">done</option>

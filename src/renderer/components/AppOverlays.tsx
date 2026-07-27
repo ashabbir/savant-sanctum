@@ -95,6 +95,10 @@ type AppOverlaysProps = {
   onSaveSettings: () => Promise<void> | void;
   onLogout: () => Promise<void> | void;
   onRefreshProviders?: () => Promise<void> | void;
+  colosseumReadySettings: { persona: string; tags: string; provider: string; model: string };
+  colosseumReviewSettings: { persona: string; tags: string; provider: string; model: string };
+  onColosseumReadySettingsChange: (val: { persona: string; tags: string; provider: string; model: string }) => void;
+  onColosseumReviewSettingsChange: (val: { persona: string; tags: string; provider: string; model: string }) => void;
   onDeleteSession?: (sessionId: string) => void;
   recentAlerts: {
     id: string;
@@ -198,6 +202,10 @@ export function AppOverlays(props: AppOverlaysProps) {
     onSaveSettings,
     onLogout,
     onRefreshProviders,
+    colosseumReadySettings,
+    colosseumReviewSettings,
+    onColosseumReadySettingsChange,
+    onColosseumReviewSettingsChange,
     onDeleteSession,
     recentAlerts,
     editDraft,
@@ -260,7 +268,7 @@ export function AppOverlays(props: AppOverlaysProps) {
     title: '',
     description: '',
     priority: 'medium',
-    state: 'todo',
+    state: 'backlog',
     due: '',
     dependencyId: '',
     comment: '',
@@ -272,9 +280,10 @@ export function AppOverlays(props: AppOverlaysProps) {
   const isTaskDone = (task: Task) => task.state === 'done' || Boolean(taskFlags[task.id]?.done);
   const taskDisplayState = (task: Task) => taskBoardState(task, taskFlags);
   const taskColumns = [
-    { id: 'todo', title: 'To do', state: 'todo' as const, tasks: workspaceTasks.filter((task) => !isTaskDone(task) && taskDisplayState(task) === 'todo') },
+    { id: 'backlog', title: 'Backlog', state: 'backlog' as const, tasks: workspaceTasks.filter((task) => !isTaskDone(task) && taskDisplayState(task) === 'backlog') },
+    { id: 'ready', title: 'Ready', state: 'ready' as const, tasks: workspaceTasks.filter((task) => !isTaskDone(task) && taskDisplayState(task) === 'ready') },
     { id: 'active', title: 'In progress', state: 'in-progress' as const, tasks: workspaceTasks.filter((task) => !isTaskDone(task) && taskDisplayState(task) === 'in-progress') },
-    { id: 'code-review', title: 'Code review', state: 'code-review' as const, tasks: workspaceTasks.filter((task) => !isTaskDone(task) && taskDisplayState(task) === 'code-review') },
+    { id: 'review', title: 'Review', state: 'review' as const, tasks: workspaceTasks.filter((task) => !isTaskDone(task) && taskDisplayState(task) === 'review') },
     { id: 'done', title: 'Done', state: 'done' as const, tasks: workspaceTasks.filter((task) => isTaskDone(task)) },
   ];
   const dependencyParents = new Map<string, string[]>();
@@ -448,8 +457,9 @@ export function AppOverlays(props: AppOverlaysProps) {
   const authHeaders = buildSavantHeaders(apiKey);
   const taskStatusForServer = (state: Task['state']) => state;
   const taskStateFromServer = (status: string | undefined, fallback: Task['state']): Task['state'] => {
-    if (status === 'todo' || status === 'in-progress' || status === 'code-review' || status === 'done') return status;
-    if (status === 'blocked') return fallback;
+    if (status === 'todo' || status === 'backlog') return 'backlog';
+    if (status === 'code-review' || status === 'review') return 'review';
+    if (status === 'ready' || status === 'in-progress' || status === 'done' || status === 'blocked') return status;
     return fallback;
   };
   const normalizeTaskFromServer = (task: any, fallback: Task): Task => ({
@@ -655,7 +665,7 @@ export function AppOverlays(props: AppOverlaysProps) {
       title: '',
       description: '',
       priority: 'medium',
-      state: 'todo',
+      state: 'backlog',
       due: '',
       dependencyId: '',
       comment: '',
@@ -700,7 +710,15 @@ export function AppOverlays(props: AppOverlaysProps) {
       setDraggingTaskId(null);
       return;
     }
-    const previousState = currentTask ? taskWorkflowState(currentTask, taskFlags) : 'todo';
+    if (state === 'ready') {
+      const hasRepo = currentTask?.colosseumConfig?.repository?.trim();
+      if (!hasRepo) {
+        pushToast('Repository required', 'Ready status requires a linked repository.', 'warning');
+        setDraggingTaskId(null);
+        return;
+      }
+    }
+    const previousState = currentTask ? taskWorkflowState(currentTask, taskFlags) : 'backlog';
     setTaskList((current) => current.map((task) => (task.id === taskId ? { ...task, state } : task)));
     setTaskFlags((current) => ({
       ...current,
@@ -753,6 +771,10 @@ export function AppOverlays(props: AppOverlaysProps) {
     const title = taskEditor.title.trim();
     const workspaceId = taskDrawerScope === 'global' ? taskWorkspaceId : activeWorkspaceId;
     if (!title || !workspaceId) return;
+    if (taskEditor.state === 'ready' && !taskEditor.repository.trim()) {
+      pushToast('Repository required', 'Ready status requires a linked repository.', 'warning');
+      return;
+    }
     const localTask: Task = {
       id: `task-${Date.now().toString(36)}`,
       workspaceId,
@@ -800,6 +822,12 @@ export function AppOverlays(props: AppOverlaysProps) {
     if (!title) return;
     const blockedState = isTaskBlocked(selectedTask, taskFlags) ? taskWorkflowState(selectedTask, taskFlags) : null;
     const workspaceId = taskDrawerScope === 'global' ? taskWorkspaceId : selectedTask.workspaceId;
+
+    const stateToValidate = blockedState ?? taskEditor.state;
+    if (stateToValidate === 'ready' && !taskEditor.repository.trim()) {
+      pushToast('Repository required', 'Ready status requires a linked repository.', 'warning');
+      return;
+    }
 
     const updatedLocal: Task = {
       ...selectedTask,
@@ -1522,9 +1550,10 @@ export function AppOverlays(props: AppOverlaysProps) {
                       disabled={Boolean(selectedTask && isTaskBlocked(selectedTask, taskFlags))}
                       onChange={(event) => setTaskEditor((current) => ({ ...current, state: event.target.value as Task['state'] }))}
                     >
-                      <option value="todo">to do</option>
+                      <option value="backlog">backlog</option>
+                      <option value="ready">ready</option>
                       <option value="in-progress">in progress</option>
-                      <option value="code-review">code review</option>
+                      <option value="review">review</option>
                       <option value="done">done</option>
                       <option value="blocked">blocked</option>
                     </select>
@@ -1769,6 +1798,10 @@ export function AppOverlays(props: AppOverlaysProps) {
         onSave={onSaveSettings}
         onLogout={onLogout}
         onRefreshProviders={onRefreshProviders}
+        colosseumReadySettings={colosseumReadySettings}
+        colosseumReviewSettings={colosseumReviewSettings}
+        onColosseumReadySettingsChange={onColosseumReadySettingsChange}
+        onColosseumReviewSettingsChange={onColosseumReviewSettingsChange}
       />
 
       {managementDrawer && (

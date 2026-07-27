@@ -18,9 +18,9 @@ export const taskWorkflowState = (
 ): Exclude<Task['state'], 'blocked'> => {
   if (task.state !== 'blocked') return task.state;
   const fallbackState = taskFlags[task.id]?.lastMovedFrom;
-  return fallbackState === 'todo' || fallbackState === 'in-progress' || fallbackState === 'review'
+  return fallbackState === 'backlog' || fallbackState === 'ready' || fallbackState === 'in-progress' || fallbackState === 'review'
     ? fallbackState
-    : 'todo';
+    : 'backlog';
 };
 
 export const taskBoardState = (

@@ -31,6 +31,10 @@ type SettingsModalProps = {
   onSave: () => Promise<void> | void;
   onLogout: () => Promise<void> | void;
   onRefreshProviders?: () => Promise<void> | void;
+  colosseumReadySettings: { persona: string; tags: string; provider: string; model: string };
+  colosseumReviewSettings: { persona: string; tags: string; provider: string; model: string };
+  onColosseumReadySettingsChange: (val: { persona: string; tags: string; provider: string; model: string }) => void;
+  onColosseumReviewSettingsChange: (val: { persona: string; tags: string; provider: string; model: string }) => void;
 };
 
 const FALLBACK_PROVIDERS = [
@@ -45,6 +49,7 @@ const TABS = [
   { id: 'system', label: 'system' },
   { id: 'gateway', label: 'gateway' },
   { id: 'server', label: 'server' },
+  { id: 'colosseum', label: 'colosseum' },
 ] as const;
 type TabId = typeof TABS[number]['id'];
 
@@ -181,6 +186,10 @@ export function SettingsModal({
   onSave,
   onLogout,
   onRefreshProviders,
+  colosseumReadySettings,
+  colosseumReviewSettings,
+  onColosseumReadySettingsChange,
+  onColosseumReviewSettingsChange,
 }: SettingsModalProps) {
   const [saving, setSaving] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -408,6 +417,129 @@ export function SettingsModal({
               apiKey={authDraft}
               includeApiKey
             />
+          )}
+
+          {/* ── COLOSSEUM ── */}
+          {activeTab === 'colosseum' && (
+            <div className="space-y-6">
+              <p className="text-sm opacity-60 font-sans">Configure agent execution parameters for different board statuses.</p>
+
+              {/* Ready Status Settings */}
+              <div className="p-4 rounded-none" style={{ background: 'var(--cp-bg-3)', border: '1px solid var(--cp-border)' }}>
+                <h4 className="text-xs uppercase tracking-wider mb-3 font-mono" style={{ color: 'var(--cp-cyan)' }}>Ready Status Config</h4>
+                <div className="space-y-4">
+                  <label className="block">
+                    <span className="block text-[10px] uppercase tracking-widest opacity-60 mb-1.5">Persona</span>
+                    <input
+                      value={colosseumReadySettings.persona || ''}
+                      onChange={e => onColosseumReadySettingsChange({ ...colosseumReadySettings, persona: e.target.value })}
+                      className="rounded-none w-full"
+                      placeholder="persona.engineer"
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="block text-[10px] uppercase tracking-widest opacity-60 mb-1.5">Tags (comma separated)</span>
+                    <input
+                      value={colosseumReadySettings.tags || ''}
+                      onChange={e => onColosseumReadySettingsChange({ ...colosseumReadySettings, tags: e.target.value })}
+                      className="rounded-none w-full"
+                      placeholder="engineering, execution"
+                    />
+                  </label>
+                  <div className="grid grid-cols-2 gap-4">
+                    <label className="block">
+                      <span className="block text-[10px] uppercase tracking-widest opacity-60 mb-1.5">Provider</span>
+                      <select
+                        value={colosseumReadySettings.provider || ''}
+                        onChange={e => {
+                          const p = e.target.value;
+                          const prov = allProviders.find(item => item.id === p);
+                          const m = prov?.defaultModel || prov?.models[0] || '';
+                          onColosseumReadySettingsChange({ ...colosseumReadySettings, provider: p, model: m });
+                        }}
+                        className="w-full rounded-none"
+                      >
+                        <option value="">Select provider...</option>
+                        {allProviders.map(p => (
+                          <option key={p.id} value={p.id} style={{ background: '#080b12', color: '#fff' }}>{p.label}</option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="block">
+                      <span className="block text-[10px] uppercase tracking-widest opacity-60 mb-1.5">Model</span>
+                      <select
+                        value={colosseumReadySettings.model || ''}
+                        onChange={e => onColosseumReadySettingsChange({ ...colosseumReadySettings, model: e.target.value })}
+                        className="w-full rounded-none"
+                      >
+                        <option value="">Select model...</option>
+                        {((allProviders.find(p => p.id === colosseumReadySettings.provider)?.models) || []).map(m => (
+                          <option key={m} value={m} style={{ background: '#080b12', color: '#fff' }}>{m}</option>
+                        ))}
+                      </select>
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              {/* Review Status Settings */}
+              <div className="p-4 rounded-none" style={{ background: 'var(--cp-bg-3)', border: '1px solid var(--cp-border)' }}>
+                <h4 className="text-xs uppercase tracking-wider mb-3 font-mono" style={{ color: 'var(--cp-magenta)' }}>Review Status Config</h4>
+                <div className="space-y-4">
+                  <label className="block">
+                    <span className="block text-[10px] uppercase tracking-widest opacity-60 mb-1.5">Persona</span>
+                    <input
+                      value={colosseumReviewSettings.persona || ''}
+                      onChange={e => onColosseumReviewSettingsChange({ ...colosseumReviewSettings, persona: e.target.value })}
+                      className="rounded-none w-full"
+                      placeholder="persona.reviewer"
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="block text-[10px] uppercase tracking-widest opacity-60 mb-1.5">Tags (comma separated)</span>
+                    <input
+                      value={colosseumReviewSettings.tags || ''}
+                      onChange={e => onColosseumReviewSettingsChange({ ...colosseumReviewSettings, tags: e.target.value })}
+                      className="rounded-none w-full"
+                      placeholder="code-review"
+                    />
+                  </label>
+                  <div className="grid grid-cols-2 gap-4">
+                    <label className="block">
+                      <span className="block text-[10px] uppercase tracking-widest opacity-60 mb-1.5">Provider</span>
+                      <select
+                        value={colosseumReviewSettings.provider || ''}
+                        onChange={e => {
+                          const p = e.target.value;
+                          const prov = allProviders.find(item => item.id === p);
+                          const m = prov?.defaultModel || prov?.models[0] || '';
+                          onColosseumReviewSettingsChange({ ...colosseumReviewSettings, provider: p, model: m });
+                        }}
+                        className="w-full rounded-none"
+                      >
+                        <option value="">Select provider...</option>
+                        {allProviders.map(p => (
+                          <option key={p.id} value={p.id} style={{ background: '#080b12', color: '#fff' }}>{p.label}</option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="block">
+                      <span className="block text-[10px] uppercase tracking-widest opacity-60 mb-1.5">Model</span>
+                      <select
+                        value={colosseumReviewSettings.model || ''}
+                        onChange={e => onColosseumReviewSettingsChange({ ...colosseumReviewSettings, model: e.target.value })}
+                        className="w-full rounded-none"
+                      >
+                        <option value="">Select model...</option>
+                        {((allProviders.find(p => p.id === colosseumReviewSettings.provider)?.models) || []).map(m => (
+                          <option key={m} value={m} style={{ background: '#080b12', color: '#fff' }}>{m}</option>
+                        ))}
+                      </select>
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </div>
           )}
         </div>
 

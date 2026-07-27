@@ -74,7 +74,7 @@ export type Task = {
   title: string;
   description?: string;
   priority: 'critical' | 'high' | 'medium' | 'low';
-  state: 'todo' | 'in-progress' | 'code-review' | 'done' | 'blocked';
+  state: 'backlog' | 'ready' | 'in-progress' | 'review' | 'done' | 'blocked';
   owner: string;
   due?: string;
   comments?: string[];
@@ -267,7 +267,7 @@ export const tasks: Task[] = [
     workspaceId: 'ws-sanctum',
     title: 'Add reminder CRUD surface',
     priority: 'high',
-    state: 'todo',
+    state: 'backlog',
     owner: 'ahmed',
     due: 'Today',
     timeSpent: 4,
@@ -278,7 +278,7 @@ export const tasks: Task[] = [
     workspaceId: 'ws-quorum',
     title: 'Implement provider config panels',
     priority: 'high',
-    state: 'todo',
+    state: 'backlog',
     owner: 'ahmed',
     due: 'Tomorrow',
     timeSpent: 8,
