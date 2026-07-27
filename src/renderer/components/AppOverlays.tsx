@@ -277,7 +277,7 @@ export function AppOverlays(props: AppOverlaysProps) {
   const taskColumns = [
     { id: 'todo', title: 'To do', state: 'todo' as const, tasks: workspaceTasks.filter((task) => !isTaskDone(task) && taskDisplayState(task) === 'todo') },
     { id: 'active', title: 'In progress', state: 'in-progress' as const, tasks: workspaceTasks.filter((task) => !isTaskDone(task) && taskDisplayState(task) === 'in-progress') },
-    { id: 'review', title: 'Review', state: 'review' as const, tasks: workspaceTasks.filter((task) => !isTaskDone(task) && taskDisplayState(task) === 'review') },
+    { id: 'code-review', title: 'Code review', state: 'code-review' as const, tasks: workspaceTasks.filter((task) => !isTaskDone(task) && taskDisplayState(task) === 'code-review') },
     { id: 'done', title: 'Done', state: 'done' as const, tasks: workspaceTasks.filter((task) => isTaskDone(task)) },
   ];
   const dependencyParents = new Map<string, string[]>();
@@ -451,7 +451,7 @@ export function AppOverlays(props: AppOverlaysProps) {
   const authHeaders = buildSavantHeaders(apiKey);
   const taskStatusForServer = (state: Task['state']) => state;
   const taskStateFromServer = (status: string | undefined, fallback: Task['state']): Task['state'] => {
-    if (status === 'todo' || status === 'in-progress' || status === 'review' || status === 'done') return status;
+    if (status === 'todo' || status === 'in-progress' || status === 'code-review' || status === 'done') return status;
     if (status === 'blocked') return fallback;
     return fallback;
   };
@@ -1521,7 +1521,7 @@ export function AppOverlays(props: AppOverlaysProps) {
                     >
                       <option value="todo">to do</option>
                       <option value="in-progress">in progress</option>
-                      <option value="review">review</option>
+                      <option value="code-review">code review</option>
                       <option value="done">done</option>
                       <option value="blocked">blocked</option>
                     </select>

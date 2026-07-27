@@ -74,7 +74,7 @@ export type Task = {
   title: string;
   description?: string;
   priority: 'critical' | 'high' | 'medium' | 'low';
-  state: 'todo' | 'in-progress' | 'review' | 'done' | 'blocked';
+  state: 'todo' | 'in-progress' | 'code-review' | 'done' | 'blocked';
   owner: string;
   due?: string;
   comments?: string[];
