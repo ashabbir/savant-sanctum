@@ -262,7 +262,6 @@ export function AppOverlays(props: AppOverlaysProps) {
     dependencyId: string;
     comment: string;
     repository: string;
-    provider: string;
   }>({
     title: '',
     description: '',
@@ -272,7 +271,6 @@ export function AppOverlays(props: AppOverlaysProps) {
     dependencyId: '',
     comment: '',
     repository: '',
-    provider: '',
   });
   const [colosseumProviders, setColosseumProviders] = useState<Array<{ id: string; label: string }>>([]);
   const isTaskDone = (task: Task) => task.state === 'done' || Boolean(taskFlags[task.id]?.done);
@@ -475,7 +473,6 @@ export function AppOverlays(props: AppOverlaysProps) {
   const colosseumPayload = () => ({
     config: {
       repository: taskEditor.repository.trim(),
-      provider: taskEditor.provider,
     },
   });
   const chooseColosseumRepository = async () => {
@@ -667,7 +664,6 @@ export function AppOverlays(props: AppOverlaysProps) {
       dependencyId: '',
       comment: '',
       repository: '',
-      provider: '',
     });
     setTaskWorkspaceId(taskDrawerScope === 'workspace' ? activeWorkspaceId : '');
     setIsTaskModalOpen(true);
@@ -688,7 +684,6 @@ export function AppOverlays(props: AppOverlaysProps) {
       dependencyId: '',
       comment: '',
       repository: task.colosseumConfig?.repository ?? '',
-      provider: task.colosseumConfig?.provider ?? '',
     });
     setTaskWorkspaceId(task.workspaceId);
     setIsTaskModalOpen(true);
