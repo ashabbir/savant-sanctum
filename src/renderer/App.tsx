@@ -971,7 +971,7 @@ function App() {
                 title: task.title,
                 description: task.description ?? '',
                 priority: task.priority ?? 'medium',
-                state: task.status ?? 'todo',
+                state: (() => { const s = task.status ?? 'backlog'; if (s === 'todo') return 'backlog'; if (s === 'code-review') return 'review'; return s; })(),
                 owner: task.user_id ?? 'server',
                 due: task.date ?? undefined,
                 dependsOn: task.depends_on ?? task.dependencies ?? [],
@@ -1480,9 +1480,9 @@ function App() {
 
     if (activeSection === 'tasks') {
       return [
-        `Critical ${taskList.filter((task) => task.priority === 'critical').length}`,
+        `Backlog ${taskList.filter((task) => task.state === 'backlog').length}`,
+        `Ready ${taskList.filter((task) => task.state === 'ready').length}`,
         `In progress ${taskList.filter((task) => task.state === 'in-progress').length}`,
-        `Todo ${taskList.filter((task) => task.state === 'todo').length}`,
         `Review ${taskList.filter((task) => task.state === 'review').length}`,
         `Blocked ${taskList.filter((task) => task.state === 'blocked').length}`,
       ];
@@ -1890,7 +1890,7 @@ function App() {
                 workspaceId: activeWorkspaceId,
                 title: 'New task',
                 priority: 'medium' as const,
-                state: 'todo' as const,
+                state: 'backlog' as const,
                 owner: 'ahmed',
                 timeSpent: 4,
                 complexity: 'moderate' as const,
