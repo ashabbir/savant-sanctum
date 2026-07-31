@@ -117,7 +117,7 @@ export function WorkspaceOverview({
             <div className="task-summary-group">
               <div className="task-summary-label">Status</div>
               <div className="task-summary-chips">
-                {['backlog', 'ready', 'in-progress', 'review', 'done', 'blocked'].map((status) => (
+                {['backlog', 'ready', 'in-progress', 'review', 'done'].map((status) => (
                   <div key={status} className={`task-summary-chip task-summary-${status}`}>
                     <span>{status}</span>
                     <strong>{taskStatusCounts[status] ?? 0}</strong>

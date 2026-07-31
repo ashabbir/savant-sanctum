@@ -1483,7 +1483,7 @@ function App() {
         `Ready ${taskList.filter((task) => task.state === 'ready').length}`,
         `In progress ${taskList.filter((task) => task.state === 'in-progress').length}`,
         `Review ${taskList.filter((task) => task.state === 'review').length}`,
-        `Blocked ${taskList.filter((task) => task.state === 'blocked').length}`,
+        `Done ${taskList.filter((task) => task.state === 'done').length}`,
       ];
     }
 

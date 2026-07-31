@@ -457,7 +457,7 @@ export function AppOverlays(props: AppOverlaysProps) {
   const taskStateFromServer = (status: string | undefined, fallback: Task['state']): Task['state'] => {
     if (status === 'todo' || status === 'backlog') return 'backlog';
     if (status === 'code-review' || status === 'review') return 'review';
-    if (status === 'ready' || status === 'in-progress' || status === 'done' || status === 'blocked') return status;
+    if (status === 'ready' || status === 'in-progress' || status === 'done') return status;
     return fallback;
   };
   const normalizeTaskFromServer = (task: any, fallback: Task): Task => ({
@@ -1537,7 +1537,6 @@ export function AppOverlays(props: AppOverlaysProps) {
                       <option value="in-progress">in progress</option>
                       <option value="review">review</option>
                       <option value="done">done</option>
-                      <option value="blocked">blocked</option>
                     </select>
                     {selectedTask && isTaskBlocked(selectedTask, taskFlags) && <span className="task-editor-hint">Status is locked while blocked. Unblock the card first.</span>}
                   </label>

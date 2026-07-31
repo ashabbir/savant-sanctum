@@ -9,26 +9,22 @@ export type TaskFlagState = {
 };
 
 export const isTaskBlocked = (task: Task, taskFlags: Record<string, TaskFlagState>): boolean => {
-  return Boolean(taskFlags[task.id]?.blocked || task.state === 'blocked');
+  return Boolean(taskFlags[task.id]?.blocked);
 };
 
 export const taskWorkflowState = (
   task: Task,
   taskFlags: Record<string, TaskFlagState>,
-): Exclude<Task['state'], 'blocked'> => {
-  if (task.state !== 'blocked') return task.state;
-  const fallbackState = taskFlags[task.id]?.lastMovedFrom;
-  return fallbackState === 'backlog' || fallbackState === 'ready' || fallbackState === 'in-progress' || fallbackState === 'review'
-    ? fallbackState
-    : 'backlog';
+): Task['state'] => {
+  return task.state;
 };
 
 export const taskBoardState = (
   task: Task,
   taskFlags: Record<string, TaskFlagState>,
-): Exclude<Task['state'], 'blocked'> => {
+): Task['state'] => {
   if (taskFlags[task.id]?.done) return 'done';
-  return taskWorkflowState(task, taskFlags);
+  return task.state;
 };
 
 export const canMoveTask = (
@@ -37,5 +33,5 @@ export const canMoveTask = (
   taskFlags: Record<string, TaskFlagState>,
 ): boolean => {
   if (!isTaskBlocked(task, taskFlags)) return true;
-  return targetState === taskWorkflowState(task, taskFlags);
+  return targetState === task.state;
 };
