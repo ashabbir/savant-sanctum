@@ -245,7 +245,7 @@ export function AppOverlays(props: AppOverlaysProps) {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [taskEditorTab, setTaskEditorTab] = useState<'details' | 'athena'>('details');
-  const [taskViewMode, setTaskViewMode] = useState<'board' | 'visualization'>('board');
+  const [taskViewMode, setTaskViewMode] = useState<'board' | 'visualization' | 'report'>('board');
   const [draggingTaskId, setDraggingTaskId] = useState<string | null>(null);
   const [taskWorkspaceId, setTaskWorkspaceId] = useState('');
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
@@ -282,7 +282,6 @@ export function AppOverlays(props: AppOverlaysProps) {
     { id: 'ready', title: 'Ready', state: 'ready' as const, tasks: workspaceTasks.filter((task) => !isTaskDone(task) && taskDisplayState(task) === 'ready') },
     { id: 'active', title: 'In progress', state: 'in-progress' as const, tasks: workspaceTasks.filter((task) => !isTaskDone(task) && taskDisplayState(task) === 'in-progress') },
     { id: 'review', title: 'Review', state: 'review' as const, tasks: workspaceTasks.filter((task) => !isTaskDone(task) && taskDisplayState(task) === 'review') },
-    { id: 'done', title: 'Done', state: 'done' as const, tasks: workspaceTasks.filter((task) => isTaskDone(task)) },
   ];
   const dependencyParents = new Map<string, string[]>();
   const dependencyChildren = new Map<string, string[]>();
@@ -453,7 +452,7 @@ export function AppOverlays(props: AppOverlaysProps) {
   const getNoteSessionTitle = (note: Note) => workspaceSessions.find((session) => session.id === note.sessionId)?.title ?? 'Workspace session';
   const headers = buildSavantHeaders(apiKey, true);
   const authHeaders = buildSavantHeaders(apiKey);
-  const taskStatusForServer = (state: Task['state']) => state;
+  const taskStatusForServer = (state: Task['state']) => (state === 'backlog' ? 'todo' : state);
   const taskStateFromServer = (status: string | undefined, fallback: Task['state']): Task['state'] => {
     if (status === 'todo' || status === 'backlog') return 'backlog';
     if (status === 'code-review' || status === 'review') return 'review';
@@ -1044,6 +1043,7 @@ export function AppOverlays(props: AppOverlaysProps) {
                 <div className="task-view-toggle" role="tablist" aria-label="Task view">
                   <button type="button" className={taskViewMode === 'board' ? 'is-active' : ''} onClick={() => setTaskViewMode('board')}><ListChecks size={13} /> Board</button>
                   <button type="button" className={taskViewMode === 'visualization' ? 'is-active' : ''} onClick={() => setTaskViewMode('visualization')}><Network size={13} /> Visualization</button>
+                  <button type="button" className={taskViewMode === 'report' ? 'is-active' : ''} onClick={() => setTaskViewMode('report')}><FileText size={13} /> Done Report</button>
                 </div>
                 <button className="text-btn action-close icon-only" aria-label="Close" title="Close" onClick={() => setIsTaskDrawerOpen(false)}><X size={14} /></button>
               </div>
@@ -1131,7 +1131,7 @@ export function AppOverlays(props: AppOverlaysProps) {
                     </section>
                   ))}
                 </div>
-              ) : (
+              ) : taskViewMode === 'visualization' ? (
                 <div className="task-workflow-shell">
                   {workspaceTasks.length === 0 ? (
                     <div className="activity-empty">No tasks to visualize.</div>
@@ -1217,6 +1217,47 @@ export function AppOverlays(props: AppOverlaysProps) {
                         ))}
                       </svg>
                     </>
+                  )}
+                </div>
+              ) : (
+                <div className="task-workflow-shell p-6">
+                  <div className="flex items-center justify-between mb-6 pb-4 border-b border-white/10">
+                    <div>
+                      <h3 className="brand-title text-lg tracking-wider text-cyan-400">Completed Tasks Report</h3>
+                      <p className="text-xs text-white/50 mt-1">Summary of all completed deliverables and closed work items</p>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-2xl font-mono font-bold text-cyan-400">{workspaceTasks.filter((t) => t.state === 'done' || taskFlags[t.id]?.done).length}</span>
+                      <span className="text-xs text-white/50 block">Tasks Completed</span>
+                    </div>
+                  </div>
+                  {workspaceTasks.filter((t) => t.state === 'done' || taskFlags[t.id]?.done).length === 0 ? (
+                    <div className="activity-empty py-12 text-center text-white/40">No completed tasks in this workspace.</div>
+                  ) : (
+                    <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-2">
+                      {workspaceTasks.filter((t) => t.state === 'done' || taskFlags[t.id]?.done).map((task) => (
+                        <div key={task.id} className="task-card-block p-4 rounded-lg bg-black/40 border border-emerald-500/30 hover:border-emerald-400/60 transition-all cursor-pointer" onClick={() => openTaskEditor(task)}>
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-2">
+                                <Check size={14} className="text-emerald-400" />
+                                <span className="font-semibold text-sm text-white/90">{task.title}</span>
+                                <span className={`text-[10px] px-2 py-0.5 rounded font-mono font-bold uppercase ${task.priority === 'critical' ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40' : task.priority === 'high' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40' : 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40'}`}>{task.priority}</span>
+                              </div>
+                              {task.description && <p className="text-xs text-white/60 line-clamp-2 pl-6">{task.description}</p>}
+                            </div>
+                            <div className="text-right shrink-0 text-xs text-white/40 font-mono">
+                              {task.updatedAt ? new Date(task.updatedAt).toLocaleDateString() : 'Completed'}
+                            </div>
+                          </div>
+                          {task.colosseumConfig?.repository && (
+                            <div className="mt-2 pl-6 text-[11px] font-mono text-cyan-400/70 flex items-center gap-1.5">
+                              <GitBranch size={11} /> {task.colosseumConfig.repository}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
                   )}
                 </div>
               )}
