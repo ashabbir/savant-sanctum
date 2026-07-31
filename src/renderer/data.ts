@@ -83,7 +83,6 @@ export type Task = {
   updatedAt?: string;
   timeSpent?: number;
   complexity?: 'simple' | 'moderate' | 'complex' | 'extreme';
-  colosseumReady?: boolean;
   colosseumConfig?: { repository?: string; provider?: 'hermes' | 'codex' | 'claude' | 'copilot' | 'agy'; setup?: string; timeout_seconds?: number };
 };
 

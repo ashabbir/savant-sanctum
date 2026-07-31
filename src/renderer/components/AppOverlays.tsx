@@ -261,7 +261,6 @@ export function AppOverlays(props: AppOverlaysProps) {
     due: string;
     dependencyId: string;
     comment: string;
-    colosseumReady: boolean;
     repository: string;
     provider: string;
   }>({
@@ -272,7 +271,6 @@ export function AppOverlays(props: AppOverlaysProps) {
     due: '',
     dependencyId: '',
     comment: '',
-    colosseumReady: false,
     repository: '',
     provider: '',
   });
@@ -472,7 +470,7 @@ export function AppOverlays(props: AppOverlaysProps) {
     state: taskStateFromServer(task.status, fallback.state),
     due: task.date ?? fallback.due,
     dependsOn: task.depends_on ?? task.dependencies ?? fallback.dependsOn ?? [],
-    colosseumReady: Boolean(task.colosseum_ready ?? fallback.colosseumReady),
+    complexity: task.complexity ?? fallback.complexity,
     colosseumConfig: task.colosseum_config ?? fallback.colosseumConfig,
   });
   const colosseumPayload = () => ({
@@ -669,7 +667,6 @@ export function AppOverlays(props: AppOverlaysProps) {
       due: '',
       dependencyId: '',
       comment: '',
-      colosseumReady: false,
       repository: '',
       provider: '',
     });
@@ -691,7 +688,6 @@ export function AppOverlays(props: AppOverlaysProps) {
       due: task.due ?? '',
       dependencyId: '',
       comment: '',
-      colosseumReady: Boolean(task.colosseumReady),
       repository: task.colosseumConfig?.repository ?? '',
       provider: task.colosseumConfig?.provider ?? '',
     });
@@ -803,11 +799,6 @@ export function AppOverlays(props: AppOverlaysProps) {
         }),
       });
       if (response.ok) task = normalizeTaskFromServer(await response.json(), localTask);
-      if (response.ok && taskEditor.colosseumReady) {
-        const ready = await fetch(`${serverBaseUrl.replace(/\/+$/, '')}/api/tasks/${encodeURIComponent(task.id)}/colosseum-ready`, { method: 'POST', headers, body: JSON.stringify(colosseumPayload()) });
-        if (ready.ok) task = normalizeTaskFromServer(await ready.json(), task);
-        else { pushToast('Colosseum fields required', 'Choose a local repository and installed provider.', 'warning'); return; }
-      }
     } catch {
       // Local optimistic task remains available when the server is offline.
     }
@@ -854,11 +845,6 @@ export function AppOverlays(props: AppOverlaysProps) {
         }),
       });
       if (response.ok) updated = normalizeTaskFromServer(await response.json(), updatedLocal);
-      if (response.ok && taskEditor.colosseumReady) {
-        const ready = await fetch(`${serverBaseUrl.replace(/\/+$/, '')}/api/tasks/${encodeURIComponent(selectedTask.id)}/colosseum-ready`, { method: 'POST', headers, body: JSON.stringify(colosseumPayload()) });
-        if (ready.ok) updated = normalizeTaskFromServer(await ready.json(), updated);
-        else { pushToast('Colosseum fields required', 'Choose a local repository and installed provider.', 'warning'); return; }
-      }
     } catch {
       // Keep local edit when the server is unavailable.
     }
@@ -1519,12 +1505,8 @@ export function AppOverlays(props: AppOverlaysProps) {
                     <textarea value={taskEditor.description} onChange={(event) => setTaskEditor((current) => ({ ...current, description: event.target.value }))} placeholder="Task detail, acceptance notes, or implementation context." />
                   </label>
                   <div className="task-editor-section">
-                    <div className="task-editor-section-head">Colosseum execution</div>
-                    <label className="task-editor-field colosseum-ready-toggle"><span><input type="checkbox" checked={taskEditor.colosseumReady} onChange={(event) => setTaskEditor((current) => ({ ...current, colosseumReady: event.target.checked }))} /> Ready for Colosseum</span></label>
-                    {taskEditor.colosseumReady && <>
-                      <label className="task-editor-field"><span>Repository</span><div className="task-inline-control"><input value={taskEditor.repository} onChange={(event) => setTaskEditor((current) => ({ ...current, repository: event.target.value }))} placeholder="Choose a local Git repository" /><button type="button" className="ghost-btn" onClick={() => void chooseColosseumRepository()}><FolderOpen size={14} /> Browse…</button></div><span className="task-editor-hint">Choose the checkout Colosseum should create a worktree from.</span></label>
-                      <label className="task-editor-field"><span>Installed AI provider</span><select value={taskEditor.provider} onChange={(event) => setTaskEditor((current) => ({ ...current, provider: event.target.value }))}><option value="">Choose installed provider...</option>{colosseumProviders.map((provider) => <option key={provider.id} value={provider.id}>{provider.label}</option>)}</select><span className="task-editor-hint">Colosseum runs this provider with its non-interactive full-permission profile and validates the result.</span></label>
-                    </>}
+                    <div className="task-editor-section-head">Linked Repository</div>
+                    <label className="task-editor-field"><span>Repository</span><div className="task-inline-control"><input value={taskEditor.repository} onChange={(event) => setTaskEditor((current) => ({ ...current, repository: event.target.value }))} placeholder="Choose a local Git repository" /><button type="button" className="ghost-btn" onClick={() => void chooseColosseumRepository()}><FolderOpen size={14} /> Browse…</button></div><span className="task-editor-hint">Choose the local Git repository for this task. Required for Ready status.</span></label>
                   </div>
                   <div className="task-editor-section">
                     <div className="task-editor-section-head">Comments</div>
