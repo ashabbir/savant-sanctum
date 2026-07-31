@@ -15,6 +15,10 @@ const STATUS_COLORS = {
   warning: "#ffe600",
 };
 
+export function isAbortError(error: unknown, signal?: AbortSignal) {
+  return signal?.aborted || (error instanceof DOMException && error.name === "AbortError");
+}
+
 export function BottomBar({
   workspaces = [],
   sessions = [],
@@ -120,11 +124,10 @@ export function BottomBar({
         }
 
         // Fetch recent runs
+        const controller = new AbortController();
+        const id = setTimeout(() => controller.abort(), 1500);
         try {
-          const controller = new AbortController();
-          const id = setTimeout(() => controller.abort(), 1500);
           const res = await fetch(`${gUrl.replace(/\/$/, "")}/runs`, { signal: controller.signal });
-          clearTimeout(id);
           if (res.ok) {
             const data = await res.json();
             const validData = Array.isArray(data) ? data : [];
@@ -133,8 +136,12 @@ export function BottomBar({
             setRuns([]);
           }
         } catch (e) {
-          console.error("Failed to fetch runs in BottomBar:", e);
+          if (!isAbortError(e, controller.signal)) {
+            console.error("Failed to fetch runs in BottomBar:", e);
+          }
           setRuns([]);
+        } finally {
+          clearTimeout(id);
         }
       } else {
         setGatewayStatus("offline");

@@ -22,7 +22,8 @@ import {
 } from '../components/workspaceEditor';
 import { WorkspaceOverview } from '../components/WorkspaceOverview';
 import { WorkspaceSessionCard } from '../components/WorkspaceSessionCard';
-import { SettingsModal } from '../components/SettingsModal';
+import { DEFAULT_COLOSSEUM_READY_SETTINGS, SettingsModal, withDefaultColosseumSettings } from '../components/SettingsModal';
+import { isAbortError } from '../components/BottomBar';
 import { LoginScreen } from '../components/LoginScreen';
 import { ShellChrome } from '../components/ShellChrome';
 import { WorkspaceSurface } from '../components/WorkspaceSurface';
@@ -349,6 +350,16 @@ describe('renderer components', () => {
     expect(html).toContain('Settings');
     expect(html).toContain('User preferences');
     expect(html).toContain('GATEWAY ERROR: NO PROVIDERS DETECTED');
+  });
+
+  it('uses Colosseum defaults when settings have not been persisted yet', () => {
+    expect(withDefaultColosseumSettings(undefined, DEFAULT_COLOSSEUM_READY_SETTINGS).persona).toBe('persona.engineer');
+  });
+
+  it('recognizes the expected BottomBar timeout abort', () => {
+    const controller = new AbortController();
+    controller.abort();
+    expect(isAbortError(new DOMException('aborted', 'AbortError'), controller.signal)).toBe(true);
   });
 
   it('renders SettingsModal with providers', () => {

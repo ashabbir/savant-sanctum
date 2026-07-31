@@ -31,11 +31,28 @@ type SettingsModalProps = {
   onSave: () => Promise<void> | void;
   onLogout: () => Promise<void> | void;
   onRefreshProviders?: () => Promise<void> | void;
-  colosseumReadySettings: { persona: string; tags: string; provider: string; model: string };
-  colosseumReviewSettings: { persona: string; tags: string; provider: string; model: string };
-  onColosseumReadySettingsChange: (val: { persona: string; tags: string; provider: string; model: string }) => void;
-  onColosseumReviewSettingsChange: (val: { persona: string; tags: string; provider: string; model: string }) => void;
+  colosseumReadySettings?: ColosseumSettings;
+  colosseumReviewSettings?: ColosseumSettings;
+  onColosseumReadySettingsChange?: (val: ColosseumSettings) => void;
+  onColosseumReviewSettingsChange?: (val: ColosseumSettings) => void;
 };
+
+export type ColosseumSettings = { persona: string; tags: string; provider: string; model: string };
+
+export const DEFAULT_COLOSSEUM_READY_SETTINGS: ColosseumSettings = {
+  persona: 'persona.engineer', tags: 'engineering, execution', provider: '', model: '',
+};
+
+export const DEFAULT_COLOSSEUM_REVIEW_SETTINGS: ColosseumSettings = {
+  persona: 'persona.reviewer', tags: 'code-review', provider: '', model: '',
+};
+
+export function withDefaultColosseumSettings(
+  settings: ColosseumSettings | undefined,
+  defaults: ColosseumSettings,
+) {
+  return settings ?? defaults;
+}
 
 const FALLBACK_PROVIDERS = [
   { id: 'claude', label: 'Claude', defaultModel: 'claude-sonnet-4-6', models: ['claude-haiku-4-5-20251001', 'claude-sonnet-4-6', 'claude-opus-4-7', 'haiku', 'sonnet', 'opus'] },
@@ -186,11 +203,13 @@ export function SettingsModal({
   onSave,
   onLogout,
   onRefreshProviders,
-  colosseumReadySettings,
-  colosseumReviewSettings,
-  onColosseumReadySettingsChange,
-  onColosseumReviewSettingsChange,
+  colosseumReadySettings: readySettings,
+  colosseumReviewSettings: reviewSettings,
+  onColosseumReadySettingsChange = () => {},
+  onColosseumReviewSettingsChange = () => {},
 }: SettingsModalProps) {
+  const colosseumReadySettings = withDefaultColosseumSettings(readySettings, DEFAULT_COLOSSEUM_READY_SETTINGS);
+  const colosseumReviewSettings = withDefaultColosseumSettings(reviewSettings, DEFAULT_COLOSSEUM_REVIEW_SETTINGS);
   const [saving, setSaving] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState<TabId>('system');
