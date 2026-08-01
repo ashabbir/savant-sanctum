@@ -1267,7 +1267,7 @@ function App() {
     const prewarmWorkspaceConversations = async () => {
       await Promise.all(workspaceSessions.map(async (session) => {
         if (sessionConversationMap[session.id]?.length) return;
-        const fileGroup = workspaceSessionFileGroups[session.id];
+        const fileGroup = workspaceSessionFiles[session.id];
         const provider = inferSessionProvider(session.provider, session as unknown as Record<string, any>, fileGroup);
         try {
           const messages = await window.system?.getLocalConversation?.(provider, session.id);
@@ -1282,7 +1282,7 @@ function App() {
 
     void prewarmWorkspaceConversations();
     return () => { cancelled = true; };
-  }, [workspaceSessionIdsKey, workspaceSessionFileGroups, workspaceSessions]);
+  }, [workspaceSessionIdsKey, workspaceSessionFiles, workspaceSessions]);
 
   useEffect(() => {
     let cancelled = false;
