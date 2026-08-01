@@ -741,7 +741,7 @@ export function AppOverlays(props: AppOverlaysProps) {
   }, [taskToEdit]);
   useEffect(() => {
     if (!isTaskModalOpen || !selectedTask) return;
-    const refreshed = taskList.find((task) => task.id === selectedTask.id);
+    const refreshed = workspaceTasks.find((task) => task.id === selectedTask.id);
     if (!refreshed) return;
     setSelectedTask((current) => current ? {
       ...current,
@@ -750,7 +750,7 @@ export function AppOverlays(props: AppOverlaysProps) {
       updatedAt: refreshed.updatedAt,
       colosseumConfig: refreshed.colosseumConfig,
     } : current);
-  }, [isTaskModalOpen, selectedTask?.id, taskList]);
+  }, [isTaskModalOpen, selectedTask?.id, workspaceTasks]);
   const moveTask = (taskId: string, state: Task['state']) => {
     const currentTask = workspaceTasks.find((task) => task.id === taskId);
     if (currentTask && currentTask.state !== state) {
