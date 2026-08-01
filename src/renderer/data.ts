@@ -56,6 +56,7 @@ export type Session = {
   workspaceId: string;
   title: string;
   provider: string;
+  agentType?: string;
   model: string;
   createdAt?: string;
   updatedAt?: string;
@@ -68,16 +69,24 @@ export type Session = {
   tree: string;
 };
 
+export type TaskComment = {
+  id?: string;
+  author: string;
+  text: string;
+  createdAt: string;
+  role?: 'user' | 'agent' | 'system';
+};
+
 export type Task = {
   id: string;
   workspaceId: string;
   title: string;
   description?: string;
   priority: 'critical' | 'high' | 'medium' | 'low';
-  state: 'backlog' | 'ready' | 'in-progress' | 'review' | 'done';
+  state: 'backlog' | 'grooming' | 'ready' | 'in-progress' | 'review' | 'verify' | 'done';
   owner: string;
   due?: string;
-  comments?: string[];
+  comments?: Array<string | TaskComment>;
   dependsOn?: string[];
   createdAt?: string;
   updatedAt?: string;

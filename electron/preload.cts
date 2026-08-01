@@ -72,6 +72,7 @@ contextBridge.exposeInMainWorld('system', {
   listProviders: (gatewayUrl?: string) => ipcRenderer.invoke('list-providers', gatewayUrl),
   getDbStatus: () => ipcRenderer.invoke('get-db-status'),
   getLocalConversation: (provider: string, sessionId: string) => ipcRenderer.invoke('get-local-conversation', provider, sessionId),
+  getLocalSessionMetadata: (sessionId: string, provider?: string) => ipcRenderer.invoke('get-local-session-metadata', sessionId, provider),
 });
 
 contextBridge.exposeInMainWorld('sanctum', {

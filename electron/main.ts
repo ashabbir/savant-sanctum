@@ -19,6 +19,7 @@ const CLAUDE_DIR = path.join(os.homedir(), '.claude');
 const COPILOT_DIR = path.join(os.homedir(), '.copilot');
 const GEMINI_DIR = path.join(os.homedir(), '.gemini');
 const AGY_DIR = path.join(os.homedir(), '.agy');
+const HERMES_DIR = path.join(os.homedir(), '.hermes');
 const CODEX_HISTORY_PATH = path.join(CODEX_DIR, 'history.jsonl');
 const CODEX_LOGS_PATH = path.join(CODEX_DIR, 'logs_2.sqlite');
 const COPILOT_SESSION_DB_PATH = path.join(COPILOT_DIR, 'session-store.db');
@@ -545,6 +546,29 @@ async function loadAgyConversation(sessionId: string): Promise<LocalConversation
   return [];
 }
 
+async function loadHermesConversation(sessionId: string): Promise<LocalConversationMessage[]> {
+  const sid = String(sessionId || '').trim();
+  if (!sid) return [];
+  for (const root of [HERMES_DIR, path.join(os.homedir(), '.local', 'state', 'hermes')]) {
+    try {
+      const entries = await fs.readdir(root, { recursive: true }) as string[];
+      const match = entries.find((entry) => entry.includes(sid) && /\.(jsonl?|ndjson|txt|log|db)$/i.test(entry));
+      if (!match) continue;
+      const fullPath = path.join(root, match);
+      if (/\.db$/i.test(fullPath)) {
+        const messages = await loadConversationFromSqlite(fullPath, 'hermes', sid);
+        if (messages.length) return messages;
+      } else {
+        const messages = loadTranscriptMessages('hermes', await fs.readFile(fullPath, 'utf8'), sid);
+        if (messages.length) return messages;
+      }
+    } catch {
+      // Hermes data is optional and layout varies by version.
+    }
+  }
+  return [];
+}
+
 async function loadLocalConversation(provider: string, sessionId: string): Promise<LocalConversationMessage[]> {
   const normalized = String(provider || '').trim().toLowerCase();
   if (normalized === 'codex' || normalized === 'session' || normalized === 'savant') return loadCodexConversation(sessionId);
@@ -552,7 +576,59 @@ async function loadLocalConversation(provider: string, sessionId: string): Promi
   if (normalized === 'claude' || normalized === 'claude-code' || normalized === 'anthropic') return loadClaudeConversation(sessionId);
   if (normalized === 'gemini') return loadGeminiConversation(sessionId);
   if (normalized === 'agy' || normalized === 'agt') return loadAgyConversation(sessionId);
+  if (normalized === 'hermes' || normalized === 'hermes-agent') return loadHermesConversation(sessionId);
   return loadCodexConversation(sessionId);
+}
+
+async function findLocalSessionMetadata(sessionId: string, provider?: string) {
+  const sid = String(sessionId || '').trim();
+  if (!sid) return {};
+  const requested = String(provider || '').trim().toLowerCase();
+  const roots: Array<{ provider: string; root: string; pattern: RegExp }> = [
+    { provider: 'codex', root: path.join(CODEX_DIR, 'sessions'), pattern: new RegExp(`rollout-.*${sid}.*\\.jsonl$`, 'i') },
+    { provider: 'claude', root: path.join(CLAUDE_DIR, 'projects'), pattern: new RegExp(`${sid}.*\\.jsonl$`, 'i') },
+    { provider: 'gemini', root: path.join(GEMINI_DIR, 'antigravity-cli', 'conversations'), pattern: new RegExp(sid, 'i') },
+    { provider: 'agy', root: AGY_DIR, pattern: new RegExp(sid, 'i') },
+    { provider: 'hermes', root: HERMES_DIR, pattern: new RegExp(sid, 'i') },
+    { provider: 'savant', root: path.join(SAVANT_DIR, 'sessions'), pattern: new RegExp(`session_${sid}\\.json$`, 'i') },
+  ].filter((candidate) => !requested || requested === 'session' || requested === 'savant' || candidate.provider === requested);
+
+  for (const candidate of roots) {
+    try {
+      const entries = await fs.readdir(candidate.root, { recursive: true }) as string[];
+      const match = entries.find((entry) => candidate.pattern.test(entry));
+      if (!match) continue;
+      const filePath = path.join(candidate.root, match);
+      const stat = await fs.stat(filePath);
+      let title = '';
+      if (candidate.provider === 'codex') {
+        try {
+          const index = await fs.readFile(path.join(CODEX_DIR, 'session_index.jsonl'), 'utf8');
+          const record = index.split(/\r?\n/).map((line) => parseJsonLine<Record<string, any>>(line)).find((item) => item?.id === sid);
+          title = String(record?.thread_name ?? '').trim();
+        } catch {
+          // The index is optional; retain a usable provider and file record.
+        }
+      }
+      if (!title && !/\.db$/i.test(filePath)) {
+        try {
+          const messages = loadTranscriptMessages(candidate.provider, await fs.readFile(filePath, 'utf8'), sid);
+          title = messages.find((message) => message.kind === 'user')?.detail.split(/\r?\n/)[0].trim() ?? '';
+        } catch {
+          // Transcript titles are best effort; file metadata is still useful.
+        }
+      }
+      return {
+        provider: candidate.provider,
+        title,
+        agentType: candidate.provider === 'codex' ? 'codex-cli' : `${candidate.provider}-cli`,
+        files: [{ path: filePath, name: path.basename(filePath), category: 'transcript', size: stat.size }],
+      };
+    } catch {
+      // Provider directories are optional and may not exist on this machine.
+    }
+  }
+  return {};
 }
 
 function createWindow() {
@@ -671,6 +747,10 @@ ipcMain.handle('get-db-status', async () => {
 
 ipcMain.handle('get-local-conversation', async (_event, provider: string, sessionId: string) => {
   return loadLocalConversation(provider, sessionId);
+});
+
+ipcMain.handle('get-local-session-metadata', async (_event, sessionId: string, provider?: string) => {
+  return findLocalSessionMetadata(sessionId, provider);
 });
 
 ipcMain.handle('pick-repository', async (event, defaultPath?: string) => {

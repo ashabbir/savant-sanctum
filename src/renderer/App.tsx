@@ -64,8 +64,9 @@ import { DetailBlock, DetailRow, IntelligencePulse, KnowledgeNetwork, Metric, Pa
 import {
   fetchWorkspaceKnowledgeGraph,
   fetchGatewayMCPs,
+  filterSavantMcpData,
 } from './lib/athenaContext';
-import { buildWorkspaceAthenaPrompt, type ChatMessage } from './services/athenaService';
+import { buildWorkspaceAthenaPrompt, buildTaskAthenaPrompt, type ChatMessage } from './services/athenaService';
 import { buildSavantHeaders } from './services/httpClient';
 import { normalizeServerWorkspace } from './services/workspaceAdapters';
 import type { Artifact, Task } from './data';
@@ -348,9 +349,21 @@ function App() {
   });
   const todayReminders = workspaceReminders.filter((reminder) => reminder.dueLabel === 'Today' || reminder.due.includes('Today'));
   const sessionNotes = useMemo(() => noteList.filter((note) => note.sessionId === activeSession.id), [activeSession.id, noteList]);
-  const sessionArtifacts = useMemo(() => artifacts.filter((artifact) => artifact.sessionId === activeSession.id), [activeSession.id, artifacts]);
+  const liveArtifacts = useMemo<Artifact[]>(() => [
+    ...Object.entries(workspaceSessionFiles).flatMap(([sessionId, group]) => (group.files ?? []).map((file, index) => ({
+      id: `file-${sessionId}-${file.path ?? file.name ?? index}`,
+      sessionId,
+      title: String(file.path ?? file.name ?? 'Session file'),
+      kind: 'file' as const,
+      count: 1,
+    }))),
+    ...mergeRequestList.filter((item) => item.sessionId).map((item) => ({ id: `mr-${item.id}`, sessionId: item.sessionId!, title: item.title, kind: 'merge-request' as const, count: 1 })),
+    ...jiraTicketList.filter((item) => item.sessionId).map((item) => ({ id: `jira-${item.id}`, sessionId: item.sessionId!, title: item.title, kind: 'jira' as const, count: 1 })),
+  ], [jiraTicketList, mergeRequestList, workspaceSessionFiles]);
+  const allArtifacts = useMemo(() => [...artifacts, ...liveArtifacts], [liveArtifacts]);
+  const sessionArtifacts = useMemo(() => allArtifacts.filter((artifact) => artifact.sessionId === activeSession.id), [activeSession.id, allArtifacts]);
   const workspaceNotes = useMemo(() => noteList.filter((note) => workspaceSessions.some((session) => session.id === note.sessionId)), [noteList, workspaceSessions]);
-  const workspaceArtifacts = useMemo(() => artifacts.filter((artifact) => workspaceSessions.some((session) => session.id === artifact.sessionId)), [artifacts, workspaceSessions]);
+  const workspaceArtifacts = useMemo(() => allArtifacts.filter((artifact) => workspaceSessions.some((session) => session.id === artifact.sessionId)), [allArtifacts, workspaceSessions]);
   const sessionTimeline = useMemo(() => sessionEvents.filter((event) => event.sessionId === activeSession.id), [activeSession.id]);
   const activeSessionFileGroup = workspaceSessionFiles[activeSession.id];
   const displayedWorkspaceName = activeWorkspace ? (workspaceNameOverride[activeWorkspace.id] ?? activeWorkspace.name) : 'No workspace';
@@ -518,6 +531,7 @@ function App() {
     setAthenaChats(prev => {
       const chat = prev[workspaceId] || { messages: [], isLoading: false, error: '', input: '' };
       currentMessages = [...chat.messages, userMessage];
+      void window.system?.saveAthenaThread?.({ threadKey: `athena:chat:${workspaceId}`, messages: currentMessages, input: '' });
       return {
         ...prev,
         [workspaceId]: { messages: currentMessages, isLoading: true, error: '', input: '' },
@@ -648,6 +662,7 @@ function App() {
         timestamp: new Date().toISOString(),
       };
       currentMessages = [...chat.messages, userMsg];
+      void window.system?.saveAthenaThread?.({ threadKey: `athena:task-chat:${taskId}`, messages: currentMessages, input: '' });
       return {
         ...prev,
         [taskId]: { messages: currentMessages, isLoading: true, error: '', input: '' },
@@ -656,26 +671,17 @@ function App() {
 
     try {
       const gatewayUrl = (gatewayDraft || 'http://127.0.0.1:3100').trim().replace(/\/+$/, '');
-      const mcpData = await fetchGatewayMCPs(gatewayUrl);
+      const rawMcpData = await fetchGatewayMCPs(gatewayUrl);
+      const mcpData = filterSavantMcpData(rawMcpData);
+      const targetWorkspace = workspaceList.find(w => w.id === activeTask.workspaceId);
       const provider = selectedProvider;
       const model = selectedModel;
-      const prompt = buildWorkspaceAthenaPrompt({
-        workspace: undefined,
-        workspaceId: activeTask.workspaceId,
-        graph: { nodes: [], edges: [] },
-        sessions: [],
-        fileGroups: {},
-        conversations: {},
-        tasks: [activeTask],
-        notes: [],
-        mergeRequests: [],
-        jiraTickets: [],
-        artifacts: [],
-        activitySummary: { total: 0, detail: '', latest: '' },
+      const prompt = buildTaskAthenaPrompt({
+        task: activeTask,
+        workspace: targetWorkspace,
         messages: currentMessages,
         userText: text,
         mcpData,
-        athenaType: 'task_manager',
       });
 
       const response = await runAgentViaGateway(prompt, activeTask.workspaceId, mcpData, provider, model);
@@ -971,7 +977,7 @@ function App() {
                 title: task.title,
                 description: task.description ?? '',
                 priority: task.priority ?? 'medium',
-                state: (() => { const s = task.status ?? 'backlog'; if (s === 'todo') return 'backlog'; if (s === 'code-review') return 'review'; return s; })(),
+                state: (() => { const s = task.status ?? 'backlog'; if (s === 'todo' || s === 'blocked') return 'backlog'; if (s === 'code-review') return 'review'; return s as Task['state']; })(),
                 owner: task.user_id ?? 'server',
                 due: task.date ?? undefined,
                 dependsOn: task.depends_on ?? task.dependencies ?? [],
@@ -1020,8 +1026,9 @@ function App() {
           workspaceSessions.map(async (session) => {
             const response = await fetch(`${serverBaseUrl}/api/session/${encodeURIComponent(session.id)}/notes`, { headers });
             if (!response.ok) return [];
-            const payload = (await response.json()) as { notes?: ServerNote[] };
-            return (payload.notes ?? []).map((note) => normalizeServerNote(note, session.id));
+            const payload = await response.json() as { notes?: ServerNote[] } | ServerNote[];
+            const serverNotes = Array.isArray(payload) ? payload : payload.notes ?? [];
+            return serverNotes.map((note) => normalizeServerNote(note, session.id));
           }),
         );
 
@@ -1113,7 +1120,7 @@ function App() {
         ]);
         if (cancelled) return;
 
-        const groups = Array.isArray(filesPayload?.groups) ? filesPayload.groups as SessionFileGroup[] : [];
+        const groups = (Array.isArray(filesPayload?.groups) ? filesPayload.groups : Array.isArray(filesPayload?.files) ? filesPayload.files : []) as SessionFileGroup[];
         const groupsById = new Map(groups.map((group) => [String(group.session_id ?? group.id ?? ''), group]));
         const links = Array.isArray(linksPayload?.links) ? linksPayload.links as ServerSession[] : [];
         const linkedSessions = links
@@ -1124,7 +1131,28 @@ function App() {
           .map((group) => getSessionAdapter(String(group.provider ?? 'savant')).normalizeSession(group, activeWorkspaceId, group))
           .filter((session): session is Session => Boolean(session));
 
-        const nextSessions = [...linkedSessions, ...groupOnlySessions];
+        const discoveredMetadata = await Promise.all([...linkedSessions, ...groupOnlySessions].map(async (session) => {
+          try {
+            const metadata = await window.system?.getLocalSessionMetadata?.(session.id, session.provider);
+            return [session.id, metadata] as const;
+          } catch {
+            return [session.id, {}] as const;
+          }
+        }));
+        const metadataBySession = new Map(discoveredMetadata);
+        const nextSessions = [...linkedSessions, ...groupOnlySessions].map((session) => {
+          const metadata = metadataBySession.get(session.id);
+          if (!metadata) return session;
+          const provider = metadata.provider ? getSessionAdapter(metadata.provider).displayName : session.provider;
+          return {
+            ...session,
+            title: metadata.title || session.title,
+            provider,
+            agentType: metadata.agentType || session.agentType,
+            files: metadata.files?.length || session.files,
+            linked: metadata.files?.length || session.linked,
+          };
+        });
         setSessionList((current) => [
           ...current.filter((session) => session.workspaceId !== activeWorkspaceId),
           ...nextSessions,
@@ -1132,6 +1160,12 @@ function App() {
         setWorkspaceSessionFiles((current) => ({
           ...current,
           ...Object.fromEntries(groups.map((group) => [String(group.session_id ?? group.id ?? ''), group])),
+          ...Object.fromEntries(discoveredMetadata.filter(([, metadata]) => metadata.files?.length).map(([sessionId, metadata]) => [sessionId, {
+            session_id: sessionId,
+            provider: metadata.provider,
+            file_count: metadata.files?.length,
+            files: metadata.files,
+          } satisfies SessionFileGroup])),
         }));
         setSessionIndex(0);
       } catch {
@@ -1226,6 +1260,29 @@ function App() {
       cancelled = true;
     };
   }, [activeSession.id, activeSession.provider, activeSessionFileGroup, apiKey, serverBaseUrl, sessionConversationFallback]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const prewarmWorkspaceConversations = async () => {
+      await Promise.all(workspaceSessions.map(async (session) => {
+        if (sessionConversationMap[session.id]?.length) return;
+        const fileGroup = workspaceSessionFileGroups[session.id];
+        const provider = inferSessionProvider(session.provider, session as unknown as Record<string, any>, fileGroup);
+        try {
+          const messages = await window.system?.getLocalConversation?.(provider, session.id);
+          if (!cancelled && Array.isArray(messages) && messages.length) {
+            setSessionConversationMap((current) => ({ ...current, [session.id]: messages }));
+          }
+        } catch {
+          // The selected-session loader retains the server and transcript fallbacks.
+        }
+      }));
+    };
+
+    void prewarmWorkspaceConversations();
+    return () => { cancelled = true; };
+  }, [workspaceSessionIdsKey, workspaceSessionFileGroups, workspaceSessions]);
 
   useEffect(() => {
     let cancelled = false;

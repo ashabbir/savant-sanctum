@@ -77,7 +77,7 @@ export function WorkspaceSessionDetailsDrawer({ open, workspaceName, session, st
             </button>
             <div className="min-w-0">
               <h2 className="brand-title !text-base !tracking-wider truncate">{session.title}</h2>
-              <div className="workspace-drawer-subtitle truncate">{workspaceName} · {session.provider} · {session.model}</div>
+              <div className="workspace-drawer-subtitle truncate">{workspaceName} · {session.provider} · {session.agentType || session.model}</div>
             </div>
           </div>
           <button className="text-btn action-close icon-only" aria-label="Close" title="Close" onClick={onClose}>
@@ -174,6 +174,7 @@ export function WorkspaceSessionDetailsDrawer({ open, workspaceName, session, st
                   <div><span>Updated</span><strong>{session.updated || session.updatedAt || 'server'}</strong></div>
                   <div><span>Created</span><strong>{session.createdAt || 'server'}</strong></div>
                   <div><span>Provider</span><strong>{session.provider}</strong></div>
+                  <div><span>Agent type</span><strong>{session.agentType || 'not reported'}</strong></div>
                   <div><span>Mode</span><strong>{stats.find((stat) => stat.label === 'Mode')?.value ?? 'unknown'}</strong></div>
                   <div><span>Usage</span><strong>{stats.find((stat) => stat.label === 'Usage')?.value ?? '0%'}</strong></div>
                 </div>

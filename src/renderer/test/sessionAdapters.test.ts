@@ -15,9 +15,10 @@ describe('session adapters', () => {
     ].join('\n');
 
     const messages = adapter.normalizeConversationText(transcript, 'codex-1');
-    expect(messages).toHaveLength(2);
+    expect(messages).toHaveLength(3);
     expect(messages[0]).toMatchObject({ kind: 'user', role: 'user', detail: 'Build the feature', provider: 'codex' });
     expect(messages[1]).toMatchObject({ kind: 'assistant', role: 'assistant', provider: 'codex' });
+    expect(messages[2]).toMatchObject({ kind: 'tool', title: 'shell', provider: 'codex' });
   });
 
   it('parses copilot transcript jsonl into chat messages', () => {
@@ -28,9 +29,9 @@ describe('session adapters', () => {
     ].join('\n');
 
     const messages = adapter.normalizeConversationText(transcript, 'copilot-1');
-    expect(messages).toHaveLength(2);
+    expect(messages).toHaveLength(3);
     expect(messages[0]).toMatchObject({ kind: 'user', detail: 'hello from copilot', provider: 'copilot' });
-    expect(messages[1].detail).toContain('terminal');
+    expect(messages[2]).toMatchObject({ kind: 'tool', title: 'terminal' });
   });
 
   it('parses claude transcript json into chat messages', () => {
@@ -43,9 +44,9 @@ describe('session adapters', () => {
     });
 
     const messages = adapter.normalizeConversationText(transcript, 'claude-1');
-    expect(messages).toHaveLength(2);
+    expect(messages).toHaveLength(3);
     expect(messages[0]).toMatchObject({ kind: 'user', role: 'user', detail: 'claude prompt', provider: 'claude' });
-    expect(messages[1].detail).toContain('Read File');
+    expect(messages[2]).toMatchObject({ kind: 'tool', title: 'Read File' });
   });
 
   it('parses gemini transcript json into chat messages', () => {
@@ -58,9 +59,9 @@ describe('session adapters', () => {
     };
 
     const messages = adapter.normalizeConversation(payload, 'gemini-1');
-    expect(messages).toHaveLength(2);
+    expect(messages).toHaveLength(3);
     expect(messages[0]).toMatchObject({ id: 'g1', kind: 'user', role: 'user', provider: 'gemini' });
-    expect(messages[1].detail).toContain('Shell');
+    expect(messages[2]).toMatchObject({ kind: 'tool', title: 'Shell' });
   });
 
   it('parses savant transcript json into chat messages', () => {
@@ -73,9 +74,9 @@ describe('session adapters', () => {
     };
 
     const messages = adapter.normalizeConversation(payload, 'savant-1');
-    expect(messages).toHaveLength(2);
+    expect(messages).toHaveLength(3);
     expect(messages[0]).toMatchObject({ id: 's1', kind: 'user', role: 'user', provider: 'savant' });
-    expect(messages[1].detail).toContain('read_file');
+    expect(messages[2]).toMatchObject({ kind: 'tool', title: 'read_file' });
   });
 
   it('treats agy and agt as provider aliases', () => {
@@ -86,6 +87,23 @@ describe('session adapters', () => {
     expect(agtAdapter.displayName).toBe('AGY');
     expect(agyAdapter.conversationPath('agy-1')).toContain('/api/agy/session/agy-1/conversation');
     expect(agtAdapter.transcriptPath({ filePath: '/Users/home/.agy/sessions/agt-1.jsonl' })).toContain('agt-1');
+  });
+
+  it('supports Hermes and shows its OpenAI-style tool calls as transcript events', () => {
+    const adapter = getSessionAdapter('hermes-agent');
+    const messages = adapter.normalizeConversationText(JSON.stringify({ messages: [
+      { type: 'user', content: 'inspect session state' },
+      { type: 'assistant', content: 'Checking.', tool_calls: [{ function: { name: 'read_file', arguments: '{"path":"state.db"}' } }] },
+    ] }), 'hermes-1');
+    expect(adapter.displayName).toBe('Hermes');
+    expect(adapter.conversationPath('hermes-1')).toContain('/api/hermes/session/hermes-1/conversation');
+    expect(messages).toContainEqual(expect.objectContaining({ kind: 'tool', title: 'read_file', detail: '{"path":"state.db"}', provider: 'hermes' }));
+  });
+
+  it('keeps the supported provider matrix explicit', () => {
+    expect(['codex', 'claude', 'copilot', 'hermes', 'agy']).toEqual(
+      ['codex', 'claude', 'copilot', 'hermes', 'agy'].filter((provider) => getSessionAdapter(provider).displayName !== 'Savant'),
+    );
   });
 
   it('prefers provider transcript filenames when present', () => {
@@ -124,6 +142,23 @@ describe('session adapters', () => {
     expect(normalized!.provider).toBe('Savant');
     expect(normalized!.updated).toBe('5m ago');
     expect(normalized!.tree).toBe('src/main.py · src/utils.py'); // Savant uses dot
+  });
+
+  it('preserves the provider-reported title and agent type for the session UI', () => {
+    const normalized = getSessionAdapter('codex').normalizeSession({
+      id: 'sess-observed',
+      provider: 'codex',
+      thread_name: 'Session linkage',
+      agent_type: 'codex-cli',
+      model: 'gpt-5.4',
+    }, 'ws-observed');
+
+    expect(normalized).toMatchObject({
+      title: 'Session linkage',
+      provider: 'Codex',
+      agentType: 'codex-cli',
+      model: 'gpt-5.4',
+    });
   });
 
   it('uses specific tree indicators based on inferred provider', () => {

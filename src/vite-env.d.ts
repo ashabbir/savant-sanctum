@@ -29,5 +29,11 @@ interface Window {
       detail: string;
       provider: string;
     }>>;
+    getLocalSessionMetadata?: (sessionId: string, provider?: string) => Promise<{
+      provider?: string;
+      title?: string;
+      agentType?: string;
+      files?: Array<{ path: string; name: string; category: string; size?: number }>;
+    }>;
   };
 }

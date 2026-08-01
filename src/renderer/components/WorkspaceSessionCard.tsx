@@ -18,6 +18,7 @@ function statusTone(provider: string) {
   if (key === 'copilot') return 'cyan';
   if (key === 'gemini') return 'purple';
   if (key === 'agy' || key === 'agt') return 'orange';
+  if (key === 'hermes') return 'magenta';
   return 'grey';
 }
 
@@ -29,6 +30,7 @@ function getResumeCommand(session: Session, files?: SessionFileGroup) {
   if (provider === 'agy' || provider === 'agt') {
     return `cd ${sessionDir || '.'} && agy --conversation ${sessionTarget} --prompt-interactive --dangerously-skip-permissions`;
   }
+  if (provider === 'hermes') return `cd ${sessionDir || '.'} && hermes --session ${sessionTarget}`;
   return `cd ${sessionDir || '.'} && ${provider} start --session ${sessionTarget} --yolo`;
 }
 
@@ -86,7 +88,7 @@ export function WorkspaceSessionCard({ session, active, files, onSelect, onDelet
           )}
         </div>
       </div>
-      <div className="note-drawer-meta truncate">{session.provider} · {session.model}</div>
+      <div className="note-drawer-meta truncate">{session.provider} · {session.agentType || session.model}</div>
       <p className="session-drawer-summary">{session.tree}</p>
       <div className="workspace-list-row session-drawer-row">
         <span className={`workspace-card-badge workspace-card-badge-${statusTone(session.provider)}`}>{session.updated}</span>

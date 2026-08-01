@@ -39,6 +39,7 @@ const providerDisplayNames: Record<string, string> = {
   copilot: 'Copilot',
   claude: 'Claude',
   codex: 'Codex',
+  hermes: 'Hermes',
   gemini: 'Gemini',
   agy: 'AGY',
   savant: 'Savant',
@@ -108,6 +109,7 @@ function normalizeProviderAlias(value?: string) {
   if (key === 'agt') return 'agy';
   if (key === 'copilot-chat' || key === 'github-copilot') return 'copilot';
   if (key === 'claude-code' || key === 'anthropic') return 'claude';
+  if (key === 'hermes-agent' || key === 'hermes_cli') return 'hermes';
   return key;
 }
 
@@ -129,6 +131,7 @@ function inferProviderFromFiles(raw: ServerSession, fileGroup?: SessionFileGroup
   if (files.some((file) => /session-.*\.json$/i.test(file))) return 'gemini';
   if (files.some((file) => /claude/i.test(file))) return 'claude';
   if (files.some((file) => /agy/i.test(file))) return 'agy';
+  if (files.some((file) => /hermes/i.test(file))) return 'hermes';
 
   return '';
 }
@@ -138,7 +141,7 @@ export function inferSessionProvider(provider: string, raw: ServerSession, fileG
   if (fileInference) return fileInference;
 
   const explicit = normalizeProviderAlias(raw.provider ?? fileGroup?.provider ?? provider);
-  if (explicit === 'copilot' || explicit === 'claude' || explicit === 'codex' || explicit === 'gemini' || explicit === 'savant' || explicit === 'agy' || explicit === 'agt') {
+  if (explicit === 'copilot' || explicit === 'claude' || explicit === 'codex' || explicit === 'gemini' || explicit === 'savant' || explicit === 'agy' || explicit === 'agt' || explicit === 'hermes') {
     return explicit;
   }
 
@@ -168,6 +171,9 @@ function pickTranscriptPath(provider: string, raw: ServerSession, fileGroup?: Se
   }
   if (provider === 'copilot') {
     return matches(/events\.jsonl$/) ?? matches(/\.jsonl$/) ?? files[0];
+  }
+  if (provider === 'hermes') {
+    return matches(/hermes/i) ?? matches(/session-.*\.(jsonl|json|db)$/i) ?? matches(/\.(jsonl|json|db)$/i) ?? files[0];
   }
   // agy/agt fallback
   return matches(/agy/i) ?? matches(/session-.*\.(jsonl|json|db)$/i) ?? matches(/\.(jsonl|json|db)$/i) ?? files[0];
@@ -204,6 +210,37 @@ function parseJSONL(rawText: string) {
   }).filter((value): value is Record<string, any> => Boolean(value));
 }
 
+type ToolCall = { name: string; detail: string };
+
+function extractToolCalls(entry: Record<string, any>): ToolCall[] {
+  const candidates = [
+    entry.toolRequests, entry.tool_requests, entry.toolCalls, entry.tool_calls,
+    entry.function_calls, entry.functions, entry.content,
+    entry.data?.toolRequests, entry.data?.tool_requests, entry.data?.toolCalls, entry.data?.tool_calls,
+  ].flatMap((value) => Array.isArray(value) ? value : value && typeof value === 'object' ? [value] : []);
+  if (entry.function_call) candidates.push(entry.function_call);
+  return candidates.flatMap((candidate: any) => {
+    if (!candidate || typeof candidate !== 'object') return [];
+    const type = String(candidate.type ?? candidate.kind ?? '').toLowerCase();
+    const name = String(candidate.displayName ?? candidate.name ?? candidate.tool_name ?? candidate.toolName ?? candidate.function?.name ?? '').trim();
+    if (!name || (type && !/(tool|function)/.test(type) && !candidate.function && !candidate.input && !candidate.arguments)) return [];
+    const detail = readBlocksText(candidate.input ?? candidate.arguments ?? candidate.parameters ?? candidate.function?.arguments ?? candidate.output ?? candidate.result ?? candidate.content);
+    return [{ name, detail }];
+  });
+}
+
+function appendToolCalls(messages: SessionConversationMessage[], provider: string, entry: Record<string, any>, id: string, time: string) {
+  extractToolCalls(entry).forEach((tool, index) => messages.push({
+    id: `${id}:tool:${index}`,
+    time,
+    kind: 'tool',
+    role: 'tool',
+    title: tool.name,
+    detail: tool.detail || tool.name,
+    provider,
+  }));
+}
+
 function normalizeTranscriptEvents(provider: string, items: Record<string, any>[], sessionId: string) {
   const messages: SessionConversationMessage[] = [];
   items.forEach((entry, index) => {
@@ -218,29 +255,8 @@ function normalizeTranscriptEvents(provider: string, items: Record<string, any>[
     const text = readBlocksText(
       entry.content ?? entry.text ?? entry.message ?? entry.output ?? entry.result ?? entry.data?.content ?? entry.data?.text ?? entry.data?.output ?? entry.data?.result,
     );
-    const toolSources = [
-      entry.toolRequests,
-      entry.tool_requests,
-      entry.toolCalls,
-      entry.tool_calls,
-      entry.data?.toolRequests,
-      entry.data?.tool_requests,
-      entry.data?.toolCalls,
-      entry.data?.tool_calls,
-    ];
-    const toolNames = [
-      ...(Array.isArray(toolSources[0]) ? toolSources[0] : []),
-      ...(Array.isArray(toolSources[1]) ? toolSources[1] : []),
-      ...(Array.isArray(toolSources[2]) ? toolSources[2] : []),
-      ...(Array.isArray(toolSources[3]) ? toolSources[3] : []),
-      ...(Array.isArray(toolSources[4]) ? toolSources[4] : []),
-      ...(Array.isArray(toolSources[5]) ? toolSources[5] : []),
-      ...(Array.isArray(toolSources[6]) ? toolSources[6] : []),
-      ...(Array.isArray(toolSources[7]) ? toolSources[7] : []),
-    ].map((request: any) => String(request.displayName ?? request.name ?? request.tool_name ?? request.toolName ?? '').trim()).filter(Boolean);
     const detail = [
       text,
-      toolNames.length ? toolNames.join(' · ') : '',
       readBlocksText(entry.reasoning ?? entry.thoughts ?? entry.data?.reasoning),
     ].filter(Boolean).join('\n').trim();
     const id = String(entry.id ?? entry.messageID ?? entry.message_id ?? entry.call_id ?? `${sessionId}-${index}`);
@@ -254,6 +270,7 @@ function normalizeTranscriptEvents(provider: string, items: Record<string, any>[
       detail: detail || text || 'Message',
       provider,
     });
+    if (kind !== 'tool') appendToolCalls(messages, provider, entry, id, readTimestamp(entry.timestamp ?? entry.createdAt ?? entry.created_at ?? entry.time ?? entry.date));
   });
   return messages;
 }
@@ -312,13 +329,15 @@ function normalizeConversationItem(provider: string, entry: Record<string, any>,
 }
 
 function normalizeConversation(provider: string, payload: unknown, sessionId: string) {
-  return getConversationItems(payload)
-    .map((entry, index) => normalizeConversationItem(provider, entry, index))
-    .filter((message): message is SessionConversationMessage => Boolean(message))
-    .map((message) => ({
-      ...message,
-      id: message.id || `${sessionId}-${message.kind}-${message.time || 'event'}`,
-    }));
+  const messages: SessionConversationMessage[] = [];
+  getConversationItems(payload).forEach((entry, index) => {
+    const message = normalizeConversationItem(provider, entry, index);
+    if (!message) return;
+    const normalized = { ...message, id: message.id || `${sessionId}-${message.kind}-${message.time || 'event'}` };
+    messages.push(normalized);
+    if (normalized.kind !== 'tool') appendToolCalls(messages, provider, entry, normalized.id, normalized.time);
+  });
+  return messages;
 }
 
 function normalizeWithProvider(provider: string, raw: ServerSession, workspaceId: string, fileGroup?: SessionFileGroup): NormalizedSession | null {
@@ -327,7 +346,7 @@ function normalizeWithProvider(provider: string, raw: ServerSession, workspaceId
 
   const providerName = inferSessionProvider(provider, raw, fileGroup);
   const files = Number(fileGroup?.file_count ?? raw.file_count ?? raw.files ?? 0) || 0;
-  const summary = String(raw.summary ?? raw.nickname ?? raw.title ?? fileGroup?.summary ?? id);
+  const summary = String(raw.thread_name ?? raw.threadName ?? raw.summary ?? raw.nickname ?? raw.title ?? fileGroup?.summary ?? id);
   const model = String(raw.model ?? raw.primary_model ?? raw.model_name ?? providerName);
   const updatedSource = raw.updated_at ?? raw.ended_at ?? raw.last_activity ?? raw.created_at ?? raw.started_at;
 
@@ -336,6 +355,7 @@ function normalizeWithProvider(provider: string, raw: ServerSession, workspaceId
     workspaceId: String(raw.workspace_id ?? raw.workspace ?? workspaceId),
     title: summary,
     provider: providerDisplayNames[provider] ?? providerName.charAt(0).toUpperCase() + providerName.slice(1),
+    agentType: String(raw.agent_type ?? raw.agentType ?? raw.client ?? raw.platform ?? '').trim() || undefined,
     model,
     createdAt: String(raw.created_at ?? raw.started_at ?? ''),
     updatedAt: String(raw.updated_at ?? raw.ended_at ?? raw.last_activity ?? raw.created_at ?? raw.started_at ?? ''),
@@ -395,6 +415,15 @@ const adapterRegistry: Record<string, SessionAdapter> = {
     transcriptPath: (raw, fileGroup) => pickTranscriptPath('agy', raw, fileGroup),
     normalizeConversationText: (rawText, sessionId) => normalizeTranscriptText('agy', rawText, sessionId),
   },
+  hermes: {
+    provider: 'hermes',
+    displayName: 'Hermes',
+    normalizeSession: (raw, workspaceId, fileGroup) => normalizeWithProvider('hermes', raw, workspaceId, fileGroup),
+    conversationPath: (sessionId) => buildConversationPath('hermes', sessionId),
+    normalizeConversation: (payload, sessionId) => normalizeConversation('hermes', payload, sessionId),
+    transcriptPath: (raw, fileGroup) => pickTranscriptPath('hermes', raw, fileGroup),
+    normalizeConversationText: (rawText, sessionId) => normalizeTranscriptText('hermes', rawText, sessionId),
+  },
   savant: {
     provider: 'savant',
     displayName: 'Savant',
@@ -407,7 +436,7 @@ const adapterRegistry: Record<string, SessionAdapter> = {
 };
 
 export function getSessionAdapter(provider?: string) {
-  const normalized = (provider ?? '').toLowerCase();
+  const normalized = normalizeProviderAlias(provider);
   if (normalized === 'agt') return adapterRegistry.agy;
   return adapterRegistry[normalized] ?? adapterRegistry.savant;
 }
