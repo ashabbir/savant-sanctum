@@ -963,12 +963,12 @@ function App() {
     colosseumToastSignaturesRef.current = new Map();
     hasLoadedColosseumSignalsRef.current = false;
 
-    const loadWorkspaceData = async () => {
+    const loadWorkspaceData = async (includeReminders = false) => {
       if (!activeWorkspaceId) return;
       try {
         const [tasksResponse, remindersResponse] = await Promise.all([
           fetch(`${serverBaseUrl}/api/tasks`, { headers }),
-          fetch(`${serverBaseUrl}/api/reminders/due-today`, { headers }),
+          includeReminders ? fetch(`${serverBaseUrl}/api/reminders/due-today`, { headers }) : Promise.resolve(null),
         ]);
         if (tasksResponse.ok) {
           const tasksData = await tasksResponse.json();
@@ -1014,7 +1014,7 @@ function App() {
               });
             }
         }
-        if (remindersResponse.ok) {
+        if (remindersResponse?.ok) {
           const remindersData = await remindersResponse.json();
           if (!cancelled && Array.isArray(remindersData)) {
             setReminderList(remindersData.map((reminder: any) => ({
@@ -1032,7 +1032,7 @@ function App() {
       }
     };
 
-    void loadWorkspaceData();
+    void loadWorkspaceData(true);
     const interval = window.setInterval(() => {
       void loadWorkspaceData();
     }, 5000);
