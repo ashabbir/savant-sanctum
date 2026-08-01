@@ -21,6 +21,8 @@ describe('Colosseum ticket evidence', () => {
       rationale: 'Focused tests and the base-to-head diff passed review.',
       questions: ['Is the rollout window confirmed?'],
       provider: 'codex',
+      model: 'gpt-5',
+      persona: 'persona.reviewer',
       branch: 'savant-execution/task-1',
       commit: '0123456789abcdef',
       mr_id: 'mr-colosseum-task-1',
@@ -29,6 +31,8 @@ describe('Colosseum ticket evidence', () => {
     expect(html).toContain('The implementation meets the acceptance criteria.');
     expect(html).toContain('Focused tests and the base-to-head diff passed review.');
     expect(html).toContain('Is the rollout window confirmed?');
+    expect(html).toContain('persona reviewer');
+    expect(html).toContain('model gpt-5');
     expect(html).toContain('commit 0123456789');
     expect(html).toContain('MR mr-colosseum-task-1');
   });

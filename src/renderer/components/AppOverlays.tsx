@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { KnowledgeGraph } from '../KnowledgeGraph';
-import { SettingsModal } from './SettingsModal';
+import { buildColosseumPhaseConfigs, SettingsModal, type ColosseumSettings } from './SettingsModal';
 import type { Artifact, Note, Provider, Reminder, Session, Task, TaskComment, Workspace } from '../data';
 import { canMoveTask, canSubmitForGrooming, isTaskBlocked, taskBoardState, taskWorkflowState, type TaskFlagState } from '../lib/taskBoard';
 import { buildSavantHeaders } from '../services/httpClient';
@@ -96,10 +96,12 @@ type AppOverlaysProps = {
   onSaveSettings: () => Promise<void> | void;
   onLogout: () => Promise<void> | void;
   onRefreshProviders?: () => Promise<void> | void;
-  colosseumReadySettings: { persona: string; tags: string; provider: string; model: string };
-  colosseumReviewSettings: { persona: string; tags: string; provider: string; model: string };
-  onColosseumReadySettingsChange: (val: { persona: string; tags: string; provider: string; model: string }) => void;
-  onColosseumReviewSettingsChange: (val: { persona: string; tags: string; provider: string; model: string }) => void;
+  colosseumGroomingSettings: ColosseumSettings;
+  colosseumReadySettings: ColosseumSettings;
+  colosseumReviewSettings: ColosseumSettings;
+  onColosseumGroomingSettingsChange: (val: ColosseumSettings) => void;
+  onColosseumReadySettingsChange: (val: ColosseumSettings) => void;
+  onColosseumReviewSettingsChange: (val: ColosseumSettings) => void;
   onDeleteSession?: (sessionId: string) => void;
   recentAlerts: {
     id: string;
@@ -203,8 +205,10 @@ export function AppOverlays(props: AppOverlaysProps) {
     onSaveSettings,
     onLogout,
     onRefreshProviders,
+    colosseumGroomingSettings,
     colosseumReadySettings,
     colosseumReviewSettings,
+    onColosseumGroomingSettingsChange,
     onColosseumReadySettingsChange,
     onColosseumReviewSettingsChange,
     onDeleteSession,
@@ -483,13 +487,25 @@ export function AppOverlays(props: AppOverlaysProps) {
     comments: task.comments ?? fallback.comments ?? [],
     colosseumConfig: task.colosseum_config ?? fallback.colosseumConfig,
   });
-  const colosseumPayload = () => ({
-    config: {
-      repository: taskEditor.repository.trim(),
-      work_type: taskEditor.workType,
-      autopilot: taskEditor.autopilot,
-    },
-  });
+  const colosseumPayload = () => {
+    const phaseConfigs = buildColosseumPhaseConfigs(
+      colosseumGroomingSettings,
+      colosseumReadySettings,
+      colosseumReviewSettings,
+    );
+    return {
+      config: {
+        repository: taskEditor.repository.trim(),
+        work_type: taskEditor.workType,
+        autopilot: taskEditor.autopilot,
+        provider: phaseConfigs.ready.provider,
+        model: phaseConfigs.ready.model,
+        persona: phaseConfigs.ready.persona,
+        tags: phaseConfigs.ready.tags,
+        phase_configs: phaseConfigs,
+      },
+    };
+  };
   const chooseColosseumRepository = async () => {
     try {
       const repository = await window.sanctum?.pickRepository?.(taskEditor.repository);
@@ -793,6 +809,7 @@ export function AppOverlays(props: AppOverlaysProps) {
     const title = taskEditor.title.trim();
     const workspaceId = taskDrawerScope === 'global' ? taskWorkspaceId : activeWorkspaceId;
     if (!title || !workspaceId) return;
+    const executionConfig = colosseumPayload().config;
     const localTask: Task = {
       id: `task-${Date.now().toString(36)}`,
       workspaceId,
@@ -804,6 +821,7 @@ export function AppOverlays(props: AppOverlaysProps) {
       due: taskEditor.due || undefined,
       dependsOn: [],
       comments: taskEditor.comment.trim() ? [taskEditor.comment.trim()] : [],
+      colosseumConfig: executionConfig,
     };
     let task = localTask;
     try {
@@ -852,12 +870,7 @@ export function AppOverlays(props: AppOverlaysProps) {
       state: blockedState ?? taskEditor.state,
       due: taskEditor.due || undefined,
       workspaceId,
-      colosseumConfig: {
-        ...selectedTask.colosseumConfig,
-        repository: taskEditor.repository.trim(),
-        work_type: taskEditor.workType,
-        autopilot: taskEditor.autopilot,
-      },
+      colosseumConfig: { ...selectedTask.colosseumConfig, ...colosseumPayload().config },
     };
 
     let updated = updatedLocal;
@@ -963,14 +976,14 @@ export function AppOverlays(props: AppOverlaysProps) {
   };
   const submitForGrooming = async () => {
     if (!selectedTask) return;
+    const executionConfig = colosseumPayload().config;
+    if (!executionConfig.provider) {
+      pushToast('Ready provider required', 'Choose a provider in Settings → Colosseum → Ready Status Config before grooming.', 'warning');
+      return;
+    }
     const candidate: Task = {
       ...selectedTask,
-      colosseumConfig: {
-        ...selectedTask.colosseumConfig,
-        repository: taskEditor.repository.trim(),
-        work_type: taskEditor.workType,
-        autopilot: taskEditor.autopilot,
-      },
+      colosseumConfig: { ...selectedTask.colosseumConfig, ...executionConfig },
     };
     if (!canSubmitForGrooming(candidate)) {
       pushToast('Repository required', 'Development tickets need a local Git repository before grooming.', 'warning');
@@ -2229,8 +2242,10 @@ export function AppOverlays(props: AppOverlaysProps) {
         onSave={onSaveSettings}
         onLogout={onLogout}
         onRefreshProviders={onRefreshProviders}
+        colosseumGroomingSettings={colosseumGroomingSettings}
         colosseumReadySettings={colosseumReadySettings}
         colosseumReviewSettings={colosseumReviewSettings}
+        onColosseumGroomingSettingsChange={onColosseumGroomingSettingsChange}
         onColosseumReadySettingsChange={onColosseumReadySettingsChange}
         onColosseumReviewSettingsChange={onColosseumReviewSettingsChange}
       />

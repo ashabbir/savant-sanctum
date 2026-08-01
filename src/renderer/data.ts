@@ -85,6 +85,8 @@ export type ColosseumRun = {
   rationale?: string;
   questions?: string[];
   provider?: string;
+  model?: string;
+  persona?: string;
   created_at?: string;
   duration_ms?: number;
   log_path?: string;
@@ -98,7 +100,16 @@ export type ColosseumRun = {
 
 export type ColosseumTaskConfig = {
   repository?: string;
-  provider?: 'hermes' | 'codex' | 'claude' | 'copilot' | 'agy';
+  provider?: string;
+  model?: string;
+  persona?: string;
+  tags?: string[];
+  phase_configs?: Partial<Record<'grooming' | 'ready' | 'review', {
+    persona: string;
+    tags: string[];
+    provider: string;
+    model: string;
+  }>>;
   setup?: string;
   timeout_seconds?: number;
   work_type?: 'development' | 'research';

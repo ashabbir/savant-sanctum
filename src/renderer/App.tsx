@@ -48,6 +48,7 @@ import { ShellChrome } from './components/ShellChrome';
 import { WorkspaceAthenaDrawer } from './components/WorkspaceAthenaDrawer';
 import { WorkspaceSurface } from './components/WorkspaceSurface';
 import {
+  DEFAULT_COLOSSEUM_GROOMING_SETTINGS,
   DEFAULT_COLOSSEUM_READY_SETTINGS,
   DEFAULT_COLOSSEUM_REVIEW_SETTINGS,
   type ColosseumSettings,
@@ -299,6 +300,7 @@ function App() {
   const [selectedProvider, setSelectedProvider] = useState('gemini');
   const [selectedModel, setSelectedModel] = useState('3.5');
   const [gatewayProviders, setGatewayProviders] = useState<Array<{ id: string; label: string; models: string[] }>>([]);
+  const [colosseumGroomingSettings, setColosseumGroomingSettings] = useState<ColosseumSettings>(DEFAULT_COLOSSEUM_GROOMING_SETTINGS);
   const [colosseumReadySettings, setColosseumReadySettings] = useState<ColosseumSettings>(DEFAULT_COLOSSEUM_READY_SETTINGS);
   const [colosseumReviewSettings, setColosseumReviewSettings] = useState<ColosseumSettings>(DEFAULT_COLOSSEUM_REVIEW_SETTINGS);
   const [authDraft, setAuthDraft] = useState(() => {
@@ -755,6 +757,10 @@ function App() {
     setServerDraft(cleanServerUrl);
     setGatewayDraft(String(settings['gateway:config']?.url ?? 'http://127.0.0.1:3100'));
     setAuthUser(String(settings['user:name'] ?? 'operator'));
+    const groomingSettings = settings['colosseum:grooming-settings'];
+    if (groomingSettings && typeof groomingSettings === 'object' && !Array.isArray(groomingSettings)) {
+      setColosseumGroomingSettings({ ...DEFAULT_COLOSSEUM_GROOMING_SETTINGS, ...groomingSettings });
+    }
     const readySettings = settings['colosseum:ready-settings'];
     if (readySettings && typeof readySettings === 'object' && !Array.isArray(readySettings)) {
       setColosseumReadySettings({ ...DEFAULT_COLOSSEUM_READY_SETTINGS, ...readySettings });
@@ -2295,6 +2301,7 @@ function App() {
           await saveSettingSafely('user:name', newName);
           await saveSettingSafely('server:config', { url: serverDraft.trim(), enabled: true });
           await saveSettingSafely('gateway:config', { url: gatewayDraft.trim(), enabled: true });
+          await saveSettingSafely('colosseum:grooming-settings', colosseumGroomingSettings);
           await saveSettingSafely('colosseum:ready-settings', colosseumReadySettings);
           await saveSettingSafely('colosseum:review-settings', colosseumReviewSettings);
           await saveAthenaEngineSafely(selectedProvider, selectedModel);
@@ -2336,8 +2343,10 @@ function App() {
         }}
       onLogout={handleAuthLogout}
       onRefreshProviders={() => refreshProviders(gatewayDraft.trim() || 'http://127.0.0.1:3100')}
+      colosseumGroomingSettings={colosseumGroomingSettings}
       colosseumReadySettings={colosseumReadySettings}
       colosseumReviewSettings={colosseumReviewSettings}
+      onColosseumGroomingSettingsChange={setColosseumGroomingSettings}
       onColosseumReadySettingsChange={setColosseumReadySettings}
       onColosseumReviewSettingsChange={setColosseumReviewSettings}
       recentAlerts={toasts}

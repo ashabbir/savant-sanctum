@@ -37,7 +37,9 @@ function RunCard({ run }: { run: ColosseumRun }) {
         </div>
       )}
       <footer>
+        {run.persona && <span>persona {run.persona.replace('persona.', '')}</span>}
         {run.provider && <span>provider {run.provider}</span>}
+        {run.model && <span>model {run.model}</span>}
         {run.branch && <span>branch {run.branch}</span>}
         {run.commit && <span>commit {run.commit.slice(0, 10)}</span>}
         {run.mr_id && <span>MR {run.mr_id}</span>}
