@@ -77,13 +77,50 @@ export type TaskComment = {
   role?: 'user' | 'agent' | 'system';
 };
 
+export type ColosseumRun = {
+  run_id: string;
+  phase: 'grooming' | 'work' | 'review' | 'merge';
+  status: string;
+  summary?: string;
+  rationale?: string;
+  questions?: string[];
+  provider?: string;
+  created_at?: string;
+  duration_ms?: number;
+  log_path?: string;
+  worktree_path?: string;
+  branch?: string;
+  base_commit?: string;
+  commit?: string;
+  merge_commit?: string;
+  mr_id?: string;
+};
+
+export type ColosseumTaskConfig = {
+  repository?: string;
+  provider?: 'hermes' | 'codex' | 'claude' | 'copilot' | 'agy';
+  setup?: string;
+  timeout_seconds?: number;
+  work_type?: 'development' | 'research';
+  autopilot?: boolean;
+  runs?: ColosseumRun[];
+  worktree_path?: string;
+  branch?: string;
+  base_branch?: string;
+  base_commit?: string;
+  commit?: string;
+  remote?: string;
+  mr_id?: string;
+  log_path?: string;
+};
+
 export type Task = {
   id: string;
   workspaceId: string;
   title: string;
   description?: string;
   priority: 'critical' | 'high' | 'medium' | 'low';
-  state: 'backlog' | 'grooming' | 'ready' | 'in-progress' | 'review' | 'verify' | 'done';
+  state: 'backlog' | 'grooming' | 'ready' | 'in-progress' | 'review' | 'human-review' | 'approved' | 'done';
   owner: string;
   due?: string;
   comments?: Array<string | TaskComment>;
@@ -92,7 +129,7 @@ export type Task = {
   updatedAt?: string;
   timeSpent?: number;
   complexity?: 'simple' | 'moderate' | 'complex' | 'extreme';
-  colosseumConfig?: { repository?: string; provider?: 'hermes' | 'codex' | 'claude' | 'copilot' | 'agy'; setup?: string; timeout_seconds?: number };
+  colosseumConfig?: ColosseumTaskConfig;
 };
 
 export type Reminder = {

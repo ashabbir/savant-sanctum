@@ -94,7 +94,7 @@ export function WorkspaceAthenaDrawer({
   const sendMessage = (event?: FormEvent) => {
     event?.preventDefault();
     const userText = input.trim();
-    if (!userText || isLoading) return;
+    if (!userText) return;
     onSendMessage(userText);
     setInput('');
   };
@@ -176,10 +176,9 @@ export function WorkspaceAthenaDrawer({
             type="text"
             value={input}
             onChange={(event) => handleInputChange(event.target.value)}
-            placeholder="Ask Athena about this workspace..."
-            disabled={isLoading}
+            placeholder={isLoading ? "Athena is thinking... send message to steer" : "Ask Athena about this workspace..."}
           />
-          <button type="submit" disabled={isLoading || !input.trim()} title="Send" aria-label="Send">
+          <button type="submit" disabled={!input.trim()} title="Send" aria-label="Send">
             <Send size={15} />
           </button>
           {messages.length > 0 && onClearChat && (

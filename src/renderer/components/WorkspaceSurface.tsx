@@ -1,5 +1,5 @@
 import { useMemo, useState, type Dispatch, type ReactNode, type SetStateAction } from 'react';
-import { Ban, BarChart3, Check, ChevronDown, ListChecks, Network, Trash2, X } from 'lucide-react';
+import { AlertTriangle, Ban, BarChart3, Check, CheckCircle2, ChevronDown, Clock, Inbox, Layers, ListChecks, Maximize, Network, PlayCircle, ShieldAlert, Sparkles, Trash2, X, ZoomIn, ZoomOut } from 'lucide-react';
 import { apiSurface, localSetup, mcpSurface, type Artifact, type Provider, type Reminder, type Session, type SurfaceMode, type Task, type Workspace } from '../data';
 import { canMoveTask, isTaskBlocked, taskWorkflowState, type TaskFlagState } from '../lib/taskBoard';
 import { PanelHeader } from './WorkspacePrimitives';
@@ -179,6 +179,8 @@ export function WorkspaceSurface(props: WorkspaceSurfaceProps) {
   } = props;
   const [draggingTaskId, setDraggingTaskId] = useState<string | null>(null);
   const [taskViewMode, setTaskViewMode] = useState<'overview' | 'visualization' | 'analytics'>('overview');
+  const [visualZoom, setVisualZoom] = useState<number>(1);
+  const [hideDoneInAnalytics, setHideDoneInAnalytics] = useState<boolean>(true);
   const [isGlobalTaskCreateOpen, setIsGlobalTaskCreateOpen] = useState(false);
   const [taskWorkspaceFilter, setTaskWorkspaceFilter] = useState<string>('');
   const [taskStatusFilter, setTaskStatusFilter] = useState<string>('');
@@ -202,29 +204,28 @@ export function WorkspaceSurface(props: WorkspaceSurfaceProps) {
     priority: task.priority ?? fallback.priority,
     state: (() => {
       const s = task.status ?? fallback.state;
-      if (s === 'todo' || s === 'backlog') return 'backlog';
-      if (s === 'code-review' || s === 'review') return 'review';
+      if (s === 'todo') return 'backlog';
+      if (s === 'code-review') return 'review';
       return s;
     })(),
     due: task.date ?? fallback.due,
     dependsOn: task.depends_on ?? task.dependencies ?? fallback.dependsOn ?? [],
     createdAt: task.created_at ?? task.createdAt ?? fallback.createdAt,
     updatedAt: task.updated_at ?? task.updatedAt ?? fallback.updatedAt,
+    comments: task.comments ?? fallback.comments ?? [],
+    colosseumConfig: task.colosseum_config ?? fallback.colosseumConfig,
   });
   const moveGlobalTask = (taskId: string, state: Task['state']) => {
     const currentTask = allTasks.find((task) => task.id === taskId);
+    if (currentTask && currentTask.state !== state) {
+      pushToast('Lifecycle controlled', 'Open the ticket to submit it for grooming or complete human review.', 'warning');
+      setDraggingTaskId(null);
+      return;
+    }
     if (currentTask && !canMoveTask(currentTask, state, taskFlags)) {
       pushToast('Task blocked', `${currentTask.title} must be unblocked before changing status.`, 'warning');
       setDraggingTaskId(null);
       return;
-    }
-    if (state === 'ready') {
-      const hasRepo = currentTask?.colosseumConfig?.repository?.trim();
-      if (!hasRepo) {
-        pushToast('Repository required', 'Ready status requires a linked repository.', 'warning');
-        setDraggingTaskId(null);
-        return;
-      }
     }
     const previousState = currentTask ? taskWorkflowState(currentTask, taskFlags) : 'backlog';
     const movedAt = new Date().toISOString();
@@ -239,7 +240,12 @@ export function WorkspaceSurface(props: WorkspaceSurfaceProps) {
     }).catch(() => undefined);
   };
   const toggleTaskBlocked = (task: Task) => {
-    const blocked = !isTaskBlocked(task, taskFlags);
+    const isCurrentlyBlocked = isTaskBlocked(task, taskFlags);
+    if (!isCurrentlyBlocked && (task.state === 'human-review' || task.state === 'approved' || task.state === 'done')) {
+      pushToast('Cannot block task', `Tasks in ${task.state} status cannot be blocked.`, 'warning');
+      return;
+    }
+    const blocked = !isCurrentlyBlocked;
     const workflowState = taskWorkflowState(task, taskFlags);
     setTaskFlags((current) => ({ ...current, [task.id]: { ...(current[task.id] ?? {}), blocked } }));
     if (task.state === 'blocked') {
@@ -273,9 +279,13 @@ export function WorkspaceSurface(props: WorkspaceSurfaceProps) {
     });
   }, [allTasks, taskFlags, taskPriorityFilter, taskStatusFilter, taskTextFilter, taskWorkspaceFilter]);
   const filteredTaskColumns = useMemo(() => {
-    return (['backlog', 'ready', 'in-progress', 'review', 'done'] as const).map((state) => ({
+    return (['backlog', 'grooming', 'ready', 'in-progress', 'review', 'human-review'] as const).map((state) => ({
       state,
-      tasks: filteredGlobalTasks.filter((task) => (taskFlags[task.id]?.done ? 'done' : task.state) === state),
+      tasks: filteredGlobalTasks.filter((task) => {
+        const isDone = task.state === 'done' || Boolean(taskFlags[task.id]?.done);
+        if (isDone) return false;
+        return task.state === state || (state === 'human-review' && task.state === 'approved');
+      }),
     }));
   }, [filteredGlobalTasks, taskFlags]);
   const globalTaskStats = useMemo(() => {
@@ -498,7 +508,7 @@ export function WorkspaceSurface(props: WorkspaceSurfaceProps) {
                 <span>Status</span>
                 <select value={taskStatusFilter} onChange={(event) => setTaskStatusFilter(event.target.value)}>
                   <option value="">All statuses</option>
-                  {(['backlog', 'ready', 'in-progress', 'review', 'done'] as const).map((state) => <option key={state} value={state}>{state}</option>)}
+                  {(['backlog', 'grooming', 'ready', 'in-progress', 'review', 'human-review', 'approved', 'done'] as const).map((state) => <option key={state} value={state}>{state}</option>)}
                 </select>
               </label>
               <label className="task-editor-field">
@@ -535,7 +545,7 @@ export function WorkspaceSurface(props: WorkspaceSurfaceProps) {
                         <div
                           key={task.id}
                           className="task-kanban-card"
-                          draggable={!isTaskBlocked(task, taskFlags)}
+                          draggable={false}
                           onDragStart={(event) => {
                             if (isTaskBlocked(task, taskFlags)) {
                               event.preventDefault();
@@ -562,15 +572,27 @@ export function WorkspaceSurface(props: WorkspaceSurfaceProps) {
                               {isTaskBlocked(task, taskFlags) && <div className="task-blocked-badge"><Ban size={11} /> Blocked</div>}
                             </div>
                             <div className="task-card-actions">
-                              <button
-                                type="button"
-                                className={`task-card-block ${isTaskBlocked(task, taskFlags) ? 'is-blocked' : ''}`}
-                                aria-label={`${isTaskBlocked(task, taskFlags) ? 'Unblock' : 'Block'} ${task.title}`}
-                                title={isTaskBlocked(task, taskFlags) ? 'Unblock task' : 'Block task'}
-                                onClick={(event) => { event.stopPropagation(); toggleTaskBlocked(task); }}
-                              >
-                                <Ban size={14} />
-                              </button>
+                              {isTaskBlocked(task, taskFlags) ? (
+                                <button
+                                  type="button"
+                                  className="task-card-block is-unblock-btn"
+                                  aria-label={`Unblock ${task.title}`}
+                                  title="Unblock task"
+                                  onClick={(event) => { event.stopPropagation(); toggleTaskBlocked(task); }}
+                                >
+                                  Unblock
+                                </button>
+                              ) : (task.state !== 'human-review' && task.state !== 'approved' && task.state !== 'done') ? (
+                                <button
+                                  type="button"
+                                  className="task-card-block is-block-btn"
+                                  aria-label={`Block ${task.title}`}
+                                  title="Block task"
+                                  onClick={(event) => { event.stopPropagation(); toggleTaskBlocked(task); }}
+                                >
+                                  Block
+                                </button>
+                              ) : null}
                               <button
                                 type="button"
                                 className="task-card-remove"
@@ -608,77 +630,126 @@ export function WorkspaceSurface(props: WorkspaceSurfaceProps) {
                         <strong>{visualTimeStats.max} hrs</strong>
                       </div>
                     </div>
-                    <svg
-                      className="task-workflow-svg task-workflow-svg-contained"
-                      viewBox={`0 0 ${globalTaskWorkflow.width} ${globalTaskWorkflow.height}`}
-                      preserveAspectRatio="xMidYMin meet"
-                      role="img"
-                      aria-label="Global task dependency map"
+                    <div
+                      className="relative overflow-auto"
+                      onWheel={(event) => {
+                        event.preventDefault();
+                        const zoomDelta = event.deltaY < 0 ? 0.1 : -0.1;
+                        setVisualZoom((z) => Math.min(3, Math.max(0.3, +(z + zoomDelta).toFixed(2))));
+                      }}
                     >
-                      <defs>
-                        <marker id="task-arrow-global" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
-                          <path d="M0,0 L0,6 L9,3 z" fill="rgba(0,229,255,0.7)" />
-                        </marker>
-                      </defs>
-                      {globalTaskWorkflow.edges.map((edge) => (
-                        <path
-                          key={edge.id}
-                          className="task-workflow-edge"
-                          markerEnd="url(#task-arrow-global)"
-                          d={`M${edge.source.x},${edge.source.y + 30} C${edge.source.x},${edge.source.y + 58} ${edge.target.x},${edge.target.y - 58} ${edge.target.x},${edge.target.y - 30}`}
-                        />
-                      ))}
-                      {globalTaskWorkflow.nodes.map(({ task, x, y }) => (
-                          <g key={task.id} className="task-workflow-node" role="button" tabIndex={0} onClick={() => pushToast('Task selected', `${task.title} · ${workspaceList.find((workspace) => workspace.id === task.workspaceId)?.name ?? task.workspaceId}.`, 'muted')}>
-                            <rect x={x - 84} y={y - 28} width="168" height="56" rx="0" className={`task-workflow-card priority-${task.priority}`} />
-                            <text x={x} y={y - 7} textAnchor="middle" className="task-workflow-title">{task.title.length > 28 ? `${task.title.slice(0, 27)}…` : task.title}</text>
-                            <text x={x} y={y + 13} textAnchor="middle" className="task-workflow-meta">{task.priority} · {workspaceList.find((workspace) => workspace.id === task.workspaceId)?.name ?? task.workspaceId}</text>
-                            
-                            {/* Complexity Badge */}
-                            {task.complexity && (
-                              <g>
-                                <rect
-                                  x={x + 35}
-                                  y={y - 24}
-                                  width="45"
-                                  height="12"
-                                  rx="2"
-                                  fill={
-                                    task.complexity === 'extreme' ? 'rgba(255, 0, 85, 0.15)' :
-                                    task.complexity === 'complex' ? 'rgba(255, 170, 0, 0.15)' :
-                                    task.complexity === 'moderate' ? 'rgba(0, 229, 255, 0.15)' :
-                                    'rgba(0, 230, 118, 0.15)'
-                                  }
-                                  stroke={
-                                    task.complexity === 'extreme' ? '#ff0055' :
-                                    task.complexity === 'complex' ? '#ffaa00' :
-                                    task.complexity === 'moderate' ? '#00e5ff' :
-                                    '#00e676'
-                                  }
-                                  strokeWidth="0.5"
-                                />
-                                <text
-                                  x={x + 57.5}
-                                  y={y - 15}
-                                  textAnchor="middle"
-                                  style={{
-                                    fontSize: '7px',
-                                    fill: '#fff',
-                                    fontWeight: 'bold',
-                                    fontFamily: "'Share Tech Mono', monospace",
-                                    textTransform: 'uppercase',
-                                    letterSpacing: '0.05em'
-                                  }}
-                                >
-                                  {task.complexity}
-                                </text>
-                              </g>
-                            )}
+                      <div className="sticky top-2 right-2 ml-auto w-fit flex items-center gap-1 z-10 bg-black/70 border border-white/10 p-1 rounded-md backdrop-blur-md">
+                        <button
+                          type="button"
+                          onClick={() => setVisualZoom((z) => Math.min(3, +(z + 0.15).toFixed(2)))}
+                          title="Zoom In"
+                          aria-label="Zoom in visualization"
+                          className="p-1.5 hover:bg-white/10 rounded text-cyan-400 transition-colors"
+                        >
+                          <ZoomIn size={14} />
+                        </button>
+                        <span className="text-[10px] font-mono px-1 text-white/70 min-w-[36px] text-center">
+                          {Math.round(visualZoom * 100)}%
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setVisualZoom((z) => Math.max(0.3, +(z - 0.15).toFixed(2)))}
+                          title="Zoom Out"
+                          aria-label="Zoom out visualization"
+                          className="p-1.5 hover:bg-white/10 rounded text-cyan-400 transition-colors"
+                        >
+                          <ZoomOut size={14} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setVisualZoom(1)}
+                          title="Reset Zoom"
+                          aria-label="Reset visualization zoom"
+                          className="p-1.5 hover:bg-white/10 rounded text-cyan-400 transition-colors"
+                        >
+                          <Maximize size={14} />
+                        </button>
+                      </div>
+                      <div
+                        style={{
+                          transform: `scale(${visualZoom})`,
+                          transformOrigin: 'top left',
+                          transition: 'transform 0.1s ease-out',
+                        }}
+                      >
+                        <svg
+                          className="task-workflow-svg task-workflow-svg-contained"
+                          viewBox={`0 0 ${globalTaskWorkflow.width} ${globalTaskWorkflow.height}`}
+                          preserveAspectRatio="xMidYMin meet"
+                          role="img"
+                          aria-label="Global task dependency map"
+                        >
+                          <defs>
+                            <marker id="task-arrow-global" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+                              <path d="M0,0 L0,6 L9,3 z" fill="rgba(0,229,255,0.7)" />
+                            </marker>
+                          </defs>
+                          {globalTaskWorkflow.edges.map((edge) => (
+                            <path
+                              key={edge.id}
+                              className="task-workflow-edge"
+                              markerEnd="url(#task-arrow-global)"
+                              d={`M${edge.source.x},${edge.source.y + 30} C${edge.source.x},${edge.source.y + 58} ${edge.target.x},${edge.target.y - 58} ${edge.target.x},${edge.target.y - 30}`}
+                            />
+                          ))}
+                          {globalTaskWorkflow.nodes.map(({ task, x, y }) => (
+                              <g key={task.id} className="task-workflow-node" role="button" tabIndex={0} onClick={() => pushToast('Task selected', `${task.title} · ${workspaceList.find((workspace) => workspace.id === task.workspaceId)?.name ?? task.workspaceId}.`, 'muted')}>
+                                <rect x={x - 84} y={y - 28} width="168" height="56" rx="0" className={`task-workflow-card priority-${task.priority}`} />
+                                <text x={x} y={y - 7} textAnchor="middle" className="task-workflow-title">{task.title.length > 28 ? `${task.title.slice(0, 27)}…` : task.title}</text>
+                                <text x={x} y={y + 13} textAnchor="middle" className="task-workflow-meta">{task.priority} · {workspaceList.find((workspace) => workspace.id === task.workspaceId)?.name ?? task.workspaceId}</text>
 
-                            {(task.dependsOn ?? []).some((id) => filteredGlobalTasks.some((candidate) => candidate.id === id)) && <circle cx={x + 70} cy={y + 15} r="4" className="task-workflow-link-dot" />}
-                          </g>
-                      ))}
-                    </svg>
+                                {/* Complexity Badge */}
+                                {task.complexity && (
+                                  <g>
+                                    <rect
+                                      x={x + 35}
+                                      y={y - 24}
+                                      width="45"
+                                      height="12"
+                                      rx="2"
+                                      fill={
+                                        task.complexity === 'extreme' ? 'rgba(255, 0, 85, 0.15)' :
+                                        task.complexity === 'complex' ? 'rgba(255, 170, 0, 0.15)' :
+                                        task.complexity === 'moderate' ? 'rgba(0, 229, 255, 0.15)' :
+                                        'rgba(0, 230, 118, 0.15)'
+                                      }
+                                      stroke={
+                                        task.complexity === 'extreme' ? '#ff0055' :
+                                        task.complexity === 'complex' ? '#ffaa00' :
+                                        task.complexity === 'moderate' ? '#00e5ff' :
+                                        '#00e676'
+                                      }
+                                      strokeWidth="0.5"
+                                    />
+                                    <text
+                                      x={x + 57.5}
+                                      y={y - 15}
+                                      textAnchor="middle"
+                                      style={{
+                                        fontSize: '7px',
+                                        fill: '#fff',
+                                        fontWeight: 'bold',
+                                        fontFamily: "'Share Tech Mono', monospace",
+                                        textTransform: 'uppercase',
+                                        letterSpacing: '0.05em'
+                                      }}
+                                    >
+                                      {task.complexity}
+                                    </text>
+                                  </g>
+                                )}
+
+                                {(task.dependsOn ?? []).some((id) => filteredGlobalTasks.some((candidate) => candidate.id === id)) && <circle cx={x + 70} cy={y + 15} r="4" className="task-workflow-link-dot" />}
+                              </g>
+                          ))}
+                        </svg>
+                      </div>
+                    </div>
                   </>
                 )}
               </div>
@@ -687,112 +758,179 @@ export function WorkspaceSurface(props: WorkspaceSurfaceProps) {
                 <section className="task-status-overview" aria-label="Task Status Overview" style={{ marginBottom: 20 }}>
                   <div className="task-status-overview-head">
                     <div>
-                      <div className="eyebrow">Overview</div>
-                      <h3>Task Status Overview</h3>
+                      <div className="eyebrow">Analytics Overview</div>
+                      <h3 style={{ margin: 0, fontSize: 16 }}>Task Status Overview</h3>
                     </div>
-                    <div className="task-overview-summary">
-                      <span>{globalTaskStats.workspaceCount} workspaces</span>
-                      <strong>{globalTaskStats.completionRate}% complete</strong>
+                    <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setHideDoneInAnalytics((prev) => !prev)}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-mono border transition-all ${
+                          hideDoneInAnalytics
+                            ? 'bg-amber-950/40 border-amber-500/40 text-amber-300 hover:bg-amber-950/60'
+                            : 'bg-emerald-950/40 border-emerald-500/40 text-emerald-300 hover:bg-emerald-950/60'
+                        }`}
+                        title={hideDoneInAnalytics ? 'Click to unhide done tasks' : 'Click to hide done tasks'}
+                      >
+                        {hideDoneInAnalytics ? 'Unhide Done' : 'Hide Done'}
+                      </button>
+                      <div className="task-overview-summary flex items-center gap-3 bg-cyan-950/30 border border-cyan-500/20 px-3 py-1.5 rounded-md">
+                        <span className="text-cyan-300 font-mono text-xs">{globalTaskStats.workspaceCount} workspaces</span>
+                        <span className="text-white/20">|</span>
+                        <strong className="text-cyan-400 font-mono text-sm">{globalTaskStats.completionRate}% complete</strong>
+                      </div>
                     </div>
                   </div>
-                  <div className="task-dashboard-stats">
+                  <div className="grid grid-cols-8 gap-2 mt-3">
                     {[
-                      ['All tasks', globalTaskStats.total, 'all'],
-                      ['Backlog', globalTaskStats.backlog, 'backlog'],
-                      ['Ready', globalTaskStats.ready, 'ready'],
-                      ['In progress', globalTaskStats.active, 'active'],
-                      ['Review', globalTaskStats.review, 'review'],
-                      ['Blocked', globalTaskStats.blocked, 'blocked'],
-                      ['Done', globalTaskStats.completed, 'done'],
-                      ['Critical open', globalTaskStats.critical, 'critical'],
-                    ].map(([label, value, tone]) => (
-                      <div key={label} className={`task-dashboard-stat task-dashboard-stat-${tone}`}><span>{label}</span><strong>{value}</strong></div>
+                      { label: 'All tasks', value: globalTaskStats.total, tone: 'all', icon: Layers, border: 'border-cyan-500/20', bg: 'bg-cyan-950/20', text: 'text-cyan-400' },
+                      { label: 'Backlog', value: globalTaskStats.backlog, tone: 'backlog', icon: Inbox, border: 'border-slate-500/20', bg: 'bg-slate-900/40', text: 'text-slate-300' },
+                      { label: 'Ready', value: globalTaskStats.ready, tone: 'ready', icon: Clock, border: 'border-indigo-500/20', bg: 'bg-indigo-950/20', text: 'text-indigo-400' },
+                      { label: 'In progress', value: globalTaskStats.active, tone: 'active', icon: PlayCircle, border: 'border-amber-500/20', bg: 'bg-amber-950/20', text: 'text-amber-400' },
+                      { label: 'Review', value: globalTaskStats.review, tone: 'review', icon: Sparkles, border: 'border-purple-500/20', bg: 'bg-purple-950/20', text: 'text-purple-400' },
+                      { label: 'Blocked', value: globalTaskStats.blocked, tone: 'blocked', icon: AlertTriangle, border: 'border-rose-500/20', bg: 'bg-rose-950/20', text: 'text-rose-400' },
+                      { label: 'Done', value: globalTaskStats.completed, tone: 'done', icon: CheckCircle2, border: 'border-emerald-500/20', bg: 'bg-emerald-950/20', text: 'text-emerald-400' },
+                      { label: 'Critical open', value: globalTaskStats.critical, tone: 'critical', icon: ShieldAlert, border: 'border-red-500/30', bg: 'bg-red-950/30', text: 'text-red-400' },
+                    ].filter(({ tone }) => !hideDoneInAnalytics || tone !== 'done').map(({ label, value, icon: Icon, border, bg, text }) => (
+                      <div
+                        key={label}
+                        className={`flex flex-col justify-between p-2.5 rounded border ${border} ${bg} transition-all hover:border-white/20`}
+                      >
+                        <div className="flex items-center justify-between gap-1 text-[10px] text-white/50 uppercase tracking-wider font-mono">
+                          <span className="truncate">{label}</span>
+                          <Icon size={12} className={`${text} shrink-0 opacity-80`} />
+                        </div>
+                        <div className="mt-1 flex items-baseline justify-between">
+                          <span className={`text-xl font-bold font-mono ${text}`}>{value}</span>
+                        </div>
+                      </div>
                     ))}
                   </div>
                 </section>
-                <div className="task-analytics-grid" aria-label="Tasks by workspace analytics">
-                {workspaceTaskAnalytics.map(({ workspace, tasks: scopedTasks, statusCounts, blocked, firstCreated, latestActivity, totalTimeSpent, averageTimeSpent, maxTimeSpent, complexityCounts }) => (
-                  <section key={workspace.id} className="task-analytics-card">
-                    <div className="task-analytics-card-head">
-                      <div><span>Workspace</span><h3>{workspace.name}</h3></div>
-                      <strong>{scopedTasks.length}</strong>
-                    </div>
-                    <div className="task-analytics-bars">
-                      {statusCounts.map(({ status, count }) => (
-                        <div key={status} className="task-analytics-bar-row">
-                          <span>{status}</span>
-                          <div><i style={{ width: `${scopedTasks.length ? (count / scopedTasks.length) * 100 : 0}%` }} /></div>
-                          <strong>{count}</strong>
-                        </div>
-                      ))}
-                    </div>
-                    <div className="task-analytics-facts">
-                      <span>Blocked <strong>{blocked}</strong></span>
-                      <span>First created <strong>{firstCreated}</strong></span>
-                    </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" aria-label="Tasks by workspace analytics">
+                {workspaceTaskAnalytics.map(({ workspace, tasks: scopedTasks, statusCounts, blocked, firstCreated, latestActivity, totalTimeSpent, averageTimeSpent, maxTimeSpent, complexityCounts }) => {
+                  const doneCount = statusCounts.find((s) => s.status === 'done')?.count ?? 0;
+                  const pct = scopedTasks.length ? Math.round((doneCount / scopedTasks.length) * 100) : 0;
 
-                    {/* Time Spent Stats */}
-                    <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px dashed rgba(255, 255, 255, 0.08)' }}>
-                      <div className="eyebrow" style={{ marginBottom: 6, fontSize: 9 }}>Time Metrics</div>
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, fontSize: 11 }}>
-                        <div style={{ background: 'rgba(255,255,255,0.02)', padding: 6, border: '1px solid rgba(255,255,255,0.05)', borderRadius: 2 }}>
-                          <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total</span>
-                          <strong style={{ color: 'var(--cyan)' }}>{totalTimeSpent}h</strong>
+                  return (
+                    <section key={workspace.id} className="p-4 rounded-xl border border-cyan-500/20 bg-gradient-to-b from-slate-900/90 to-slate-950/95 backdrop-blur flex flex-col justify-between gap-3 shadow-lg shadow-black/40 transition-all hover:border-cyan-500/40 hover:shadow-cyan-950/20">
+                      {/* Workspace Header & Total */}
+                      <div className="flex flex-col gap-2 border-b border-white/10 pb-3">
+                        <div className="flex items-center justify-between">
+                          <span className="px-2 py-0.5 rounded text-[9px] uppercase font-mono tracking-widest bg-cyan-950/80 border border-cyan-500/30 text-cyan-300 font-semibold">
+                            Workspace
+                          </span>
+                          <span className="text-2xl font-black font-mono text-cyan-400 bg-cyan-950/40 border border-cyan-500/20 px-3 py-0.5 rounded-lg shadow-inner">
+                            {scopedTasks.length}
+                          </span>
                         </div>
-                        <div style={{ background: 'rgba(255,255,255,0.02)', padding: 6, border: '1px solid rgba(255,255,255,0.05)', borderRadius: 2 }}>
-                          <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Avg</span>
-                          <strong style={{ color: 'var(--violet)' }}>{averageTimeSpent}h</strong>
+                        <h3 className="text-base font-bold text-white tracking-wide truncate" title={workspace.name}>{workspace.name}</h3>
+                        <div className="flex items-center justify-between text-xs font-mono mt-1">
+                          <span className="text-white/40">Completion:</span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-emerald-400 font-bold text-sm">{pct}%</span>
+                            <span className="text-white/30 text-[10px]">({doneCount}/{scopedTasks.length})</span>
+                          </div>
                         </div>
-                        <div style={{ background: 'rgba(255,255,255,0.02)', padding: 6, border: '1px solid rgba(255,255,255,0.05)', borderRadius: 2 }}>
-                          <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Max</span>
-                          <strong style={{ color: 'var(--pink)' }}>{maxTimeSpent}h</strong>
+                        <div className="w-full bg-slate-950 h-2 rounded-full overflow-hidden flex border border-white/10 mt-1">
+                          {statusCounts.map(({ status, count }) => {
+                            if (!count || !scopedTasks.length) return null;
+                            const widthPct = (count / scopedTasks.length) * 100;
+                            const barBg: Record<string, string> = {
+                              todo: 'bg-slate-500',
+                              backlog: 'bg-slate-500',
+                              ready: 'bg-indigo-500',
+                              'in-progress': 'bg-amber-500',
+                              review: 'bg-purple-500',
+                              'human-review': 'bg-sky-500',
+                              done: 'bg-emerald-500',
+                            };
+                            return (
+                              <div
+                                key={`bar-${status}`}
+                                style={{ width: `${widthPct}%` }}
+                                className={`h-full ${barBg[status] || 'bg-cyan-500'}`}
+                                title={`${status}: ${count} (${Math.round(widthPct)}%)`}
+                              />
+                            );
+                          })}
                         </div>
                       </div>
-                    </div>
 
-                    {/* Complexity Metrics */}
-                    <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px dashed rgba(255, 255, 255, 0.08)' }}>
-                      <div className="eyebrow" style={{ marginBottom: 6, fontSize: 9 }}>Complexity Distribution</div>
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 4, fontSize: 10 }}>
-                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', background: 'rgba(0, 230, 118, 0.03)', border: '1px solid rgba(0, 230, 118, 0.12)', padding: '4px 2px', borderRadius: 2 }}>
-                          <span style={{ color: '#00e676', fontSize: 7, textTransform: 'uppercase', fontWeight: 'bold' }}>Simple</span>
-                          <strong style={{ fontSize: 11, marginTop: 2 }}>{complexityCounts.simple}</strong>
+                      {/* Status Distribution Grid */}
+                      <div className="grid grid-cols-2 gap-1.5 py-1">
+                        {statusCounts.filter(({ status }) => !hideDoneInAnalytics || status !== 'done').map(({ status, count }) => {
+                          const statusColors: Record<string, { bg: string; border: string; text: string }> = {
+                            todo: { bg: 'bg-slate-900/60', border: 'border-slate-800', text: 'text-slate-300' },
+                            backlog: { bg: 'bg-slate-900/60', border: 'border-slate-800', text: 'text-slate-300' },
+                            ready: { bg: 'bg-indigo-950/40', border: 'border-indigo-500/30', text: 'text-indigo-300' },
+                            'in-progress': { bg: 'bg-amber-950/40', border: 'border-amber-500/30', text: 'text-amber-300' },
+                            review: { bg: 'bg-purple-950/40', border: 'border-purple-500/30', text: 'text-purple-300' },
+                            'human-review': { bg: 'bg-sky-950/40', border: 'border-sky-500/30', text: 'text-sky-300' },
+                            done: { bg: 'bg-emerald-950/40', border: 'border-emerald-500/30', text: 'text-emerald-300' },
+                          };
+                          const style = statusColors[status] || { bg: 'bg-slate-900/60', border: 'border-slate-800', text: 'text-slate-300' };
+
+                          return (
+                            <div key={status} className={`flex items-center justify-between px-2.5 py-1.5 rounded-md border ${style.border} ${style.bg}`}>
+                              <span className="text-[10px] font-mono uppercase text-white/50">{status}</span>
+                              <span className={`text-xs font-mono font-bold ${style.text}`}>{count}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {/* Key Indicators: Time Metrics & Complexity */}
+                      <div className="flex flex-col gap-2 bg-black/40 border border-white/5 p-2.5 rounded-lg text-[11px] font-mono">
+                        <div className="flex items-center justify-between border-b border-white/5 pb-1.5">
+                          <span className="text-white/40 text-[9px] uppercase tracking-wider">Time Metrics</span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-cyan-400 font-bold">{totalTimeSpent}h total</span>
+                            <span className="text-white/20">|</span>
+                            <span className="text-white/40 text-[10px]">avg {averageTimeSpent}h</span>
+                            <span className="text-white/20">|</span>
+                            <span className="text-white/40 text-[10px]">max {maxTimeSpent}h</span>
+                          </div>
                         </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', background: 'rgba(0, 229, 255, 0.03)', border: '1px solid rgba(0, 229, 255, 0.12)', padding: '4px 2px', borderRadius: 2 }}>
-                          <span style={{ color: '#00e5ff', fontSize: 7, textTransform: 'uppercase', fontWeight: 'bold' }}>Mod</span>
-                          <strong style={{ fontSize: 11, marginTop: 2 }}>{complexityCounts.moderate}</strong>
-                        </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', background: 'rgba(255, 170, 0, 0.03)', border: '1px solid rgba(255, 170, 0, 0.12)', padding: '4px 2px', borderRadius: 2 }}>
-                          <span style={{ color: '#ffaa00', fontSize: 7, textTransform: 'uppercase', fontWeight: 'bold' }}>Comp</span>
-                          <strong style={{ fontSize: 11, marginTop: 2 }}>{complexityCounts.complex}</strong>
-                        </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', background: 'rgba(255, 0, 85, 0.03)', border: '1px solid rgba(255, 0, 85, 0.12)', padding: '4px 2px', borderRadius: 2 }}>
-                          <span style={{ color: '#ff0055', fontSize: 7, textTransform: 'uppercase', fontWeight: 'bold' }}>Extr</span>
-                          <strong style={{ fontSize: 11, marginTop: 2 }}>{complexityCounts.extreme}</strong>
+                        <div className="flex items-center justify-between pt-0.5">
+                          <span className="text-white/40 text-[9px] uppercase tracking-wider">Complexity</span>
+                          <div className="flex items-center gap-1">
+                            <span className="px-1.5 py-0.5 rounded bg-emerald-950/40 border border-emerald-500/20 text-emerald-400 text-[10px]">Simple:{complexityCounts.simple}</span>
+                            <span className="px-1.5 py-0.5 rounded bg-cyan-950/40 border border-cyan-500/20 text-cyan-400 text-[10px]">Mod:{complexityCounts.moderate}</span>
+                            <span className="px-1.5 py-0.5 rounded bg-amber-950/40 border border-amber-500/20 text-amber-400 text-[10px]">Comp:{complexityCounts.complex}</span>
+                            <span className="px-1.5 py-0.5 rounded bg-rose-950/40 border border-rose-500/20 text-rose-400 text-[10px]">Extr:{complexityCounts.extreme}</span>
+                          </div>
                         </div>
                       </div>
-                    </div>
 
-                    <div className="task-analytics-activity">
-                      <span>Latest lifecycle event</span>
-                      {latestActivity ? (
-                        <div>
-                          <strong>{latestActivity.task.title}</strong>
-                          <small>
-                            {taskFlags[latestActivity.task.id]?.lastMovedAt
-                              ? `Moved ${taskFlags[latestActivity.task.id]?.lastMovedFrom} → ${taskFlags[latestActivity.task.id]?.lastMovedTo}`
-                              : latestActivity.task.updatedAt ? 'Last updated' : 'Created'}
-                            {' · '}{new Date(latestActivity.timestamp).toLocaleString()}
-                          </small>
+                      {/* Card Footer: Metadata & Latest Event */}
+                      <div className="flex flex-col gap-1.5 pt-2 border-t border-white/10 text-[11px]">
+                        <div className="flex items-center justify-between text-[10px] text-white/40 font-mono">
+                          <span>Blocked: <strong className={blocked > 0 ? 'text-rose-400' : 'text-slate-400'}>{blocked}</strong></span>
+                          <span>First created: <strong className="text-white/70">{firstCreated}</strong></span>
                         </div>
-                      ) : <em>No lifecycle timestamp available</em>}
-                    </div>
-                  </section>
-                ))}
+                        <div className="flex flex-col gap-0.5 text-white/50 pt-1">
+                          <span className="text-[9px] uppercase font-mono text-white/30">Latest Lifecycle Event</span>
+                          {latestActivity ? (
+                            <div className="flex flex-col">
+                              <span className="font-semibold text-white truncate text-[11px]">{latestActivity.task.title}</span>
+                              <span className="text-cyan-300/80 font-mono text-[9px]">
+                                {taskFlags[latestActivity.task.id]?.lastMovedAt
+                                  ? `Moved ${taskFlags[latestActivity.task.id]?.lastMovedFrom} → ${taskFlags[latestActivity.task.id]?.lastMovedTo}`
+                                  : latestActivity.task.updatedAt ? 'Last updated' : 'Created'}
+                                {' · '}{new Date(latestActivity.timestamp).toLocaleString()}
+                              </span>
+                            </div>
+                          ) : <em className="text-white/30 text-[10px]">No activity recorded</em>}
+                        </div>
+                      </div>
+                    </section>
+                  );
+                })}
+                </div>
                 {workspaceTaskAnalytics.length === 0 && <div className="activity-empty">No workspace task statistics match these filters.</div>}
-              </div>
-            </>
-          )}
+              </>
+            )}
           </section>
         </section>
       ) : (

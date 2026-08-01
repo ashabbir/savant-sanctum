@@ -1,14 +1,15 @@
-import { Ban, Check, ChevronDown, Circle, FileCode, FileText, FolderOpen, GitBranch, History, ListChecks, Network, Plus, Timer, Trash2, X, Zap, Copy, Loader2, Send, Sparkles } from 'lucide-react';
+import { Ban, Check, ChevronDown, Circle, FileCode, FileText, FolderOpen, GitBranch, History, ListChecks, Maximize, MessageSquare, Network, Plus, Timer, Trash2, User, X, Zap, Copy, Loader2, Send, Sparkles, ZoomIn, ZoomOut } from 'lucide-react';
 import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { KnowledgeGraph } from '../KnowledgeGraph';
 import { SettingsModal } from './SettingsModal';
-import type { Artifact, Note, Provider, Reminder, Session, Task, Workspace } from '../data';
-import { canMoveTask, isTaskBlocked, taskBoardState, taskWorkflowState, type TaskFlagState } from '../lib/taskBoard';
+import type { Artifact, Note, Provider, Reminder, Session, Task, TaskComment, Workspace } from '../data';
+import { canMoveTask, canSubmitForGrooming, isTaskBlocked, taskBoardState, taskWorkflowState, type TaskFlagState } from '../lib/taskBoard';
 import { buildSavantHeaders } from '../services/httpClient';
 import { WorkspaceSessionsDrawer } from './WorkspaceSessionsDrawer';
 import { WorkspaceSessionDetailsDrawer } from './WorkspaceSessionDetailsDrawer';
+import { ColosseumPhaseLedger, ColosseumRunLedger } from './ColosseumTaskEvidence';
 import { getSessionAdapter, inferSessionProvider, type SessionConversationMessage, type SessionFileGroup } from '../services/sessionAdapters';
 
 type WorkspaceMergeRequest = {
@@ -244,10 +245,15 @@ export function AppOverlays(props: AppOverlaysProps) {
   const [selectedNote, setSelectedNote] = useState<Note | null>(null);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
-  const [taskEditorTab, setTaskEditorTab] = useState<'details' | 'athena'>('details');
+  const [taskEditorTab, setTaskEditorTab] = useState<'details' | 'activity' | 'diff' | 'comments' | 'athena'>('details');
+  const [taskDiffData, setTaskDiffData] = useState<{ diff: string; files: Array<{ status: string; path: string }>; worktree_path?: string } | null>(null);
+  const [loadingTaskDiff, setLoadingTaskDiff] = useState(false);
   const [taskViewMode, setTaskViewMode] = useState<'board' | 'visualization' | 'report'>('board');
+  const [taskVisualZoom, setTaskVisualZoom] = useState<number>(1);
   const [draggingTaskId, setDraggingTaskId] = useState<string | null>(null);
   const [taskWorkspaceId, setTaskWorkspaceId] = useState('');
+  const [taskSearchQuery, setTaskSearchQuery] = useState('');
+  const [isTaskDropdownOpen, setIsTaskDropdownOpen] = useState(false);
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
   const [mergeRequests, setMergeRequests] = useState<WorkspaceMergeRequest[]>([]);
   const [jiraTickets, setJiraTickets] = useState<WorkspaceJiraTicket[]>([]);
@@ -262,6 +268,8 @@ export function AppOverlays(props: AppOverlaysProps) {
     dependencyId: string;
     comment: string;
     repository: string;
+    workType: 'development' | 'research';
+    autopilot: boolean;
   }>({
     title: '',
     description: '',
@@ -271,15 +279,19 @@ export function AppOverlays(props: AppOverlaysProps) {
     dependencyId: '',
     comment: '',
     repository: '',
+    workType: 'development',
+    autopilot: false,
   });
   const [colosseumProviders, setColosseumProviders] = useState<Array<{ id: string; label: string }>>([]);
   const isTaskDone = (task: Task) => task.state === 'done' || Boolean(taskFlags[task.id]?.done);
   const taskDisplayState = (task: Task) => taskBoardState(task, taskFlags);
   const taskColumns = [
     { id: 'backlog', title: 'Backlog', state: 'backlog' as const, tasks: workspaceTasks.filter((task) => !isTaskDone(task) && taskDisplayState(task) === 'backlog') },
+    { id: 'grooming', title: 'Grooming', state: 'grooming' as const, tasks: workspaceTasks.filter((task) => !isTaskDone(task) && taskDisplayState(task) === 'grooming') },
     { id: 'ready', title: 'Ready', state: 'ready' as const, tasks: workspaceTasks.filter((task) => !isTaskDone(task) && taskDisplayState(task) === 'ready') },
     { id: 'active', title: 'In progress', state: 'in-progress' as const, tasks: workspaceTasks.filter((task) => !isTaskDone(task) && taskDisplayState(task) === 'in-progress') },
     { id: 'review', title: 'Review', state: 'review' as const, tasks: workspaceTasks.filter((task) => !isTaskDone(task) && taskDisplayState(task) === 'review') },
+    { id: 'human-review', title: 'Human review', state: 'human-review' as const, tasks: workspaceTasks.filter((task) => !isTaskDone(task) && ['human-review', 'approved'].includes(taskDisplayState(task))) },
   ];
   const dependencyParents = new Map<string, string[]>();
   const dependencyChildren = new Map<string, string[]>();
@@ -452,9 +464,9 @@ export function AppOverlays(props: AppOverlaysProps) {
   const authHeaders = buildSavantHeaders(apiKey);
   const taskStatusForServer = (state: Task['state']) => (state === 'backlog' ? 'todo' : state);
   const taskStateFromServer = (status: string | undefined, fallback: Task['state']): Task['state'] => {
-    if (status === 'todo' || status === 'backlog') return 'backlog';
-    if (status === 'code-review' || status === 'review') return 'review';
-    if (status === 'ready' || status === 'in-progress' || status === 'done') return status;
+    if (status === 'todo' || status === 'blocked') return 'backlog';
+    if (status === 'code-review') return 'review';
+    if (status === 'backlog' || status === 'grooming' || status === 'ready' || status === 'in-progress' || status === 'review' || status === 'human-review' || status === 'approved' || status === 'done') return status;
     return fallback;
   };
   const normalizeTaskFromServer = (task: any, fallback: Task): Task => ({
@@ -468,11 +480,14 @@ export function AppOverlays(props: AppOverlaysProps) {
     due: task.date ?? fallback.due,
     dependsOn: task.depends_on ?? task.dependencies ?? fallback.dependsOn ?? [],
     complexity: task.complexity ?? fallback.complexity,
+    comments: task.comments ?? fallback.comments ?? [],
     colosseumConfig: task.colosseum_config ?? fallback.colosseumConfig,
   });
   const colosseumPayload = () => ({
     config: {
       repository: taskEditor.repository.trim(),
+      work_type: taskEditor.workType,
+      autopilot: taskEditor.autopilot,
     },
   });
   const chooseColosseumRepository = async () => {
@@ -664,7 +679,11 @@ export function AppOverlays(props: AppOverlaysProps) {
       dependencyId: '',
       comment: '',
       repository: '',
+      workType: 'development',
+      autopilot: false,
     });
+    setTaskSearchQuery('');
+    setIsTaskDropdownOpen(false);
     setTaskWorkspaceId(taskDrawerScope === 'workspace' ? activeWorkspaceId : '');
     setIsTaskModalOpen(true);
   };
@@ -675,6 +694,8 @@ export function AppOverlays(props: AppOverlaysProps) {
   const openTaskEditor = (task: Task) => {
     setSelectedTask(task);
     setTaskEditorTab('details');
+    setTaskSearchQuery('');
+    setIsTaskDropdownOpen(false);
     setTaskEditor({
       title: task.title,
       description: task.description ?? '',
@@ -684,9 +705,18 @@ export function AppOverlays(props: AppOverlaysProps) {
       dependencyId: '',
       comment: '',
       repository: task.colosseumConfig?.repository ?? '',
+      workType: task.colosseumConfig?.work_type ?? 'development',
+      autopilot: Boolean(task.colosseumConfig?.autopilot),
     });
     setTaskWorkspaceId(task.workspaceId);
     setIsTaskModalOpen(true);
+    setTaskDiffData(null);
+    setLoadingTaskDiff(true);
+    fetch(`${serverBaseUrl.replace(/\/+$/, '')}/api/tasks/${encodeURIComponent(task.id)}/diff`, { headers })
+      .then((res) => res.json())
+      .then((data) => setTaskDiffData(data))
+      .catch(() => setTaskDiffData(null))
+      .finally(() => setLoadingTaskDiff(false));
   };
   useEffect(() => {
     if (!taskToEdit) return;
@@ -695,18 +725,15 @@ export function AppOverlays(props: AppOverlaysProps) {
   }, [taskToEdit]);
   const moveTask = (taskId: string, state: Task['state']) => {
     const currentTask = workspaceTasks.find((task) => task.id === taskId);
+    if (currentTask && currentTask.state !== state) {
+      pushToast('Lifecycle controlled', 'Open the ticket to submit it for grooming or complete human review.', 'warning');
+      setDraggingTaskId(null);
+      return;
+    }
     if (currentTask && !canMoveTask(currentTask, state, taskFlags)) {
       pushToast('Task blocked', `${currentTask.title} must be unblocked before changing status.`, 'warning');
       setDraggingTaskId(null);
       return;
-    }
-    if (state === 'ready') {
-      const hasRepo = currentTask?.colosseumConfig?.repository?.trim();
-      if (!hasRepo) {
-        pushToast('Repository required', 'Ready status requires a linked repository.', 'warning');
-        setDraggingTaskId(null);
-        return;
-      }
     }
     const previousState = currentTask ? taskWorkflowState(currentTask, taskFlags) : 'backlog';
     setTaskList((current) => current.map((task) => (task.id === taskId ? { ...task, state } : task)));
@@ -729,7 +756,12 @@ export function AppOverlays(props: AppOverlaysProps) {
     }).catch(() => undefined);
   };
   const toggleTaskBlocked = (task: Task) => {
-    const blocked = !isTaskBlocked(task, taskFlags);
+    const isCurrentlyBlocked = isTaskBlocked(task, taskFlags);
+    if (!isCurrentlyBlocked && (task.state === 'human-review' || task.state === 'approved' || task.state === 'done')) {
+      pushToast('Cannot block task', `Tasks in ${task.state} status cannot be blocked.`, 'warning');
+      return;
+    }
+    const blocked = !isCurrentlyBlocked;
     const workflowState = taskWorkflowState(task, taskFlags);
     setTaskFlags((current) => ({
       ...current,
@@ -761,17 +793,13 @@ export function AppOverlays(props: AppOverlaysProps) {
     const title = taskEditor.title.trim();
     const workspaceId = taskDrawerScope === 'global' ? taskWorkspaceId : activeWorkspaceId;
     if (!title || !workspaceId) return;
-    if (taskEditor.state === 'ready' && !taskEditor.repository.trim()) {
-      pushToast('Repository required', 'Ready status requires a linked repository.', 'warning');
-      return;
-    }
     const localTask: Task = {
       id: `task-${Date.now().toString(36)}`,
       workspaceId,
       title,
       description: taskEditor.description,
       priority: taskEditor.priority,
-      state: taskEditor.state,
+      state: 'backlog',
       owner: 'operator',
       due: taskEditor.due || undefined,
       dependsOn: [],
@@ -787,12 +815,20 @@ export function AppOverlays(props: AppOverlaysProps) {
           workspace_id: workspaceId,
           title,
           description: taskEditor.description,
-          status: taskStatusForServer(taskEditor.state),
+          status: taskStatusForServer('backlog'),
           priority: taskEditor.priority,
           date: taskEditor.due || undefined,
         }),
       });
       if (response.ok) task = normalizeTaskFromServer(await response.json(), localTask);
+      {
+        const readyResp = await fetch(`${serverBaseUrl.replace(/\/+$/, '')}/api/tasks/${encodeURIComponent(task.id)}/colosseum-metadata`, {
+          method: 'PUT',
+          headers,
+          body: JSON.stringify(colosseumPayload().config),
+        });
+        if (readyResp.ok) task = normalizeTaskFromServer(await readyResp.json(), task);
+      }
     } catch {
       // Local optimistic task remains available when the server is offline.
     }
@@ -801,18 +837,12 @@ export function AppOverlays(props: AppOverlaysProps) {
     setIsTaskModalOpen(false);
     pushToast('Task created', `${title} added to ${workspaceList.find((workspace) => workspace.id === workspaceId)?.name ?? workspaceId}.`, 'good');
   };
-  const saveTask = async () => {
-    if (!selectedTask) return;
+  const saveTask = async (closeModal = true): Promise<Task | null> => {
+    if (!selectedTask) return null;
     const title = taskEditor.title.trim();
-    if (!title) return;
+    if (!title) return null;
     const blockedState = isTaskBlocked(selectedTask, taskFlags) ? taskWorkflowState(selectedTask, taskFlags) : null;
     const workspaceId = taskDrawerScope === 'global' ? taskWorkspaceId : selectedTask.workspaceId;
-
-    const stateToValidate = blockedState ?? taskEditor.state;
-    if (stateToValidate === 'ready' && !taskEditor.repository.trim()) {
-      pushToast('Repository required', 'Ready status requires a linked repository.', 'warning');
-      return;
-    }
 
     const updatedLocal: Task = {
       ...selectedTask,
@@ -822,6 +852,12 @@ export function AppOverlays(props: AppOverlaysProps) {
       state: blockedState ?? taskEditor.state,
       due: taskEditor.due || undefined,
       workspaceId,
+      colosseumConfig: {
+        ...selectedTask.colosseumConfig,
+        repository: taskEditor.repository.trim(),
+        work_type: taskEditor.workType,
+        autopilot: taskEditor.autopilot,
+      },
     };
 
     let updated = updatedLocal;
@@ -839,18 +875,27 @@ export function AppOverlays(props: AppOverlaysProps) {
         }),
       });
       if (response.ok) updated = normalizeTaskFromServer(await response.json(), updatedLocal);
+      {
+        const readyResp = await fetch(`${serverBaseUrl.replace(/\/+$/, '')}/api/tasks/${encodeURIComponent(selectedTask.id)}/colosseum-metadata`, {
+          method: 'PUT',
+          headers,
+          body: JSON.stringify(colosseumPayload().config),
+        });
+        if (readyResp.ok) updated = normalizeTaskFromServer(await readyResp.json(), updated);
+      }
     } catch {
       // Keep local edit when the server is unavailable.
     }
 
     setTaskList((current) => current.map((task) => (task.id === selectedTask.id ? updated : task)));
     setSelectedTask(updated);
-    setIsTaskModalOpen(false);
+    if (closeModal) setIsTaskModalOpen(false);
     pushToast('Task saved', `${title} updated.`, 'good');
+    return updated;
   };
   const saveTaskModal = () => {
     if (selectedTask) {
-      saveTask();
+      void saveTask();
       return;
     }
     createTask();
@@ -888,12 +933,98 @@ export function AppOverlays(props: AppOverlaysProps) {
     setTaskList((current) => current.map((task) => (task.id === selectedTask.id ? updated : task)));
     setSelectedTask(updated);
   };
-  const addTaskComment = () => {
+  const addTaskComment = async () => {
     if (!selectedTask || !taskEditor.comment.trim()) return;
-    const updated = { ...selectedTask, comments: [...(selectedTask.comments ?? []), taskEditor.comment.trim()] };
+    const authorName = authUser?.username || authUser?.name || 'User';
+    const newCommentObj: TaskComment = {
+      id: `comment-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+      author: authorName,
+      text: taskEditor.comment.trim(),
+      createdAt: new Date().toISOString(),
+      role: 'user',
+    };
+    let persistedComment = newCommentObj;
+    try {
+      const response = await fetch(`${serverBaseUrl.replace(/\/+$/, '')}/api/tasks/${encodeURIComponent(selectedTask.id)}/comments`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ text: newCommentObj.text, author: newCommentObj.author, role: newCommentObj.role }),
+      });
+      if (!response.ok) throw new Error('Comment was not accepted by the server.');
+      persistedComment = await response.json();
+    } catch (error) {
+      pushToast('Comment not saved', error instanceof Error ? error.message : 'Try again.', 'warning');
+      return;
+    }
+    const updated = { ...selectedTask, comments: [...(selectedTask.comments ?? []), persistedComment] };
     setTaskList((current) => current.map((task) => (task.id === selectedTask.id ? updated : task)));
     setSelectedTask(updated);
     setTaskEditor((current) => ({ ...current, comment: '' }));
+  };
+  const submitForGrooming = async () => {
+    if (!selectedTask) return;
+    const candidate: Task = {
+      ...selectedTask,
+      colosseumConfig: {
+        ...selectedTask.colosseumConfig,
+        repository: taskEditor.repository.trim(),
+        work_type: taskEditor.workType,
+        autopilot: taskEditor.autopilot,
+      },
+    };
+    if (!canSubmitForGrooming(candidate)) {
+      pushToast('Repository required', 'Development tickets need a local Git repository before grooming.', 'warning');
+      return;
+    }
+    const saved = await saveTask(false);
+    if (!saved) return;
+    try {
+      const statusResponse = await fetch(`${serverBaseUrl.replace(/\/+$/, '')}/api/tasks/${encodeURIComponent(saved.id)}`, {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify({ status: 'grooming' }),
+      });
+      if (!statusResponse.ok) throw new Error('The ticket could not enter grooming.');
+      let updated = normalizeTaskFromServer(await statusResponse.json(), { ...saved, state: 'grooming' });
+      const readyResponse = await fetch(`${serverBaseUrl.replace(/\/+$/, '')}/api/tasks/${encodeURIComponent(saved.id)}/colosseum-ready-state`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ ready: true }),
+      });
+      if (!readyResponse.ok) throw new Error('Colosseum could not be activated for this ticket.');
+      updated = normalizeTaskFromServer(await readyResponse.json(), updated);
+      setTaskList((current) => current.map((task) => task.id === updated.id ? updated : task));
+      setSelectedTask(updated);
+      setTaskEditor((current) => ({ ...current, state: 'grooming' }));
+      pushToast('Sent to grooming', 'Colosseum can now inspect the ticket and ask for missing details.', 'good');
+    } catch (error) {
+      pushToast('Grooming submission failed', error instanceof Error ? error.message : 'Try again.', 'warning');
+    }
+  };
+  const submitHumanDecision = async (decision: 'approve' | 'reject') => {
+    if (!selectedTask) return;
+    const comment = taskEditor.comment.trim();
+    if (decision === 'reject' && !comment) {
+      pushToast('Reason required', 'Explain what Colosseum must change before resubmitting.', 'warning');
+      setTaskEditorTab('comments');
+      return;
+    }
+    try {
+      const response = await fetch(`${serverBaseUrl.replace(/\/+$/, '')}/api/tasks/${encodeURIComponent(selectedTask.id)}/approval`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ decision, comment }),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || 'The review decision was not accepted.');
+      const updated = normalizeTaskFromServer(payload, selectedTask);
+      setTaskList((current) => current.map((task) => task.id === updated.id ? updated : task));
+      setSelectedTask(updated);
+      setTaskEditor((current) => ({ ...current, state: updated.state, comment: '' }));
+      pushToast(decision === 'approve' ? 'Approved for merge' : 'Changes requested', decision === 'approve' ? 'Colosseum will merge and close the merge request.' : 'The ticket is back in the execution queue.', decision === 'approve' ? 'good' : 'warning');
+    } catch (error) {
+      pushToast('Review decision failed', error instanceof Error ? error.message : 'Try again.', 'warning');
+    }
   };
 
   useEffect(() => {
@@ -1065,7 +1196,7 @@ export function AppOverlays(props: AppOverlaysProps) {
                           <div
                             key={task.id}
                             className="task-kanban-card"
-                          draggable={!isTaskBlocked(task, taskFlags)}
+                          draggable={false}
                           onDragStart={(event) => {
                               if (isTaskBlocked(task, taskFlags)) {
                                 event.preventDefault();
@@ -1098,15 +1229,27 @@ export function AppOverlays(props: AppOverlaysProps) {
                                 {isTaskBlocked(task, taskFlags) && <div className="task-blocked-badge"><Ban size={11} /> Blocked</div>}
                               </div>
                               <div className="task-card-actions">
-                                <button
-                                  type="button"
-                                  className={`task-card-block ${isTaskBlocked(task, taskFlags) ? 'is-blocked' : ''}`}
-                                  aria-label={`${isTaskBlocked(task, taskFlags) ? 'Unblock' : 'Block'} ${task.title}`}
-                                  title={isTaskBlocked(task, taskFlags) ? 'Unblock task' : 'Block task'}
-                                  onClick={(event) => { event.stopPropagation(); toggleTaskBlocked(task); }}
-                                >
-                                  <Ban size={14} />
-                                </button>
+                                {isTaskBlocked(task, taskFlags) ? (
+                                  <button
+                                    type="button"
+                                    className="task-card-block is-unblock-btn"
+                                    aria-label={`Unblock ${task.title}`}
+                                    title="Unblock task"
+                                    onClick={(event) => { event.stopPropagation(); toggleTaskBlocked(task); }}
+                                  >
+                                    Unblock
+                                  </button>
+                                ) : (task.state !== 'human-review' && task.state !== 'approved' && task.state !== 'done') ? (
+                                  <button
+                                    type="button"
+                                    className="task-card-block is-block-btn"
+                                    aria-label={`Block ${task.title}`}
+                                    title="Block task"
+                                    onClick={(event) => { event.stopPropagation(); toggleTaskBlocked(task); }}
+                                  >
+                                    Block
+                                  </button>
+                                ) : null}
                                 <button
                                   type="button"
                                   className="task-card-remove"
@@ -1146,71 +1289,120 @@ export function AppOverlays(props: AppOverlaysProps) {
                           <strong>{visualTimeStats.max} hrs</strong>
                         </div>
                       </div>
-                      <svg className="task-workflow-svg" viewBox={`0 0 1000 ${workflowHeight}`} role="img" aria-label="Task workflow graph">
-                        <defs>
-                          <marker id="task-arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
-                            <path d="M0,0 L0,6 L9,3 z" fill="rgba(0,229,255,0.7)" />
-                          </marker>
-                        </defs>
-                        {workflowEdges.map((edge) => (
-                          <path
-                            key={edge.id}
-                            className="task-workflow-edge"
-                            markerEnd="url(#task-arrow)"
-                            d={`M${edge.source.x},${edge.source.y + 30} C${edge.source.x},${edge.source.y + 56} ${edge.target.x},${edge.target.y - 56} ${edge.target.x},${edge.target.y - 30}`}
-                          />
-                        ))}
-                        {workflowNodes.map(({ task, x, y }) => (
-                          <g key={task.id} className="task-workflow-node" role="button" tabIndex={0} onClick={() => openTaskEditor(task)}>
-                            <rect x={x - 84} y={y - 28} width="168" height="56" rx="0" className={`task-workflow-card priority-${task.priority}`} />
-                            <text x={x} y={y - 7} textAnchor="middle" className="task-workflow-title">{truncateTaskTitle(task.title)}</text>
-                            <text x={x} y={y + 13} textAnchor="middle" className="task-workflow-meta">{task.priority} · {taskFlags[task.id]?.done ? 'done' : task.state}</text>
-                            
-                            {/* Complexity Badge */}
-                            {task.complexity && (
-                              <g>
-                                <rect
-                                  x={x + 35}
-                                  y={y - 24}
-                                  width="45"
-                                  height="12"
-                                  rx="2"
-                                  fill={
-                                    task.complexity === 'extreme' ? 'rgba(255, 0, 85, 0.15)' :
-                                    task.complexity === 'complex' ? 'rgba(255, 170, 0, 0.15)' :
-                                    task.complexity === 'moderate' ? 'rgba(0, 229, 255, 0.15)' :
-                                    'rgba(0, 230, 118, 0.15)'
-                                  }
-                                  stroke={
-                                    task.complexity === 'extreme' ? '#ff0055' :
-                                    task.complexity === 'complex' ? '#ffaa00' :
-                                    task.complexity === 'moderate' ? '#00e5ff' :
-                                    '#00e676'
-                                  }
-                                  strokeWidth="0.5"
-                                />
-                                <text
-                                  x={x + 57.5}
-                                  y={y - 15}
-                                  textAnchor="middle"
-                                  style={{
-                                    fontSize: '7px',
-                                    fill: '#fff',
-                                    fontWeight: 'bold',
-                                    fontFamily: "'Share Tech Mono', monospace",
-                                    textTransform: 'uppercase',
-                                    letterSpacing: '0.05em'
-                                  }}
-                                >
-                                  {task.complexity}
-                                </text>
-                              </g>
-                            )}
+                      <div
+                        className="relative overflow-auto"
+                        onWheel={(event) => {
+                          event.preventDefault();
+                          const zoomDelta = event.deltaY < 0 ? 0.1 : -0.1;
+                          setTaskVisualZoom((z) => Math.min(3, Math.max(0.3, +(z + zoomDelta).toFixed(2))));
+                        }}
+                      >
+                        <div className="sticky top-2 right-2 ml-auto w-fit flex items-center gap-1 z-10 bg-black/70 border border-white/10 p-1 rounded-md backdrop-blur-md">
+                          <button
+                            type="button"
+                            onClick={() => setTaskVisualZoom((z) => Math.min(3, +(z + 0.15).toFixed(2)))}
+                            title="Zoom In"
+                            aria-label="Zoom in visualization"
+                            className="p-1.5 hover:bg-white/10 rounded text-cyan-400 transition-colors"
+                          >
+                            <ZoomIn size={14} />
+                          </button>
+                          <span className="text-[10px] font-mono px-1 text-white/70 min-w-[36px] text-center">
+                            {Math.round(taskVisualZoom * 100)}%
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setTaskVisualZoom((z) => Math.max(0.3, +(z - 0.15).toFixed(2)))}
+                            title="Zoom Out"
+                            aria-label="Zoom out visualization"
+                            className="p-1.5 hover:bg-white/10 rounded text-cyan-400 transition-colors"
+                          >
+                            <ZoomOut size={14} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setTaskVisualZoom(1)}
+                            title="Reset Zoom"
+                            aria-label="Reset visualization zoom"
+                            className="p-1.5 hover:bg-white/10 rounded text-cyan-400 transition-colors"
+                          >
+                            <Maximize size={14} />
+                          </button>
+                        </div>
+                        <div
+                          style={{
+                            transform: `scale(${taskVisualZoom})`,
+                            transformOrigin: 'top left',
+                            transition: 'transform 0.15s ease-out',
+                          }}
+                        >
+                          <svg className="task-workflow-svg" viewBox={`0 0 1000 ${workflowHeight}`} role="img" aria-label="Task workflow graph">
+                            <defs>
+                              <marker id="task-arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+                                <path d="M0,0 L0,6 L9,3 z" fill="rgba(0,229,255,0.7)" />
+                              </marker>
+                            </defs>
+                            {workflowEdges.map((edge) => (
+                              <path
+                                key={edge.id}
+                                className="task-workflow-edge"
+                                markerEnd="url(#task-arrow)"
+                                d={`M${edge.source.x},${edge.source.y + 30} C${edge.source.x},${edge.source.y + 56} ${edge.target.x},${edge.target.y - 56} ${edge.target.x},${edge.target.y - 30}`}
+                              />
+                            ))}
+                            {workflowNodes.map(({ task, x, y }) => (
+                              <g key={task.id} className="task-workflow-node" role="button" tabIndex={0} onClick={() => openTaskEditor(task)}>
+                                <rect x={x - 84} y={y - 28} width="168" height="56" rx="0" className={`task-workflow-card priority-${task.priority}`} />
+                                <text x={x} y={y - 7} textAnchor="middle" className="task-workflow-title">{truncateTaskTitle(task.title)}</text>
+                                <text x={x} y={y + 13} textAnchor="middle" className="task-workflow-meta">{task.priority} · {taskFlags[task.id]?.done ? 'done' : task.state}</text>
 
-                            {(task.dependsOn ?? []).length > 0 && <circle cx={x + 70} cy={y + 15} r="4" className="task-workflow-link-dot" />}
-                          </g>
-                        ))}
-                      </svg>
+                                {/* Complexity Badge */}
+                                {task.complexity && (
+                                  <g>
+                                    <rect
+                                      x={x + 35}
+                                      y={y - 24}
+                                      width="45"
+                                      height="12"
+                                      rx="2"
+                                      fill={
+                                        task.complexity === 'extreme' ? 'rgba(255, 0, 85, 0.15)' :
+                                        task.complexity === 'complex' ? 'rgba(255, 170, 0, 0.15)' :
+                                        task.complexity === 'moderate' ? 'rgba(0, 229, 255, 0.15)' :
+                                        'rgba(0, 230, 118, 0.15)'
+                                      }
+                                      stroke={
+                                        task.complexity === 'extreme' ? '#ff0055' :
+                                        task.complexity === 'complex' ? '#ffaa00' :
+                                        task.complexity === 'moderate' ? '#00e5ff' :
+                                        '#00e676'
+                                      }
+                                      strokeWidth="0.5"
+                                    />
+                                    <text
+                                      x={x + 57.5}
+                                      y={y - 15}
+                                      textAnchor="middle"
+                                      style={{
+                                        fontSize: '7px',
+                                        fill: '#fff',
+                                        fontWeight: 'bold',
+                                        fontFamily: "'Share Tech Mono', monospace",
+                                        textTransform: 'uppercase',
+                                        letterSpacing: '0.05em'
+                                      }}
+                                    >
+                                      {task.complexity}
+                                    </text>
+                                  </g>
+                                )}
+
+                                {(task.dependsOn ?? []).length > 0 && <circle cx={x + 70} cy={y + 15} r="4" className="task-workflow-link-dot" />}
+                              </g>
+                            ))}
+                          </svg>
+                        </div>
+                      </div>
                     </>
                   )}
                 </div>
@@ -1499,6 +1691,10 @@ export function AppOverlays(props: AppOverlaysProps) {
             </div>
 
             {selectedTask && (
+              <ColosseumPhaseLedger state={selectedTask.state} />
+            )}
+
+            {selectedTask && (
               <div className="flex justify-between items-center border-b border-white/10 px-6 py-2">
                 <div className="flex gap-4">
                   <button
@@ -1507,6 +1703,35 @@ export function AppOverlays(props: AppOverlaysProps) {
                     className={`pb-1 text-sm font-semibold border-b-2 transition-all cursor-pointer ${taskEditorTab === 'details' ? 'border-cyan-400 text-cyan-400' : 'border-transparent text-white/50 hover:text-white'}`}
                   >
                     Details
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTaskEditorTab('activity')}
+                    className={`pb-1 text-sm font-semibold border-b-2 transition-all cursor-pointer flex items-center gap-1.5 ${taskEditorTab === 'activity' ? 'border-cyan-400 text-cyan-400' : 'border-transparent text-white/50 hover:text-white'}`}
+                  >
+                    <History size={13} />
+                    <span>Activity</span>
+                    {(selectedTask.colosseumConfig?.runs ?? []).length > 0 && <span className="colosseum-run-count">{selectedTask.colosseumConfig?.runs?.length}</span>}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTaskEditorTab('diff')}
+                    className={`pb-1 text-sm font-semibold border-b-2 transition-all cursor-pointer ${taskEditorTab === 'diff' ? 'border-cyan-400 text-cyan-400' : 'border-transparent text-white/50 hover:text-white'}`}
+                  >
+                    Diff
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTaskEditorTab('comments')}
+                    className={`pb-1 text-sm font-semibold border-b-2 transition-all cursor-pointer flex items-center gap-1.5 ${taskEditorTab === 'comments' ? 'border-cyan-400 text-cyan-400' : 'border-transparent text-white/50 hover:text-white'}`}
+                  >
+                    <MessageSquare size={13} />
+                    <span>Comments</span>
+                    {(selectedTask.comments ?? []).length > 0 && (
+                      <span className="px-1.5 py-0.2 text-[10px] rounded-full bg-cyan-950 text-cyan-300 border border-cyan-800/60 font-mono">
+                        {(selectedTask.comments ?? []).length}
+                      </span>
+                    )}
                   </button>
                   <button
                     type="button"
@@ -1541,40 +1766,37 @@ export function AppOverlays(props: AppOverlaysProps) {
                     <textarea value={taskEditor.description} onChange={(event) => setTaskEditor((current) => ({ ...current, description: event.target.value }))} placeholder="Task detail, acceptance notes, or implementation context." />
                   </label>
                   <div className="task-editor-section">
-                    <div className="task-editor-section-head">Linked Repository</div>
-                    <label className="task-editor-field"><span>Repository</span><div className="task-inline-control"><input value={taskEditor.repository} onChange={(event) => setTaskEditor((current) => ({ ...current, repository: event.target.value }))} placeholder="Choose a local Git repository" /><button type="button" className="ghost-btn" onClick={() => void chooseColosseumRepository()}><FolderOpen size={14} /> Browse…</button></div><span className="task-editor-hint">Choose the local Git repository for this task. Required for Ready status.</span></label>
+                    <div className="task-editor-section-head">Colosseum execution</div>
+                    <label className="task-editor-field">
+                      <span>Work type</span>
+                      <select value={taskEditor.workType} onChange={(event) => setTaskEditor((current) => ({ ...current, workType: event.target.value as 'development' | 'research' }))}>
+                        <option value="development">Development</option>
+                        <option value="research">Research / information</option>
+                      </select>
+                    </label>
+                    {taskEditor.workType === 'development' && (
+                      <label className="task-editor-field"><span>Repository</span><div className="task-inline-control"><input value={taskEditor.repository} onChange={(event) => setTaskEditor((current) => ({ ...current, repository: event.target.value }))} placeholder="Choose a local Git repository" /><button type="button" className="ghost-btn" onClick={() => void chooseColosseumRepository()}><FolderOpen size={14} /> Browse…</button></div><span className="task-editor-hint">Required before the ticket can enter grooming.</span></label>
+                    )}
+                    <label className="colosseum-autopilot-control">
+                      <input type="checkbox" checked={taskEditor.autopilot} onChange={(event) => setTaskEditor((current) => ({ ...current, autopilot: event.target.checked }))} />
+                      <span><strong>Autopilot</strong><small>Merge automatically after an independent Colosseum review passes.</small></span>
+                    </label>
                   </div>
-                  <div className="task-editor-section">
-                    <div className="task-editor-section-head">Comments</div>
-                    <div className="task-comment-list">
-                      {(selectedTask?.comments ?? []).length > 0 ? (selectedTask?.comments ?? []).map((comment, index) => (
-                        <div key={`${selectedTask?.id}-comment-${index}`} className="task-comment">{comment}</div>
-                      )) : (
-                        <div className="workspace-list-empty">No comments yet.</div>
-                      )}
+                  {!selectedTask && (
+                    <div className="task-editor-section">
+                      <div className="task-editor-section-head">Initial Comment</div>
+                      <div className="task-inline-control">
+                        <input value={taskEditor.comment} onChange={(event) => setTaskEditor((current) => ({ ...current, comment: event.target.value }))} placeholder="Initial comment..." />
+                      </div>
                     </div>
-                    <div className="task-inline-control">
-                      <input value={taskEditor.comment} onChange={(event) => setTaskEditor((current) => ({ ...current, comment: event.target.value }))} placeholder={selectedTask ? 'Add comment...' : 'Initial comment...'} />
-                      {selectedTask && <button type="button" className="ghost-btn icon-only" aria-label="Add comment" title="Add comment" onClick={addTaskComment}><Plus size={14} /></button>}
-                    </div>
-                  </div>
+                  )}
                 </div>
 
                 <aside className="task-editor-side">
                   <label className="task-editor-field">
                     <span>Status</span>
-                    <select
-                      value={taskEditor.state}
-                      disabled={Boolean(selectedTask && isTaskBlocked(selectedTask, taskFlags))}
-                      onChange={(event) => setTaskEditor((current) => ({ ...current, state: event.target.value as Task['state'] }))}
-                    >
-                      <option value="backlog">backlog</option>
-                      <option value="ready">ready</option>
-                      <option value="in-progress">in progress</option>
-                      <option value="review">review</option>
-                      <option value="done">done</option>
-                    </select>
-                    {selectedTask && isTaskBlocked(selectedTask, taskFlags) && <span className="task-editor-hint">Status is locked while blocked. Unblock the card first.</span>}
+                    <div className="colosseum-status-readout">{selectedTask ? selectedTask.state.replace('-', ' ') : 'backlog'}</div>
+                    <span className="task-editor-hint">Lifecycle transitions are recorded by Colosseum and human review actions.</span>
                   </label>
                   <label className="task-editor-field">
                     <span>Priority</span>
@@ -1619,17 +1841,201 @@ export function AppOverlays(props: AppOverlaysProps) {
                         <div className="workspace-list-empty">No linked tasks.</div>
                       )}
                     </div>
-                    <div className="task-inline-control">
-                      <select value={taskEditor.dependencyId} onChange={(event) => setTaskEditor((current) => ({ ...current, dependencyId: event.target.value }))} disabled={!selectedTask}>
-                        <option value="">Select task...</option>
-                        {workspaceTasks.filter((task) => task.id !== selectedTask?.id).map((task) => (
-                          <option key={task.id} value={task.id}>{task.title}</option>
-                        ))}
-                      </select>
-                      <button type="button" className="ghost-btn" onClick={addDependency} disabled={!selectedTask}>Link</button>
+                    <div className="task-inline-control relative">
+                      <div className="relative flex-1">
+                        <input
+                          type="text"
+                          value={taskSearchQuery}
+                          disabled={!selectedTask}
+                          onChange={(event) => {
+                            setTaskSearchQuery(event.target.value);
+                            setIsTaskDropdownOpen(true);
+                          }}
+                          onFocus={() => setIsTaskDropdownOpen(true)}
+                          placeholder="Type to search task..."
+                          className="w-full bg-slate-900 border border-white/15 px-2.5 py-1 text-xs rounded text-white focus:outline-none focus:border-cyan-400 placeholder:text-white/30"
+                        />
+                        {isTaskDropdownOpen && selectedTask && (
+                          <div className="absolute left-0 right-0 top-full mt-1 max-h-48 overflow-y-auto bg-slate-900 border border-cyan-500/30 rounded-md shadow-2xl z-50">
+                            {workspaceTasks
+                              .filter((task) => task.id !== selectedTask?.id && !(selectedTask?.dependsOn ?? []).includes(task.id))
+                              .filter((task) => task.title.toLowerCase().includes(taskSearchQuery.toLowerCase()))
+                              .map((task) => (
+                                <button
+                                  key={task.id}
+                                  type="button"
+                                  className="w-full text-left px-3 py-2 text-xs hover:bg-cyan-500/20 text-white/90 border-b border-white/5 last:border-0 flex flex-col gap-0.5"
+                                  onClick={() => {
+                                    setTaskEditor((current) => ({ ...current, dependencyId: task.id }));
+                                    setTaskSearchQuery(task.title);
+                                    setIsTaskDropdownOpen(false);
+                                  }}
+                                >
+                                  <span className="font-semibold text-cyan-300">{task.title}</span>
+                                  <span className="text-[10px] text-white/50">{task.priority} · {task.state}</span>
+                                </button>
+                              ))}
+                            {workspaceTasks
+                              .filter((task) => task.id !== selectedTask?.id && !(selectedTask?.dependsOn ?? []).includes(task.id))
+                              .filter((task) => task.title.toLowerCase().includes(taskSearchQuery.toLowerCase())).length === 0 && (
+                              <div className="px-3 py-2 text-xs text-white/40 italic">No matching tasks found.</div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        className="ghost-btn"
+                        onClick={() => {
+                          void addDependency();
+                          setTaskSearchQuery('');
+                          setIsTaskDropdownOpen(false);
+                        }}
+                        disabled={!selectedTask || !taskEditor.dependencyId}
+                      >
+                        Link
+                      </button>
                     </div>
                   </div>
                 </aside>
+              </div>
+            ) : taskEditorTab === 'activity' ? (
+              <ColosseumRunLedger runs={selectedTask?.colosseumConfig?.runs ?? []} />
+            ) : taskEditorTab === 'diff' ? (
+              <div className="flex flex-col h-[500px] bg-slate-950 p-4 font-mono text-xs overflow-hidden">
+                <div className="flex items-center justify-between pb-3 border-b border-white/10 mb-3">
+                  <div className="flex items-center gap-2 text-cyan-400 font-semibold">
+                    <span>Git Worktree Diff</span>
+                    {taskDiffData?.worktree_path && <span className="text-[10px] text-white/40">({taskDiffData.worktree_path})</span>}
+                  </div>
+                  <div className="text-[11px] text-white/50">
+                    {(taskDiffData?.files || []).length} file(s) changed
+                  </div>
+                </div>
+                {loadingTaskDiff ? (
+                  <div className="flex-1 flex items-center justify-center text-cyan-400/70 animate-pulse">
+                    Loading git diff...
+                  </div>
+                ) : !taskDiffData || (!taskDiffData.diff && (taskDiffData.files || []).length === 0) ? (
+                  <div className="flex-1 flex flex-col items-center justify-center text-white/40 gap-2">
+                    <span>No uncommitted or committed changes found in worktree.</span>
+                    <span className="text-[11px] text-white/20">Worktrees are populated when Colosseum processes a task.</span>
+                  </div>
+                ) : (
+                  <div className="flex-1 flex gap-4 min-h-0">
+                    <div className="w-1/4 border-r border-white/10 pr-2 overflow-y-auto flex flex-col gap-1">
+                      <div className="text-[10px] uppercase font-bold text-white/40 mb-1">Changed Files</div>
+                      {(taskDiffData.files || []).map((file, idx) => (
+                        <div key={idx} className="flex items-center gap-2 text-white/80 hover:text-white text-[11px] py-1 px-1.5 rounded bg-white/5 truncate">
+                          <span className={`text-[10px] font-bold px-1 rounded ${file.status === 'M' ? 'bg-amber-500/20 text-amber-300' : file.status === 'A' ? 'bg-emerald-500/20 text-emerald-300' : 'bg-rose-500/20 text-rose-300'}`}>
+                            {file.status}
+                          </span>
+                          <span className="truncate">{file.path}</span>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="flex-1 bg-black/40 p-3 rounded border border-white/10 overflow-auto whitespace-pre leading-relaxed text-slate-200">
+                      {taskDiffData.diff.split('\n').map((line, idx) => {
+                        let colorClass = 'text-slate-300';
+                        if (line.startsWith('+') && !line.startsWith('+++')) colorClass = 'text-emerald-400 bg-emerald-950/30';
+                        else if (line.startsWith('-') && !line.startsWith('---')) colorClass = 'text-rose-400 bg-rose-950/30';
+                        else if (line.startsWith('@@')) colorClass = 'text-cyan-400 font-bold';
+                        else if (line.startsWith('diff ') || line.startsWith('index ')) colorClass = 'text-white/40 font-bold';
+                        return (
+                          <div key={idx} className={`${colorClass} px-1 rounded-sm`}>
+                            {line || ' '}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : taskEditorTab === 'comments' ? (
+              <div className="flex flex-col h-[500px] bg-slate-950/80 p-4 font-sans text-xs overflow-hidden">
+                <div className="flex items-center justify-between pb-3 border-b border-white/10 mb-3">
+                  <div className="flex items-center gap-2 text-cyan-400 font-semibold">
+                    <MessageSquare size={14} />
+                    <span>Ticket Discussion & Activity</span>
+                  </div>
+                  <div className="text-[11px] text-white/50">
+                    {(selectedTask?.comments ?? []).length} comment(s)
+                  </div>
+                </div>
+
+                <div className="flex-1 overflow-y-auto flex flex-col gap-3 pr-2 mb-3">
+                  {(selectedTask?.comments ?? []).length === 0 ? (
+                    <div className="flex-1 flex flex-col items-center justify-center text-white/30 gap-1">
+                      <MessageSquare size={24} className="opacity-40" />
+                      <span>No comments posted yet.</span>
+                      <span className="text-[11px] text-white/20">Start the conversation below.</span>
+                    </div>
+                  ) : (
+                    (selectedTask?.comments ?? []).map((c, index) => {
+                      const isObj = typeof c === 'object' && c !== null;
+                      const author = isObj ? c.author : 'User';
+                      const text = isObj ? c.text : c;
+                      const dateStr = isObj && c.createdAt ? new Date(c.createdAt).toLocaleString() : '';
+                      const role = isObj && c.role ? c.role : 'user';
+
+                      const isCurrentAuthor = author.toLowerCase() === (authUser?.username || authUser?.name || 'user').toLowerCase();
+
+                      return (
+                        <div
+                          key={`comment-${index}`}
+                          className={`flex flex-col max-w-[80%] rounded-lg p-3 border ${
+                            isCurrentAuthor
+                              ? 'self-end bg-cyan-950/40 border-cyan-500/30 text-cyan-50'
+                              : role === 'agent'
+                              ? 'self-start bg-purple-950/40 border-purple-500/30 text-purple-50'
+                              : 'self-start bg-slate-900 border-white/10 text-slate-200'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between gap-3 border-b border-white/5 pb-1.5 mb-1.5 text-[10px]">
+                            <div className="flex items-center gap-1.5 font-medium">
+                              {role === 'agent' ? <Sparkles size={11} className="text-purple-400" /> : <User size={11} className="text-cyan-400" />}
+                              <span className={isCurrentAuthor ? 'text-cyan-300 font-semibold' : 'text-slate-300'}>{author}</span>
+                              {role && role !== 'user' && (
+                                <span className="px-1 py-0.2 text-[9px] uppercase tracking-wider rounded bg-white/10 font-mono">
+                                  {role}
+                                </span>
+                              )}
+                            </div>
+                            {dateStr && <span className="text-white/40 font-mono text-[9px]">{dateStr}</span>}
+                          </div>
+                          <div className="whitespace-pre-wrap text-[12px] leading-relaxed select-text">
+                            {text}
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+
+                <div className="flex gap-2 pt-2 border-t border-white/10">
+                  <input
+                    type="text"
+                    value={taskEditor.comment}
+                    onChange={(event) => setTaskEditor((current) => ({ ...current, comment: event.target.value }))}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        addTaskComment();
+                      }
+                    }}
+                    placeholder="Type a comment or note (press Enter to send)..."
+                    className="flex-1 bg-black/50 border border-white/15 rounded px-3 py-2 text-xs text-white placeholder:text-white/30 focus:outline-none focus:border-cyan-400"
+                  />
+                  <button
+                    type="button"
+                    onClick={addTaskComment}
+                    disabled={!taskEditor.comment.trim()}
+                    className="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 disabled:opacity-40 disabled:hover:bg-cyan-600 text-white rounded font-medium text-xs flex items-center gap-1.5 transition-colors"
+                  >
+                    <Send size={13} />
+                    <span>Send</span>
+                  </button>
+                </div>
               </div>
             ) : (() => {
               const activeTaskChat = selectedTask ? taskAthenaChats[selectedTask.id] || { messages: [], isLoading: false, error: '', input: '' } : { messages: [], isLoading: false, error: '', input: '' };
@@ -1695,10 +2101,9 @@ export function AppOverlays(props: AppOverlaysProps) {
                           handleTaskAthenaSend(event);
                         }
                       }}
-                      placeholder="Ask Athena about this task..."
-                      disabled={activeTaskChat.isLoading}
+                      placeholder={activeTaskChat.isLoading ? "Athena is thinking... send message to steer" : "Ask Athena about this task..."}
                     />
-                    <button type="button" onClick={handleTaskAthenaSend} disabled={activeTaskChat.isLoading || !(activeTaskChat.input || '').trim()} title="Send" aria-label="Send">
+                    <button type="button" onClick={handleTaskAthenaSend} disabled={!(activeTaskChat.input || '').trim()} title="Send" aria-label="Send">
                       <Send size={15} />
                     </button>
                     {activeTaskChat.messages.length > 0 && onClearTaskAthenaChat && (
@@ -1719,6 +2124,15 @@ export function AppOverlays(props: AppOverlaysProps) {
             })()}
 
             <div className="modal-actions">
+              {(selectedTask?.state === 'backlog' || selectedTask?.state === 'grooming') && taskEditorTab === 'details' && (
+                <button type="button" className="ghost-btn colosseum-submit-btn" onClick={() => void submitForGrooming()}><Zap size={14} /> {selectedTask.state === 'grooming' ? 'Retry grooming' : 'Send to grooming'}</button>
+              )}
+              {selectedTask?.state === 'human-review' && (
+                <>
+                  <button type="button" className="ghost-btn colosseum-reject-btn" onClick={() => void submitHumanDecision('reject')}>Request changes</button>
+                  <button type="button" className="ghost-btn colosseum-approve-btn" onClick={() => void submitHumanDecision('approve')}><Check size={14} /> Approve</button>
+                </>
+              )}
               {(!selectedTask || taskEditorTab === 'details') && (
                 <button type="submit" className="ghost-btn action-save icon-only" aria-label={selectedTask ? 'Save task' : 'Create task'} title={selectedTask ? 'Save task' : 'Create task'}><Check size={14} /></button>
               )}

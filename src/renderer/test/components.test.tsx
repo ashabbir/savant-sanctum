@@ -633,7 +633,7 @@ describe('renderer components', () => {
       />
     );
 
-    expect(html).toContain('Athena AI Assistant');
+    expect(html).toContain('ATHENA');
     expect(html).toContain('Hello, how can I help?');
   });
 });

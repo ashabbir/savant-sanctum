@@ -1,5 +1,5 @@
 import type { Artifact, Session, Task, Workspace } from '../data';
-import { buildAthenaPromptSections, formatWorkspaceKnowledgeGraph } from '../lib/athenaContext';
+import { buildAthenaPromptSections, formatWorkspaceKnowledgeGraph, TASK_ATHENA_SYSTEM_DIRECTIVE } from '../lib/athenaContext';
 
 export type ChatMessage = {
   id: string;
@@ -7,6 +7,51 @@ export type ChatMessage = {
   text: string;
   timestamp: string;
 };
+
+export function buildTaskAthenaPrompt(args: {
+  task: Task;
+  workspace: Workspace | undefined;
+  messages: ChatMessage[];
+  userText: string;
+  mcpData: any;
+}) {
+  const { task, workspace, messages, userText, mcpData } = args;
+
+  const linkedRepo = task.colosseumConfig?.repository ? task.colosseumConfig.repository.trim() : '';
+
+  const taskContextLines = [
+    `Title: ${task.title}`,
+    `ID: ${task.id}`,
+    `State: ${task.state}`,
+    `Priority: ${task.priority}`,
+    linkedRepo ? `Linked Target Repository: ${linkedRepo}` : '',
+    task.owner ? `Owner: ${task.owner}` : '',
+    task.due ? `Due: ${task.due}` : '',
+    task.description ? `Description:\n${task.description}` : '',
+    task.dependsOn?.length ? `Depends On: ${task.dependsOn.join(', ')}` : '',
+    task.comments?.length ? `Comments:\n${task.comments.map((c) => `- ${c}`).join('\n')}` : '',
+  ].filter(Boolean).join('\n');
+
+  const workspaceContextLines = workspace
+    ? [
+        `Workspace Name: ${workspace.name}`,
+        `Workspace ID: ${workspace.id}`,
+        `Status: ${workspace.status}`,
+        workspace.summary ? `Summary: ${workspace.summary}` : '',
+      ].filter(Boolean).join('\n')
+    : `Workspace ID: ${task.workspaceId}`;
+
+  return buildAthenaPromptSections(
+    [
+      ['TASK CONTEXT', taskContextLines],
+      ['WORKSPACE SUMMARY', workspaceContextLines],
+      ['AVAILABLE MCPS', formatGatewayMCPs(mcpData)],
+      ['CONVERSATION HISTORY', formatHistory(messages.slice(0, -1))],
+      ['NEW USER QUESTION', userText],
+    ],
+    TASK_ATHENA_SYSTEM_DIRECTIVE
+  );
+}
 
 export function buildWorkspaceAthenaPrompt(args: {
   workspace: Workspace | undefined;

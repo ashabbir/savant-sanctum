@@ -30,8 +30,20 @@ export const ATHENA_SYSTEM_DIRECTIVE = [
   'You have the ability to edit the task, update the task, change task status, and add links using the workspace MCP tools. Use them to make modifications when requested by the user.',
 ].join(' ');
 
-export function buildAthenaPromptSections(sections: Array<[string, string]>) {
-  return [ATHENA_SYSTEM_DIRECTIVE, ...sections.map(([title, body]) => `[${title}]\n${body}`)].join('\n\n');
+export const TASK_ATHENA_SYSTEM_DIRECTIVE = [
+  'You are ATHENA inside Savant Sanctum, acting as a Task Grooming Assistant.',
+  'PRIMARY GOAL: Groom the ticket with the operator, refine scope and acceptance criteria, and when instructed to "lock down requirements" (or when the user agrees/requests), IMMEDIATELY update the ticket title and description via the savant-workspace update_task MCP tool.',
+  'OPERATIONAL DIRECTIVES:',
+  '1. MAIN OBJECTIVE - LOCK DOWN REQUIREMENTS: When the operator says "lock down the requirements", "lock it down", "update the ticket", or agrees to finalized scope, YOUR PRIMARY TASK IS TO CALL update_task via savant-workspace MCP to persist the refined Title and detailed Markdown Description.',
+  '2. FAST & DIRECT: Do NOT loop, wander, or make extra unnecessary tool calls. Be direct and fast.',
+  '3. REPOSITORY AWARENESS: Read the Linked Target Repository from the task context and use it to ground all domain and technical recommendations.',
+  '4. RESTRICTED TOOLS: You are ONLY allowed to call Savant MCP tools (savant-context, savant-knowledge, savant-workspace). NEVER call filesystem tools, shell commands, or perform local file read/write operations.',
+  '5. NO LOCAL FILE OPERATIONS: Do NOT touch files on disk. Operate strictly in-memory with ticket metadata and Savant MCP tools.',
+  '6. CONFIRMATION GATE: When grooming reaches clarity, ask the user: "Would you like me to lock down these requirements and update the ticket title and description?" Once confirmed, execute update_task immediately.',
+].join(' ');
+
+export function buildAthenaPromptSections(sections: Array<[string, string]>, customSystemDirective?: string) {
+  return [customSystemDirective || ATHENA_SYSTEM_DIRECTIVE, ...sections.map(([title, body]) => `[${title}]\n${body}`)].join('\n\n');
 }
 
 export async function fetchWorkspaceKnowledgeGraph(baseUrl: string, apiKey: string, workspaceId: string) {
@@ -104,6 +116,26 @@ export async function fetchGatewayMCPs(gatewayUrl: string): Promise<any> {
     }
   }
   return null;
+}
+
+export function filterSavantMcpData(mcpData: any): any {
+  if (!mcpData) return null;
+  if (Array.isArray(mcpData)) {
+    return mcpData.filter((item: any) => {
+      const name = String(item?.name || item?.id || item || '').toLowerCase();
+      return name.includes('savant');
+    });
+  }
+  if (typeof mcpData === 'object') {
+    const filtered: Record<string, any> = {};
+    for (const [key, val] of Object.entries(mcpData)) {
+      if (key.toLowerCase().includes('savant')) {
+        filtered[key] = val;
+      }
+    }
+    return Object.keys(filtered).length ? filtered : mcpData;
+  }
+  return mcpData;
 }
 
 export function formatGatewayMCPs(mcpData: any): string {

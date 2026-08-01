@@ -35,3 +35,22 @@ export const canMoveTask = (
   if (!isTaskBlocked(task, taskFlags)) return true;
   return targetState === task.state;
 };
+
+export const COLOSSEUM_PHASES: Task['state'][] = [
+  'backlog',
+  'grooming',
+  'ready',
+  'in-progress',
+  'review',
+  'human-review',
+  'approved',
+  'done',
+];
+
+export const canSubmitForGrooming = (task: Task): boolean => {
+  if (task.state !== 'backlog' && task.state !== 'grooming') return false;
+  if (task.colosseumConfig?.work_type !== 'development') return true;
+  return Boolean(task.colosseumConfig.repository?.trim());
+};
+
+export const isAwaitingHumanReview = (task: Task): boolean => task.state === 'human-review';
