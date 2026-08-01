@@ -753,11 +753,6 @@ export function AppOverlays(props: AppOverlaysProps) {
   }, [isTaskModalOpen, selectedTask?.id, workspaceTasks]);
   const moveTask = (taskId: string, state: Task['state']) => {
     const currentTask = workspaceTasks.find((task) => task.id === taskId);
-    if (currentTask && currentTask.state !== state) {
-      pushToast('Lifecycle controlled', 'Open the ticket to submit it for grooming or complete human review.', 'warning');
-      setDraggingTaskId(null);
-      return;
-    }
     if (currentTask && !canMoveTask(currentTask, state, taskFlags)) {
       pushToast('Task blocked', `${currentTask.title} must be unblocked before changing status.`, 'warning');
       setDraggingTaskId(null);
@@ -1221,7 +1216,7 @@ export function AppOverlays(props: AppOverlaysProps) {
                           <div
                             key={task.id}
                             className="task-kanban-card"
-                          draggable={false}
+                            draggable
                           onDragStart={(event) => {
                               if (isTaskBlocked(task, taskFlags)) {
                                 event.preventDefault();

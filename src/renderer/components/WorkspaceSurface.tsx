@@ -217,11 +217,6 @@ export function WorkspaceSurface(props: WorkspaceSurfaceProps) {
   });
   const moveGlobalTask = (taskId: string, state: Task['state']) => {
     const currentTask = allTasks.find((task) => task.id === taskId);
-    if (currentTask && currentTask.state !== state) {
-      pushToast('Lifecycle controlled', 'Open the ticket to submit it for grooming or complete human review.', 'warning');
-      setDraggingTaskId(null);
-      return;
-    }
     if (currentTask && !canMoveTask(currentTask, state, taskFlags)) {
       pushToast('Task blocked', `${currentTask.title} must be unblocked before changing status.`, 'warning');
       setDraggingTaskId(null);
@@ -236,7 +231,7 @@ export function WorkspaceSurface(props: WorkspaceSurfaceProps) {
     void fetch(`${serverBaseUrl.replace(/\/+$/, '')}/api/tasks/${encodeURIComponent(taskId)}`, {
       method: 'PUT',
       headers,
-      body: JSON.stringify({ status: state }),
+      body: JSON.stringify({ status: state === 'backlog' ? 'todo' : state }),
     }).catch(() => undefined);
   };
   const toggleTaskBlocked = (task: Task) => {
@@ -545,7 +540,7 @@ export function WorkspaceSurface(props: WorkspaceSurfaceProps) {
                         <div
                           key={task.id}
                           className="task-kanban-card"
-                          draggable={false}
+                          draggable
                           onDragStart={(event) => {
                             if (isTaskBlocked(task, taskFlags)) {
                               event.preventDefault();
