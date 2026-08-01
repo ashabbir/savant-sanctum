@@ -353,7 +353,7 @@ describe('renderer components', () => {
   });
 
   it('uses Colosseum defaults when settings have not been persisted yet', () => {
-    expect(withDefaultColosseumSettings(undefined, DEFAULT_COLOSSEUM_READY_SETTINGS).persona).toBe('persona.engineer');
+    expect(withDefaultColosseumSettings(undefined, DEFAULT_COLOSSEUM_READY_SETTINGS).persona).toBe('persona.coder');
   });
 
   it('recognizes the expected BottomBar timeout abort', () => {

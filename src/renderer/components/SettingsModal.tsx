@@ -59,7 +59,7 @@ export const DEFAULT_COLOSSEUM_GROOMING_SETTINGS: ColosseumSettings = {
 };
 
 export const DEFAULT_COLOSSEUM_READY_SETTINGS: ColosseumSettings = {
-  persona: 'persona.engineer', tags: 'engineering, execution, code-review', provider: '', model: '',
+  persona: 'persona.coder', tags: 'engineering, execution, code-review', provider: '', model: '',
 };
 
 export const DEFAULT_COLOSSEUM_REVIEW_SETTINGS: ColosseumSettings = {

@@ -15,7 +15,7 @@ describe('Colosseum phase settings', () => {
     );
 
     expect(configs.grooming.persona).toBe('persona.architect');
-    expect(configs.ready.persona).toBe('persona.engineer');
+    expect(configs.ready.persona).toBe('persona.coder');
     expect(configs.review.persona).toBe('persona.reviewer');
   });
 
