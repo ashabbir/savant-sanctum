@@ -1,5 +1,6 @@
-import { History } from 'lucide-react';
-import type { ColosseumRun, Task } from '../data';
+import { Activity, History } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import type { ColosseumHeartbeat, ColosseumRun, Task } from '../data';
 import { COLOSSEUM_PHASES } from '../lib/taskBoard';
 
 export function ColosseumPhaseLedger({ state }: { state: Task['state'] }) {
@@ -46,6 +47,55 @@ function RunCard({ run }: { run: ColosseumRun }) {
         {run.log_path && <span title={run.log_path}>log available</span>}
       </footer>
     </article>
+  );
+}
+
+export const COLOSSEUM_HEARTBEAT_QUIET_AFTER_MS = 30_000;
+export const COLOSSEUM_HEARTBEAT_STALE_AFTER_MS = 45_000;
+
+export function classifyColosseumHeartbeat(heartbeatAt: string, now = Date.now()) {
+  const heartbeatTime = Date.parse(heartbeatAt);
+  const ageMs = Number.isFinite(heartbeatTime) ? Math.max(0, now - heartbeatTime) : Number.POSITIVE_INFINITY;
+  if (ageMs > COLOSSEUM_HEARTBEAT_STALE_AFTER_MS) return { state: 'stale' as const, ageMs };
+  if (ageMs > COLOSSEUM_HEARTBEAT_QUIET_AFTER_MS) return { state: 'quiet' as const, ageMs };
+  return { state: 'live' as const, ageMs };
+}
+
+function formatDuration(milliseconds: number) {
+  if (!Number.isFinite(milliseconds)) return 'unknown';
+  const seconds = Math.max(0, Math.floor(milliseconds / 1000));
+  if (seconds < 5) return 'just now';
+  if (seconds < 60) return `${seconds}s ago`;
+  const minutes = Math.floor(seconds / 60);
+  return `${minutes}m ${seconds % 60}s ago`;
+}
+
+export function ColosseumLivePulse({ heartbeat, now }: { heartbeat: ColosseumHeartbeat; now?: number }) {
+  const [clock, setClock] = useState(() => now ?? Date.now());
+
+  useEffect(() => {
+    if (now !== undefined) return undefined;
+    const interval = window.setInterval(() => setClock(Date.now()), 1000);
+    return () => window.clearInterval(interval);
+  }, [now]);
+
+  const signal = classifyColosseumHeartbeat(heartbeat.heartbeat_at, now ?? clock);
+  const signalLabel = signal.state === 'live' ? 'Running' : signal.state === 'quiet' ? 'Quiet' : 'Signal stale';
+  const persona = heartbeat.persona?.replace('persona.', '') ?? 'agent';
+  const startedAt = Date.parse(heartbeat.started_at);
+
+  return (
+    <section className={`colosseum-live-pulse colosseum-live-pulse-${signal.state}`} aria-label={`Colosseum ${signalLabel.toLowerCase()}`}>
+      <div className="colosseum-live-pulse-signal" aria-hidden="true"><Activity size={14} /><span /></div>
+      <div className="colosseum-live-pulse-copy">
+        <div><strong>{signalLabel}</strong><span>{heartbeat.phase}</span><span>{persona}</span></div>
+        <p>{heartbeat.message}</p>
+      </div>
+      <div className="colosseum-live-pulse-time">
+        <strong>{Number.isFinite(startedAt) ? formatDuration((now ?? clock) - startedAt).replace(' ago', '') : 'unknown'}</strong>
+        <span>last signal {formatDuration(signal.ageMs)}</span>
+      </div>
+    </section>
   );
 }
 

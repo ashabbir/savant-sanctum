@@ -4002,6 +4002,21 @@ h3 {
 .colosseum-run-ledger-head span { color: #22d3ee; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
 .colosseum-run-ledger-head strong { color: rgba(226,232,240,.68); font: 500 10px ui-monospace, SFMono-Regular, Menlo, monospace; }
 .colosseum-run-ledger-head small { max-width: 330px; color: rgba(148,163,184,.55); font-size: 10px; text-align: right; }
+.colosseum-live-pulse-shell { padding: 10px 24px 0; background: rgba(2, 8, 23, 0.82); }
+.colosseum-live-pulse { display: grid; grid-template-columns: 32px minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 11px 12px; border: 1px solid rgba(34,211,238,.24); border-left: 2px solid #22d3ee; border-radius: 4px; background: linear-gradient(90deg, rgba(8,145,178,.12), rgba(15,23,42,.64)); }
+.colosseum-live-pulse-signal { position: relative; display: grid; width: 30px; height: 30px; place-items: center; color: #67e8f9; }
+.colosseum-live-pulse-signal span { position: absolute; inset: 2px; border: 1px solid rgba(34,211,238,.48); border-radius: 50%; }
+.colosseum-live-pulse-copy { min-width: 0; }
+.colosseum-live-pulse-copy > div { display: flex; align-items: center; gap: 7px; }
+.colosseum-live-pulse-copy strong { color: #67e8f9; font: 700 10px ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .08em; text-transform: uppercase; }
+.colosseum-live-pulse-copy span { padding-left: 7px; border-left: 1px solid rgba(148,163,184,.2); color: rgba(203,213,225,.6); font: 600 9px ui-monospace, SFMono-Regular, Menlo, monospace; text-transform: uppercase; }
+.colosseum-live-pulse-copy p { margin: 4px 0 0; overflow: hidden; color: rgba(226,232,240,.86); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.colosseum-live-pulse-time { display: flex; align-items: flex-end; flex-direction: column; gap: 2px; color: rgba(148,163,184,.5); font: 9px ui-monospace, SFMono-Regular, Menlo, monospace; }
+.colosseum-live-pulse-time strong { color: rgba(226,232,240,.76); font-size: 11px; }
+.colosseum-live-pulse-quiet { border-left-color: #f59e0b; }
+.colosseum-live-pulse-quiet .colosseum-live-pulse-signal, .colosseum-live-pulse-quiet .colosseum-live-pulse-copy strong { color: #fbbf24; }
+.colosseum-live-pulse-stale { border-color: rgba(248,113,113,.24); border-left-color: #f87171; background: linear-gradient(90deg, rgba(127,29,29,.14), rgba(15,23,42,.64)); }
+.colosseum-live-pulse-stale .colosseum-live-pulse-signal, .colosseum-live-pulse-stale .colosseum-live-pulse-copy strong { color: #fca5a5; }
 .colosseum-run-list { display: flex; flex: 1; flex-direction: column; gap: 10px; padding-top: 12px; overflow-y: auto; }
 .colosseum-run-empty { display: grid; flex: 1; place-items: center; align-content: center; gap: 6px; color: rgba(148,163,184,.38); }
 .colosseum-run-empty strong { color: rgba(226,232,240,.64); font-size: 12px; }
@@ -4023,8 +4038,13 @@ h3 {
 
 @media (prefers-reduced-motion: no-preference) {
   .colosseum-phase-active span { animation: colosseum-phase-pulse 1.8s ease-in-out infinite; }
+  .colosseum-live-pulse-live .colosseum-live-pulse-signal span { animation: colosseum-heartbeat-pulse 1.5s ease-out infinite; }
 }
 
 @keyframes colosseum-phase-pulse {
   50% { box-shadow: 0 0 20px rgba(34, 211, 238, 0.62); }
+}
+
+@keyframes colosseum-heartbeat-pulse {
+  100% { opacity: 0; transform: scale(1.35); }
 }

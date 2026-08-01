@@ -24,6 +24,7 @@ import {
   History,
   Share2
 } from 'lucide-react';
+import { collectColosseumResponseNotifications } from './lib/colosseumNotifications';
 import {
   artifacts,
   localSetup,
@@ -280,6 +281,8 @@ function App() {
   const [managementDrawer, setManagementDrawer] = useState<'tasks' | 'reminders' | null>(null);
   const [activityFeed, setActivityFeed] = useState<ActivityItem[]>([]);
   const [toasts, setToasts] = useState<Toast[]>([]);
+  const colosseumToastSignaturesRef = useRef(new Map<string, string>());
+  const hasLoadedColosseumSignalsRef = useRef(false);
   const [workspaceList, setWorkspaceList] = useState<Workspace[]>([]);
   const [sessionList, setSessionList] = useState<Session[]>(savedState.sessionList ?? []);
   const [workspaceSessionFiles, setWorkspaceSessionFiles] = useState<WorkspaceSessionFileGroups>({});
@@ -957,6 +960,8 @@ function App() {
   useEffect(() => {
     let cancelled = false;
     const headers = buildSavantHeaders(apiKey);
+    colosseumToastSignaturesRef.current = new Map();
+    hasLoadedColosseumSignalsRef.current = false;
 
     const loadWorkspaceData = async () => {
       if (!activeWorkspaceId) return;
@@ -967,7 +972,7 @@ function App() {
         ]);
         if (tasksResponse.ok) {
           const tasksData = await tasksResponse.json();
-            setTaskList(tasksData.map((task: any) => {
+            const normalizedTasks = tasksData.map((task: any) => {
               const idStr = String(task.task_id ?? task.id ?? task.title ?? '');
               let hash = 0;
               for (let i = 0; i < idStr.length; i++) {
@@ -994,7 +999,20 @@ function App() {
                 complexity: task.complexity ?? defaultComplexity,
                 colosseumConfig: task.colosseum_config ?? undefined,
               };
-            }));
+            });
+            if (!cancelled) {
+              const batch = collectColosseumResponseNotifications(
+                normalizedTasks,
+                colosseumToastSignaturesRef.current,
+                hasLoadedColosseumSignalsRef.current,
+              );
+              colosseumToastSignaturesRef.current = batch.signatures;
+              hasLoadedColosseumSignalsRef.current = true;
+              setTaskList(normalizedTasks);
+              batch.notifications.forEach((notification) => {
+                pushToast(notification.title, notification.detail, notification.tone);
+              });
+            }
         }
         if (remindersResponse.ok) {
           const remindersData = await remindersResponse.json();
@@ -1014,9 +1032,13 @@ function App() {
       }
     };
 
-    loadWorkspaceData();
+    void loadWorkspaceData();
+    const interval = window.setInterval(() => {
+      void loadWorkspaceData();
+    }, 5000);
     return () => {
       cancelled = true;
+      window.clearInterval(interval);
     };
   }, [activeWorkspaceId, apiKey, serverBaseUrl]);
 

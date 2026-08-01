@@ -9,7 +9,7 @@ import { canMoveTask, canSubmitForGrooming, isTaskBlocked, taskBoardState, taskW
 import { buildSavantHeaders } from '../services/httpClient';
 import { WorkspaceSessionsDrawer } from './WorkspaceSessionsDrawer';
 import { WorkspaceSessionDetailsDrawer } from './WorkspaceSessionDetailsDrawer';
-import { ColosseumPhaseLedger, ColosseumRunLedger } from './ColosseumTaskEvidence';
+import { ColosseumLivePulse, ColosseumPhaseLedger, ColosseumRunLedger } from './ColosseumTaskEvidence';
 import { getSessionAdapter, inferSessionProvider, type SessionConversationMessage, type SessionFileGroup } from '../services/sessionAdapters';
 
 type WorkspaceMergeRequest = {
@@ -739,6 +739,18 @@ export function AppOverlays(props: AppOverlaysProps) {
     openTaskEditor(taskToEdit);
     onTaskEditOpened();
   }, [taskToEdit]);
+  useEffect(() => {
+    if (!isTaskModalOpen || !selectedTask) return;
+    const refreshed = taskList.find((task) => task.id === selectedTask.id);
+    if (!refreshed) return;
+    setSelectedTask((current) => current ? {
+      ...current,
+      state: refreshed.state,
+      comments: refreshed.comments,
+      updatedAt: refreshed.updatedAt,
+      colosseumConfig: refreshed.colosseumConfig,
+    } : current);
+  }, [isTaskModalOpen, selectedTask?.id, taskList]);
   const moveTask = (taskId: string, state: Task['state']) => {
     const currentTask = workspaceTasks.find((task) => task.id === taskId);
     if (currentTask && currentTask.state !== state) {
@@ -1705,6 +1717,11 @@ export function AppOverlays(props: AppOverlaysProps) {
 
             {selectedTask && (
               <ColosseumPhaseLedger state={selectedTask.state} />
+            )}
+            {selectedTask?.colosseumConfig?.active_run && (
+              <div className="colosseum-live-pulse-shell">
+                <ColosseumLivePulse heartbeat={selectedTask.colosseumConfig.active_run} />
+              </div>
             )}
 
             {selectedTask && (

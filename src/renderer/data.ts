@@ -98,6 +98,22 @@ export type ColosseumRun = {
   mr_id?: string;
 };
 
+export type ColosseumHeartbeat = {
+  run_id: string;
+  task_id?: string;
+  phase: 'grooming' | 'work' | 'review' | 'merge';
+  status: 'starting' | 'running' | 'validating' | 'publishing' | 'completed' | 'failed';
+  persona?: string;
+  provider?: string;
+  model?: string;
+  started_at: string;
+  heartbeat_at: string;
+  message: string;
+  sequence?: number;
+  log_path?: string;
+  worktree_path?: string;
+};
+
 export type ColosseumTaskConfig = {
   repository?: string;
   provider?: string;
@@ -115,6 +131,7 @@ export type ColosseumTaskConfig = {
   work_type?: 'development' | 'research';
   autopilot?: boolean;
   runs?: ColosseumRun[];
+  active_run?: ColosseumHeartbeat | null;
   worktree_path?: string;
   branch?: string;
   base_branch?: string;
