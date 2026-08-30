@@ -33,6 +33,24 @@ interface Window {
       provider?: string;
       title?: string;
       agentType?: string;
+      model?: string;
+      messageCount?: number;
+      startedAt?: string;
+      endedAt?: string;
+      endReason?: string;
+      parentSessionId?: string;
+      stats?: {
+        messageCount: number;
+        tokenCount: number;
+        apiCallCount: number;
+        inputTokens: number;
+        outputTokens: number;
+        reasoningTokens: number;
+        cacheReadTokens: number;
+        cacheWriteTokens: number;
+        estimatedCostUsd: number;
+        models: string[];
+      };
       files?: Array<{ path: string; name: string; category: string; size?: number }>;
     }>;
   };

@@ -61,7 +61,7 @@ import {
   type WorkspaceEditorDraft,
   type WorkspaceEditorMode,
 } from './components/workspaceEditor';
-import { getSessionAdapter, inferSessionProvider, type SessionConversationMessage, type SessionFileGroup } from './services/sessionAdapters';
+import { getSessionAdapter, inferSessionProvider, mergeLocalSessionMetadata, type SessionConversationMessage, type SessionFileGroup } from './services/sessionAdapters';
 import { DetailBlock, DetailRow, IntelligencePulse, KnowledgeNetwork, Metric, PanelHeader, Row, StatusOrb } from './components/WorkspacePrimitives';
 import {
   fetchWorkspaceKnowledgeGraph,
@@ -1170,16 +1170,7 @@ function App() {
         const metadataBySession = new Map(discoveredMetadata);
         const nextSessions = [...linkedSessions, ...groupOnlySessions].map((session) => {
           const metadata = metadataBySession.get(session.id);
-          if (!metadata) return session;
-          const provider = metadata.provider ? getSessionAdapter(metadata.provider).displayName : session.provider;
-          return {
-            ...session,
-            title: metadata.title || session.title,
-            provider,
-            agentType: metadata.agentType || session.agentType,
-            files: metadata.files?.length || session.files,
-            linked: metadata.files?.length || session.linked,
-          };
+          return mergeLocalSessionMetadata(session, metadata);
         });
         setSessionList((current) => [
           ...current.filter((session) => session.workspaceId !== activeWorkspaceId),

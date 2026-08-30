@@ -8,6 +8,15 @@ import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import http from 'node:http';
 import https from 'node:https';
+import {
+  databaseHasSession,
+  hermesMessageDetail,
+  hermesMessageKind,
+  listHermesDatabases,
+  readHermesMessages,
+  readHermesSessionMetadata,
+  type SqlDatabase,
+} from './hermesStore.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -546,27 +555,100 @@ async function loadAgyConversation(sessionId: string): Promise<LocalConversation
   return [];
 }
 
+const HERMES_ROOTS = [HERMES_DIR, path.join(os.homedir(), '.local', 'state', 'hermes')];
+
+/**
+ * Open the read-only Hermes state database that actually contains `sessionId`.
+ *
+ * Hermes is profile-scoped, so several databases can exist; candidates are
+ * enumerated deterministically and backups/snapshots are skipped. The caller
+ * owns closing the handle.
+ */
+function openHermesDatabaseForSession(sessionId: string): { db: SqlDatabase; filePath: string } | null {
+  const Database = loadBetterSqlite3();
+  if (!Database) return null;
+  for (const root of HERMES_ROOTS) {
+    for (const filePath of listHermesDatabases(root, fsSync, path.join)) {
+      let db: SqlDatabase | null = null;
+      try {
+        db = new Database(filePath, { readonly: true, fileMustExist: true }) as SqlDatabase;
+        if (databaseHasSession(db, sessionId)) return { db, filePath };
+        db.close?.();
+      } catch {
+        db?.close?.();
+      }
+    }
+  }
+  return null;
+}
+
 async function loadHermesConversation(sessionId: string): Promise<LocalConversationMessage[]> {
   const sid = String(sessionId || '').trim();
   if (!sid) return [];
-  for (const root of [HERMES_DIR, path.join(os.homedir(), '.local', 'state', 'hermes')]) {
+
+  const opened = openHermesDatabaseForSession(sid);
+  if (opened) {
+    try {
+      const messages: LocalConversationMessage[] = [];
+      readHermesMessages(opened.db, sid).forEach((row, index) => {
+        const detail = hermesMessageDetail(row);
+        if (!detail) return;
+        const time = toIsoTime(row.timestamp) || new Date().toISOString();
+        messages.push(makeMessage('hermes', sid, hermesMessageKind(row), index, time, detail));
+      });
+      if (messages.length) return messages;
+    } finally {
+      opened.db.close?.();
+    }
+  }
+
+  // Older Hermes builds wrote per-session transcript files instead of SQLite.
+  for (const root of HERMES_ROOTS) {
     try {
       const entries = await fs.readdir(root, { recursive: true }) as string[];
-      const match = entries.find((entry) => entry.includes(sid) && /\.(jsonl?|ndjson|txt|log|db)$/i.test(entry));
+      const match = entries.find((entry) => entry.includes(sid) && /\.(jsonl?|ndjson|txt|log)$/i.test(entry));
       if (!match) continue;
-      const fullPath = path.join(root, match);
-      if (/\.db$/i.test(fullPath)) {
-        const messages = await loadConversationFromSqlite(fullPath, 'hermes', sid);
-        if (messages.length) return messages;
-      } else {
-        const messages = loadTranscriptMessages('hermes', await fs.readFile(fullPath, 'utf8'), sid);
-        if (messages.length) return messages;
-      }
+      const messages = loadTranscriptMessages('hermes', await fs.readFile(path.join(root, match), 'utf8'), sid);
+      if (messages.length) return messages;
     } catch {
       // Hermes data is optional and layout varies by version.
     }
   }
   return [];
+}
+
+/** Session list/statistics metadata for a Hermes session, if we can find it. */
+function loadHermesSessionMetadata(sessionId: string) {
+  const sid = String(sessionId || '').trim();
+  if (!sid) return null;
+  const opened = openHermesDatabaseForSession(sid);
+  if (!opened) return null;
+  try {
+    const meta = readHermesSessionMetadata(opened.db, sid);
+    if (!meta) return null;
+    const stat = (() => {
+      try {
+        return fsSync.statSync(opened.filePath);
+      } catch {
+        return null;
+      }
+    })();
+    return {
+      provider: 'hermes',
+      title: meta.displayName ?? '',
+      agentType: meta.source ? `hermes-${meta.source}` : 'hermes-cli',
+      model: meta.model,
+      messageCount: meta.messageCount,
+      startedAt: toIsoTime(meta.startedAt) || undefined,
+      endedAt: toIsoTime(meta.endedAt) || undefined,
+      endReason: meta.endReason,
+      parentSessionId: meta.parentSessionId,
+      stats: meta.stats,
+      files: [{ path: opened.filePath, name: path.basename(opened.filePath), category: 'transcript', size: stat?.size ?? 0 }],
+    };
+  } finally {
+    opened.db.close?.();
+  }
 }
 
 async function loadLocalConversation(provider: string, sessionId: string): Promise<LocalConversationMessage[]> {
@@ -584,12 +666,18 @@ async function findLocalSessionMetadata(sessionId: string, provider?: string) {
   const sid = String(sessionId || '').trim();
   if (!sid) return {};
   const requested = String(provider || '').trim().toLowerCase();
+  const hermesAllowed = !requested || requested === 'session' || requested === 'savant'
+    || requested === 'hermes' || requested === 'hermes-agent';
+  if (hermesAllowed) {
+    const hermesMetadata = loadHermesSessionMetadata(sid);
+    if (hermesMetadata) return hermesMetadata;
+  }
   const roots: Array<{ provider: string; root: string; pattern: RegExp }> = [
     { provider: 'codex', root: path.join(CODEX_DIR, 'sessions'), pattern: new RegExp(`rollout-.*${sid}.*\\.jsonl$`, 'i') },
     { provider: 'claude', root: path.join(CLAUDE_DIR, 'projects'), pattern: new RegExp(`${sid}.*\\.jsonl$`, 'i') },
     { provider: 'gemini', root: path.join(GEMINI_DIR, 'antigravity-cli', 'conversations'), pattern: new RegExp(sid, 'i') },
     { provider: 'agy', root: AGY_DIR, pattern: new RegExp(sid, 'i') },
-    { provider: 'hermes', root: HERMES_DIR, pattern: new RegExp(sid, 'i') },
+    { provider: 'hermes', root: HERMES_DIR, pattern: new RegExp(`${sid}.*\\.(jsonl?|ndjson|txt|log)$`, 'i') },
     { provider: 'savant', root: path.join(SAVANT_DIR, 'sessions'), pattern: new RegExp(`session_${sid}\\.json$`, 'i') },
   ].filter((candidate) => !requested || requested === 'session' || requested === 'savant' || candidate.provider === requested);
 

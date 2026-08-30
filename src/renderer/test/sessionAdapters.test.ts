@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getSessionAdapter } from '../services/sessionAdapters';
+import { getSessionAdapter, mergeLocalSessionMetadata } from '../services/sessionAdapters';
 
 describe('session adapters', () => {
   it('parses codex transcript jsonl into chat messages', () => {
@@ -377,5 +377,58 @@ describe('session adapters', () => {
     // copilot provider tree builder uses '->' arrow join
     const copilot = getSessionAdapter('copilot').normalizeSession(rawSession, 'ws', files);
     expect(copilot!.tree).toBe('a.js -> b.js');
+  });
+});
+
+describe('mergeLocalSessionMetadata', () => {
+  const base = {
+    id: 's-1',
+    workspaceId: 'ws',
+    title: 'server title',
+    provider: 'Savant',
+    model: 'server-model',
+    createdAt: '2026-01-01T00:00:00.000Z',
+    updatedAt: '2026-01-01T00:00:00.000Z',
+    updated: 'server',
+    files: 0,
+    linked: 0,
+    notes: 0,
+    jira: 0,
+    mergeRequests: 0,
+    tree: 's-1',
+  };
+
+  it('applies hermes session fields onto the normalized session', () => {
+    const merged = mergeLocalSessionMetadata(base, {
+      provider: 'hermes',
+      title: 'Hermes session',
+      agentType: 'hermes-tui',
+      model: 'claude-opus-5',
+      startedAt: '2026-02-01T00:00:00.000Z',
+      endedAt: '2026-02-01T01:00:00.000Z',
+      files: [{ path: '/h/state.db', name: 'state.db', category: 'transcript' }],
+    });
+    expect(merged).toMatchObject({
+      title: 'Hermes session',
+      provider: 'Hermes',
+      agentType: 'hermes-tui',
+      model: 'claude-opus-5',
+      createdAt: '2026-02-01T00:00:00.000Z',
+      updatedAt: '2026-02-01T01:00:00.000Z',
+      files: 1,
+      linked: 1,
+    });
+  });
+
+  it('keeps server values when local metadata is absent or empty', () => {
+    expect(mergeLocalSessionMetadata(base, undefined)).toEqual(base);
+    expect(mergeLocalSessionMetadata(base, null)).toEqual(base);
+    expect(mergeLocalSessionMetadata(base, {})).toEqual(base);
+  });
+
+  it('falls back to startedAt when the session is still open', () => {
+    const merged = mergeLocalSessionMetadata(base, { startedAt: '2026-03-01T00:00:00.000Z' });
+    expect(merged.updatedAt).toBe('2026-03-01T00:00:00.000Z');
+    expect(merged.createdAt).toBe('2026-03-01T00:00:00.000Z');
   });
 });

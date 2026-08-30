@@ -440,3 +440,37 @@ export function getSessionAdapter(provider?: string) {
   if (normalized === 'agt') return adapterRegistry.agy;
   return adapterRegistry[normalized] ?? adapterRegistry.savant;
 }
+
+export type LocalSessionMetadata = {
+  provider?: string;
+  title?: string;
+  agentType?: string;
+  model?: string;
+  messageCount?: number;
+  startedAt?: string;
+  endedAt?: string;
+  files?: Array<{ path?: string; name?: string; category?: string; size?: number }>;
+};
+
+/**
+ * Merge locally discovered session metadata (e.g. the Hermes state database)
+ * onto a normalized session. Only fields the local source actually provided
+ * override the server-derived values.
+ */
+export function mergeLocalSessionMetadata(session: Session, metadata?: LocalSessionMetadata | null): Session {
+  if (!metadata) return session;
+  const fileCount = metadata.files?.length;
+  const updatedSource = metadata.endedAt || metadata.startedAt;
+  return {
+    ...session,
+    title: metadata.title || session.title,
+    provider: metadata.provider ? getSessionAdapter(metadata.provider).displayName : session.provider,
+    agentType: metadata.agentType || session.agentType,
+    model: metadata.model || session.model,
+    createdAt: metadata.startedAt || session.createdAt,
+    updatedAt: updatedSource || session.updatedAt,
+    updated: updatedSource ? formatSessionUpdated(updatedSource) : session.updated,
+    files: fileCount || session.files,
+    linked: fileCount || session.linked,
+  };
+}
