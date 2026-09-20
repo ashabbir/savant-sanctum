@@ -5,7 +5,7 @@ import remarkGfm from 'remark-gfm';
 import { KnowledgeGraph } from '../KnowledgeGraph';
 import { buildColosseumPhaseConfigs, SettingsModal, type ColosseumSettings } from './SettingsModal';
 import type { Artifact, Note, Provider, Reminder, Session, Task, TaskComment, Workspace } from '../data';
-import { canMoveTask, canSubmitForGrooming, isTaskBlocked, taskBoardState, taskWorkflowState, type TaskFlagState } from '../lib/taskBoard';
+import { canMoveTask, canSubmitForGrooming, isTaskBlocked, getTaskBlockReason, taskBoardState, taskWorkflowState, type TaskFlagState } from '../lib/taskBoard';
 import { buildSavantHeaders } from '../services/httpClient';
 import { WorkspaceSessionsDrawer } from './WorkspaceSessionsDrawer';
 import { WorkspaceSessionDetailsDrawer } from './WorkspaceSessionDetailsDrawer';
@@ -259,6 +259,7 @@ export function AppOverlays(props: AppOverlaysProps) {
   const [taskSearchQuery, setTaskSearchQuery] = useState('');
   const [isTaskDropdownOpen, setIsTaskDropdownOpen] = useState(false);
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
+  const [localConversationMap, setLocalConversationMap] = useState<Record<string, SessionConversationMessage[]>>({});
   const [mergeRequests, setMergeRequests] = useState<WorkspaceMergeRequest[]>([]);
   const [jiraTickets, setJiraTickets] = useState<WorkspaceJiraTicket[]>([]);
   const [entityEditor, setEntityEditor] = useState<EntityEditorState | null>(null);
@@ -362,7 +363,9 @@ export function AppOverlays(props: AppOverlaysProps) {
   const truncateTaskTitle = (title: string) => title.length > 28 ? `${title.slice(0, 27)}…` : title;
   const selectedSession = selectedSessionId ? workspaceSessions.find((session) => session.id === selectedSessionId) ?? null : null;
   const selectedSessionFiles = selectedSession ? workspaceSessionFileGroups[selectedSession.id] : undefined;
-  const selectedSessionConversation = selectedSession ? sessionConversationMap[selectedSession.id] ?? [] : [];
+  const selectedSessionConversation = selectedSession
+    ? sessionConversationMap[selectedSession.id] ?? localConversationMap[selectedSession.id] ?? []
+    : [];
   const selectedSessionNotes = selectedSession ? workspaceNotes.filter((note) => note.sessionId === selectedSession.id) : [];
   const selectedSessionArtifacts = selectedSession ? workspaceArtifacts.filter((artifact) => artifact.sessionId === selectedSession.id) : [];
   const selectedSessionProviderKey = selectedSession ? inferSessionProvider(selectedSession.provider, selectedSession as unknown as Record<string, any>, selectedSessionFiles) : '';
@@ -379,10 +382,37 @@ export function AppOverlays(props: AppOverlaysProps) {
     { label: 'Jira', value: selectedSession.jira },
     { label: 'Merge requests', value: selectedSession.mergeRequests },
     { label: 'Tool calls', value: selectedSessionToolCalls },
+    ...(selectedSession.tokenUsage?.totalTokens
+      ? [{ label: 'Tokens', value: selectedSession.tokenUsage.totalTokens.toLocaleString() }]
+      : []),
+    ...(selectedSession.tokenUsage?.contextWindowUsedPercent != null
+      ? [{ label: 'Ctx Used', value: `${selectedSession.tokenUsage.contextWindowUsedPercent}%` }]
+      : []),
+    ...(selectedSession.modelsUsed && selectedSession.modelsUsed.length > 1
+      ? [{ label: 'Models', value: `${selectedSession.modelsUsed.length} models` }]
+      : []),
     { label: 'Mode', value: selectedSessionProviderMode },
     { label: 'Usage', value: `${selectedSessionProviderShare}%` },
     { label: 'Updated', value: selectedSession.updated || selectedSession.updatedAt || 'server' },
   ] : [];
+
+  useEffect(() => {
+    if (!selectedSessionId || !selectedSession) return;
+    if (sessionConversationMap[selectedSessionId]?.length || localConversationMap[selectedSessionId]?.length) return;
+    let cancelled = false;
+    const loadConversation = async () => {
+      try {
+        const messages = await window.system?.getLocalConversation?.(selectedSessionProviderKey, selectedSessionId);
+        if (!cancelled && Array.isArray(messages) && messages.length) {
+          setLocalConversationMap((prev) => ({ ...prev, [selectedSessionId]: messages }));
+        }
+      } catch {
+        // Conversation fallback handled gracefully
+      }
+    };
+    void loadConversation();
+    return () => { cancelled = true; };
+  }, [selectedSessionId, selectedSessionProviderKey, sessionConversationMap, localConversationMap, selectedSession]);
 
   useEffect(() => {
     setSelectedSessionId(null);
@@ -1246,7 +1276,16 @@ export function AppOverlays(props: AppOverlaysProps) {
                             <div className="task-card-footer">
                               <div className="task-card-footer-state">
                                 <div className="task-card-state">{taskFlags[task.id]?.done ? 'done' : taskWorkflowState(task, taskFlags)}</div>
-                                {isTaskBlocked(task, taskFlags) && <div className="task-blocked-badge"><Ban size={11} /> Blocked</div>}
+                                 {isTaskBlocked(task, taskFlags) && (
+                                  <div className="flex flex-col gap-0.5 mt-1 items-start">
+                                    <div className="task-blocked-badge"><Ban size={11} /> Blocked</div>
+                                    {getTaskBlockReason(task) && (
+                                      <div className="text-[10px] text-rose-400/90 italic font-mono max-w-[185px] truncate" title={getTaskBlockReason(task)!}>
+                                        {getTaskBlockReason(task)}
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
                               </div>
                               <div className="task-card-actions">
                                 {isTaskBlocked(task, taskFlags) ? (
@@ -1716,6 +1755,23 @@ export function AppOverlays(props: AppOverlaysProps) {
             {selectedTask?.colosseumConfig?.active_run && (
               <div className="colosseum-live-pulse-shell">
                 <ColosseumLivePulse heartbeat={selectedTask.colosseumConfig.active_run} />
+              </div>
+            )}
+            {selectedTask && isTaskBlocked(selectedTask, taskFlags) && (
+              <div className="mx-6 mt-3 px-4 py-3 bg-rose-950/40 border border-rose-500/25 rounded-md flex items-start gap-2.5">
+                <Ban className="text-rose-400 shrink-0 mt-0.5" size={16} />
+                <div className="flex flex-col gap-0.5">
+                  <div className="text-xs font-semibold text-rose-300">Task is Blocked</div>
+                  {getTaskBlockReason(selectedTask) ? (
+                    <div className="text-xs text-rose-200/90 whitespace-pre-wrap leading-relaxed font-mono mt-0.5 bg-black/20 p-2 rounded border border-white/5">
+                      {getTaskBlockReason(selectedTask)}
+                    </div>
+                  ) : (
+                    <div className="text-xs text-rose-200/80 italic">
+                      This task has been blocked. Unblock it to resume execution.
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 

@@ -1,7 +1,7 @@
 import { useMemo, useState, type Dispatch, type ReactNode, type SetStateAction } from 'react';
 import { AlertTriangle, Ban, BarChart3, Check, CheckCircle2, ChevronDown, Clock, Inbox, Layers, ListChecks, Maximize, Network, PlayCircle, ShieldAlert, Sparkles, Trash2, X, ZoomIn, ZoomOut } from 'lucide-react';
 import { apiSurface, localSetup, mcpSurface, type Artifact, type Provider, type Reminder, type Session, type SurfaceMode, type Task, type Workspace } from '../data';
-import { canMoveTask, isTaskBlocked, taskWorkflowState, type TaskFlagState } from '../lib/taskBoard';
+import { canMoveTask, isTaskBlocked, taskWorkflowState, getTaskBlockReason, type TaskFlagState } from '../lib/taskBoard';
 import { PanelHeader } from './WorkspacePrimitives';
 import { WorkspaceOverview } from './WorkspaceOverview';
 import { WorkspaceHeader } from './WorkspaceHeader';
@@ -113,7 +113,7 @@ export function WorkspaceSurface(props: WorkspaceSurfaceProps) {
     heroFacts,
     workspaceSessions,
     workspaceTasks,
-    allTasks,
+    allTasks = [],
     workspaceReminders,
     workspaceNotes,
     workspaceArtifacts,
@@ -564,7 +564,16 @@ export function WorkspaceSurface(props: WorkspaceSurfaceProps) {
                           <div className="task-card-footer">
                             <div className="task-card-footer-state">
                               <div className="task-card-state">{taskFlags[task.id]?.done ? 'done' : taskWorkflowState(task, taskFlags)}</div>
-                              {isTaskBlocked(task, taskFlags) && <div className="task-blocked-badge"><Ban size={11} /> Blocked</div>}
+                              {isTaskBlocked(task, taskFlags) && (
+                                <div className="flex flex-col gap-0.5 mt-1 items-start">
+                                  <div className="task-blocked-badge"><Ban size={11} /> Blocked</div>
+                                  {getTaskBlockReason(task) && (
+                                    <div className="text-[10px] text-rose-400/90 italic font-mono max-w-[185px] truncate" title={getTaskBlockReason(task)!}>
+                                      {getTaskBlockReason(task)}
+                                    </div>
+                                  )}
+                                </div>
+                              )}
                             </div>
                             <div className="task-card-actions">
                               {isTaskBlocked(task, taskFlags) ? (

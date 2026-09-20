@@ -431,4 +431,176 @@ describe('mergeLocalSessionMetadata', () => {
     expect(merged.updatedAt).toBe('2026-03-01T00:00:00.000Z');
     expect(merged.createdAt).toBe('2026-03-01T00:00:00.000Z');
   });
+
+  it('merges tokenUsage, modelsUsed, rateLimits, and fileStats from local metadata', () => {
+    const merged = mergeLocalSessionMetadata(base, {
+      tokenUsage: {
+        totalTokens: 50000,
+        inputTokens: 30000,
+        cachedInputTokens: 10000,
+        outputTokens: 20000,
+        reasoningTokens: 5000,
+        contextWindow: 200000,
+        contextWindowUsedPercent: 25,
+      },
+      modelsUsed: [
+        { model: 'gpt-5.6-luna', turns: 3, percent: 75 },
+        { model: 'gpt-5.6-sol', turns: 1, percent: 25 },
+      ],
+      rateLimits: {
+        primaryPercent: 42,
+        secondaryPercent: 15,
+        planType: 'pro',
+      },
+      fileStats: [
+        {
+          path: 'src/main.ts',
+          status: 'modified',
+          linesAdded: 10,
+          linesRemoved: 2,
+          diff: '--- a/src/main.ts\n+++ b/src/main.ts\n@@ -1,2 +1,10 @@',
+        },
+      ],
+    });
+
+    expect(merged.tokenUsage?.totalTokens).toBe(50000);
+    expect(merged.tokenUsage?.contextWindowUsedPercent).toBe(25);
+    expect(merged.modelsUsed).toHaveLength(2);
+    expect(merged.modelsUsed?.[0].model).toBe('gpt-5.6-luna');
+    expect(merged.modelsUsed?.[0].percent).toBe(75);
+    expect(merged.rateLimits?.primaryPercent).toBe(42);
+    expect(merged.fileStats).toHaveLength(1);
+    expect(merged.fileStats?.[0].status).toBe('modified');
+  });
+});
+
+describe('codex rollout parsing', () => {
+  it('parses full Codex rollout JSONL with multi-model turns, tokens, tools, and unified diffs', () => {
+    const adapter = getSessionAdapter('codex');
+    const rolloutLines = [
+      JSON.stringify({
+        timestamp: '2026-09-20T10:00:00.000Z',
+        type: 'session_meta',
+        payload: {
+          id: 'rollout-session-123',
+          model: 'gpt-5.6-luna',
+          cli_version: '1.2.0',
+          cwd: '/Users/home/code/project-x',
+        },
+      }),
+      JSON.stringify({
+        timestamp: '2026-09-20T10:00:01.000Z',
+        type: 'turn_context',
+        payload: {
+          turn_id: 'turn-1',
+          model: 'gpt-5.6-luna',
+          cwd: '/Users/home/code/project-x',
+        },
+      }),
+      JSON.stringify({
+        timestamp: '2026-09-20T10:00:02.000Z',
+        type: 'event_msg',
+        payload: {
+          type: 'user_message',
+          message: 'Add support for multi-model token metrics',
+        },
+      }),
+      JSON.stringify({
+        timestamp: '2026-09-20T10:00:03.000Z',
+        type: 'response_item',
+        payload: {
+          type: 'reasoning',
+          summary: [{ text: 'Analyzing requirements for Codex session support' }],
+        },
+      }),
+      JSON.stringify({
+        timestamp: '2026-09-20T10:00:04.000Z',
+        type: 'event_msg',
+        payload: {
+          type: 'agent_message',
+          message: 'I will modify session adapters to extract rollout data.',
+        },
+      }),
+      JSON.stringify({
+        timestamp: '2026-09-20T10:00:05.000Z',
+        type: 'event_msg',
+        payload: {
+          type: 'patch_apply_end',
+          changes: {
+            'src/adapter.ts': {
+              type: 'update',
+              unified_diff: '--- a/src/adapter.ts\n+++ b/src/adapter.ts\n@@ -1,3 +1,6 @@\n+line1\n+line2\n-oldline\n',
+            },
+            'src/newFile.ts': {
+              type: 'create',
+              unified_diff: '--- /dev/null\n+++ b/src/newFile.ts\n@@ -0,0 +1,2 @@\n+hello\n+world\n',
+            },
+          },
+          stdout: 'Applied 2 patches successfully.',
+        },
+      }),
+      JSON.stringify({
+        timestamp: '2026-09-20T10:00:06.000Z',
+        type: 'turn_context',
+        payload: {
+          turn_id: 'turn-2',
+          model: 'gpt-5.6-sol',
+          cwd: '/Users/home/code/project-x',
+        },
+      }),
+      JSON.stringify({
+        timestamp: '2026-09-20T10:00:07.000Z',
+        type: 'event_msg',
+        payload: {
+          type: 'token_count',
+          info: {
+            total_token_usage: {
+              input_tokens: 30000,
+              cached_input_tokens: 12000,
+              output_tokens: 4000,
+              reasoning_output_tokens: 1500,
+              total_tokens: 34000,
+            },
+            last_token_usage: {
+              input_tokens: 5000,
+              output_tokens: 1000,
+              total_tokens: 6000,
+            },
+            model_context_window: 200000,
+          },
+          rate_limits: {
+            primary: { used_percent: 33 },
+            secondary: { used_percent: 10 },
+            plan_type: 'team',
+          },
+        },
+      }),
+      JSON.stringify({
+        timestamp: '2026-09-20T10:00:08.000Z',
+        type: 'event_msg',
+        payload: {
+          type: 'agent_message',
+          message: 'All changes have been verified with tests.',
+        },
+      }),
+    ].join('\n');
+
+    const messages = adapter.normalizeConversationText(rolloutLines, 'rollout-session-123');
+
+    // Chat messages verification
+    expect(messages.length).toBeGreaterThanOrEqual(4);
+    expect(messages.some((m) => m.role === 'user' && m.detail.includes('Add support'))).toBe(true);
+    expect(messages.some((m) => m.role === 'assistant' && m.detail.includes('modify session adapters'))).toBe(true);
+    expect(messages.some((m) => m.kind === 'patch' && m.title.includes('File patch'))).toBe(true);
+    expect(messages.some((m) => m.kind === 'reasoning' || m.role === 'system')).toBe(true);
+
+    // Patch message metadata verification
+    const patchMsg = messages.find((m) => m.kind === 'patch');
+    expect(patchMsg).toBeDefined();
+    expect(patchMsg?.diff).toContain('src/adapter.ts');
+    expect(patchMsg?.diff).toContain('src/newFile.ts');
+    expect(patchMsg?.filesChanged).toContain('src/adapter.ts');
+    expect(patchMsg?.linesAdded).toBe(4); // 2 from adapter.ts + 2 from newFile.ts
+    expect(patchMsg?.linesRemoved).toBe(1); // 1 from adapter.ts
+  });
 });

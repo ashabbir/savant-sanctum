@@ -9,7 +9,25 @@ export type TaskFlagState = {
 };
 
 export const isTaskBlocked = (task: Task, taskFlags: Record<string, TaskFlagState>): boolean => {
-  return Boolean(taskFlags[task.id]?.blocked);
+  return task.status === 'blocked' || Boolean(taskFlags[task.id]?.blocked);
+};
+
+export const getTaskBlockReason = (task: Task): string | null => {
+  if (!task.comments || task.comments.length === 0) return null;
+  const colosseumComments = task.comments.filter(c => {
+    if (typeof c === 'string') return false;
+    return c.author === 'Colosseum';
+  });
+  if (colosseumComments.length === 0) return null;
+  const latest = colosseumComments[colosseumComments.length - 1];
+  if (typeof latest === 'string') return null;
+  const text = latest.text;
+  const reasonMarker = '**Reason**';
+  const reasonIndex = text.indexOf(reasonMarker);
+  if (reasonIndex !== -1) {
+    return text.substring(reasonIndex + reasonMarker.length).trim();
+  }
+  return text;
 };
 
 export const taskWorkflowState = (

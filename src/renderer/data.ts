@@ -51,6 +51,43 @@ export type Workspace = {
   };
 };
 
+export type TokenUsage = {
+  totalTokens: number;
+  inputTokens: number;
+  cachedInputTokens: number;
+  outputTokens: number;
+  reasoningTokens: number;
+  contextWindow: number;
+  contextPercentUsed: number;
+};
+
+export type RateLimits = {
+  primaryPercent: number;
+  primaryWindowMinutes?: number;
+  primaryResetsAt?: string;
+  secondaryPercent?: number;
+  secondaryWindowMinutes?: number;
+  secondaryResetsAt?: string;
+  planType?: string;
+};
+
+export type ModelUsage = {
+  model: string;
+  turns: number;
+  tokens?: number;
+  percent: number;
+};
+
+export type SessionFileStatus = {
+  path: string;
+  name: string;
+  status: 'modified' | 'created' | 'deleted' | 'read' | 'transcript';
+  linesAdded?: number;
+  linesRemoved?: number;
+  diff?: string;
+  size?: number;
+};
+
 export type Session = {
   id: string;
   workspaceId: string;
@@ -67,6 +104,10 @@ export type Session = {
   jira: number;
   mergeRequests: number;
   tree: string;
+  tokenUsage?: TokenUsage;
+  rateLimits?: RateLimits;
+  modelsUsed?: ModelUsage[];
+  fileStats?: SessionFileStatus[];
 };
 
 export type TaskComment = {
@@ -157,6 +198,7 @@ export type Task = {
   updatedAt?: string;
   timeSpent?: number;
   complexity?: 'simple' | 'moderate' | 'complex' | 'extreme';
+  status?: string;
   colosseumConfig?: ColosseumTaskConfig;
 };
 

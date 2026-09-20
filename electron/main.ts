@@ -179,6 +179,21 @@ type LocalConversationMessage = {
   title: string;
   detail: string;
   provider: string;
+  model?: string;
+  tokens?: {
+    total?: number;
+    input?: number;
+    output?: number;
+    reasoning?: number;
+    cached?: number;
+  };
+  toolName?: string;
+  toolInput?: string;
+  toolOutput?: string;
+  callId?: string;
+  diff?: string;
+  fileChanges?: Array<{ path: string; status: string; diff?: string; linesAdded?: number; linesRemoved?: number }>;
+  status?: string;
 };
 
 function toIsoTime(value: number | string | undefined) {
@@ -190,6 +205,16 @@ function toIsoTime(value: number | string | undefined) {
     if (!Number.isNaN(parsed)) return new Date(parsed).toISOString();
   }
   return '';
+}
+
+function readBlocksText(value: unknown): string {
+  if (typeof value === 'string') return value;
+  if (Array.isArray(value)) {
+    return value.map((item) => readBlocksText(item)).filter(Boolean).join('\n');
+  }
+  if (!value || typeof value !== 'object') return '';
+  const record = value as Record<string, any>;
+  return String(record.text ?? record.content ?? record.message ?? record.output ?? record.result ?? '').trim();
 }
 
 function parseJsonLine<T>(line: string): T | null {
@@ -280,9 +305,391 @@ function codexEventToMessage(provider: string, sessionId: string, event: Record<
   return null;
 }
 
+async function findCodexRolloutFile(sessionId: string): Promise<string | null> {
+  const sid = String(sessionId || '').trim();
+  if (!sid) return null;
+  const sessionsRoot = path.join(CODEX_DIR, 'sessions');
+  try {
+    const entries = (await fs.readdir(sessionsRoot, { recursive: true })) as string[];
+    const match = entries.find((entry) => entry.includes(sid) && entry.endsWith('.jsonl'));
+    if (match) {
+      return path.join(sessionsRoot, match);
+    }
+  } catch {
+    // sessions directory not present or unreadable
+  }
+  return null;
+}
+
+type ParsedCodexRollout = {
+  messages: LocalConversationMessage[];
+  modelsUsed: Array<{ model: string; turns: number; percent: number }>;
+  primaryModel: string;
+  tokenUsage?: {
+    totalTokens: number;
+    inputTokens: number;
+    cachedInputTokens: number;
+    outputTokens: number;
+    reasoningTokens: number;
+    contextWindow: number;
+    contextPercentUsed: number;
+  };
+  rateLimits?: {
+    primaryPercent: number;
+    primaryWindowMinutes?: number;
+    primaryResetsAt?: string;
+    secondaryPercent?: number;
+    secondaryWindowMinutes?: number;
+    secondaryResetsAt?: string;
+    planType?: string;
+  };
+  fileStats: Array<{
+    path: string;
+    name: string;
+    status: 'modified' | 'created' | 'deleted' | 'read' | 'transcript';
+    linesAdded?: number;
+    linesRemoved?: number;
+    diff?: string;
+    size?: number;
+  }>;
+  firstUserPrompt: string;
+  title: string;
+};
+
+async function parseCodexRolloutFile(filePath: string, _sessionId: string): Promise<ParsedCodexRollout> {
+  const content = await fs.readFile(filePath, 'utf8');
+  const lines = content.split(/\r?\n/).filter(Boolean);
+
+  const messages: LocalConversationMessage[] = [];
+  const modelsUsedMap = new Map<string, number>();
+  let latestTokenUsage: ParsedCodexRollout['tokenUsage'] = undefined;
+  let latestRateLimits: ParsedCodexRollout['rateLimits'] = undefined;
+  const fileChangesMap = new Map<string, ParsedCodexRollout['fileStats'][0]>();
+  let firstUserPrompt = '';
+  let titleFromTurn = '';
+  let primaryModel = '';
+
+  lines.forEach((line, index) => {
+    let entry: Record<string, any>;
+    try {
+      entry = JSON.parse(line);
+    } catch {
+      return;
+    }
+
+    const timestamp = toIsoTime(entry.timestamp ?? entry.time) || new Date().toISOString();
+    const type = String(entry.type ?? '');
+    const payload = (entry.payload && typeof entry.payload === 'object') ? entry.payload as Record<string, any> : {};
+
+    if (type === 'turn_context' && payload.model) {
+      const model = String(payload.model);
+      primaryModel = model;
+      modelsUsedMap.set(model, (modelsUsedMap.get(model) || 0) + 1);
+      if (payload.summary && !titleFromTurn) titleFromTurn = String(payload.summary);
+      messages.push({
+        id: `codex-turn-${index}`,
+        time: timestamp,
+        kind: 'system',
+        role: 'context',
+        title: `Turn Context (${model})`,
+        detail: `Model: ${model} | CWD: ${payload.cwd || '.'} | Effort: ${payload.effort || 'medium'}`,
+        provider: 'codex',
+        model,
+      });
+    }
+
+    if (type === 'session_meta') {
+      if (payload.model) {
+        const model = String(payload.model);
+        if (!primaryModel) primaryModel = model;
+        modelsUsedMap.set(model, (modelsUsedMap.get(model) || 0) + 1);
+      }
+      messages.push({
+        id: `codex-meta-${index}`,
+        time: timestamp,
+        kind: 'system',
+        role: 'system',
+        title: 'Session Started',
+        detail: `CLI Version: ${payload.cli_version || ''} | Provider: ${payload.model_provider || 'openai'} | Origin: ${payload.originator || 'codex'}`,
+        provider: 'codex',
+        model: payload.model,
+      });
+    }
+
+    if (type === 'event_msg') {
+      const pType = String(payload.type ?? '');
+      if (pType === 'user_message' && payload.message) {
+        const msgText = String(payload.message).trim();
+        if (!firstUserPrompt) firstUserPrompt = msgText;
+        messages.push({
+          id: `codex-user-${index}`,
+          time: timestamp,
+          kind: 'user',
+          role: 'user',
+          title: 'User',
+          detail: msgText,
+          provider: 'codex',
+        });
+      } else if (pType === 'agent_message' && payload.message) {
+        const msgText = String(payload.message).trim();
+        const prev = messages[messages.length - 1];
+        if (!(prev && prev.kind === 'assistant' && prev.detail === msgText)) {
+          messages.push({
+            id: `codex-agent-${index}`,
+            time: timestamp,
+            kind: 'assistant',
+            role: 'assistant',
+            title: 'Codex',
+            detail: msgText,
+            provider: 'codex',
+            model: primaryModel || undefined,
+          });
+        }
+      } else if (pType === 'token_count') {
+        const info = payload.info || {};
+        const rates = payload.rate_limits || {};
+        const total = Number(info.total_token_usage?.total_tokens ?? 0);
+        const inTokens = Number(info.total_token_usage?.input_tokens ?? 0);
+        const cachedTokens = Number(info.total_token_usage?.cached_input_tokens ?? 0);
+        const outTokens = Number(info.total_token_usage?.output_tokens ?? 0);
+        const reasoningTokens = Number(info.total_token_usage?.reasoning_output_tokens ?? 0);
+        const ctxWindow = Number(info.model_context_window ?? 0);
+        const ctxPercent = ctxWindow > 0 ? Math.round(((info.last_token_usage?.total_tokens ?? total) / ctxWindow) * 1000) / 10 : 0;
+        const primary = Number(rates.primary?.used_percent ?? 0);
+        const secondary = Number(rates.secondary?.used_percent ?? 0);
+
+        latestTokenUsage = {
+          totalTokens: total,
+          inputTokens: inTokens,
+          cachedInputTokens: cachedTokens,
+          outputTokens: outTokens,
+          reasoningTokens: reasoningTokens,
+          contextWindow: ctxWindow,
+          contextPercentUsed: ctxPercent,
+        };
+
+        latestRateLimits = {
+          primaryPercent: primary,
+          primaryWindowMinutes: rates.primary?.window_minutes,
+          primaryResetsAt: rates.primary?.resets_at ? toIsoTime(rates.primary.resets_at) : undefined,
+          secondaryPercent: secondary,
+          secondaryWindowMinutes: rates.secondary?.window_minutes,
+          secondaryResetsAt: rates.secondary?.resets_at ? toIsoTime(rates.secondary.resets_at) : undefined,
+          planType: rates.plan_type,
+        };
+
+        messages.push({
+          id: `codex-tokens-${index}`,
+          time: timestamp,
+          kind: 'system',
+          role: 'token_count',
+          title: 'Token Usage & Limits',
+          detail: `Total: ${total.toLocaleString()} tokens | Context Window: ${ctxWindow.toLocaleString()} (${ctxPercent}% used) | Rate Limits: ${primary}% (5h), ${secondary}% (7d)`,
+          provider: 'codex',
+          tokens: {
+            total,
+            input: inTokens,
+            output: outTokens,
+            reasoning: reasoningTokens,
+            cached: cachedTokens,
+          },
+        });
+      } else if (pType === 'patch_apply_end') {
+        const changes = (payload.changes && typeof payload.changes === 'object') ? payload.changes as Record<string, any> : {};
+        const fileKeys = Object.keys(changes);
+        const fileChanges = fileKeys.map((file) => {
+          const change = changes[file] || {};
+          const diff = String(change.unified_diff || '');
+          let linesAdded = 0;
+          let linesRemoved = 0;
+          diff.split('\n').forEach((dl: string) => {
+            if (dl.startsWith('+') && !dl.startsWith('+++')) linesAdded++;
+            if (dl.startsWith('-') && !dl.startsWith('---')) linesRemoved++;
+          });
+          const item = {
+            path: file,
+            name: path.basename(file),
+            status: (change.type === 'create' ? 'created' : change.type === 'delete' ? 'deleted' : 'modified') as 'created' | 'deleted' | 'modified',
+            diff,
+            linesAdded,
+            linesRemoved,
+          };
+          fileChangesMap.set(file, item);
+          return item;
+        });
+
+        const diffJoined = fileChanges.map((fc) => `--- ${fc.path}\n${fc.diff}`).join('\n\n');
+        messages.push({
+          id: `codex-patch-${index}`,
+          time: timestamp,
+          kind: 'tool',
+          role: 'patch',
+          title: `File Patch (${fileKeys.length} file${fileKeys.length === 1 ? '' : 's'} ${payload.success ? 'applied' : 'failed'})`,
+          detail: String(payload.stdout || fileKeys.map((f) => `Modified: ${f}`).join('\n') || 'File patch applied').trim(),
+          provider: 'codex',
+          diff: diffJoined,
+          fileChanges,
+          status: payload.success ? 'success' : 'failed',
+        });
+      } else if (pType === 'mcp_tool_call_end') {
+        const inv = payload.invocation || {};
+        const serverName = inv.server || 'mcp';
+        const toolName = inv.tool || 'tool';
+        const argsStr = JSON.stringify(inv.arguments || {}, null, 2);
+        const resultStr = typeof payload.result === 'string' ? payload.result : JSON.stringify(payload.result ?? {}, null, 2);
+        messages.push({
+          id: `codex-mcp-${index}`,
+          time: timestamp,
+          kind: 'tool',
+          role: 'tool',
+          title: `${serverName}:${toolName}`,
+          detail: `Tool: ${serverName}:${toolName}\nArguments:\n${argsStr}`,
+          provider: 'codex',
+          toolName: `${serverName}:${toolName}`,
+          toolInput: argsStr,
+          toolOutput: resultStr,
+        });
+      } else if (pType === 'task_complete') {
+        const dur = typeof payload.duration_ms === 'number' ? (payload.duration_ms / 1000).toFixed(1) : '';
+        messages.push({
+          id: `codex-complete-${index}`,
+          time: timestamp,
+          kind: 'system',
+          role: 'status',
+          title: 'Task Complete',
+          detail: `Turn completed${dur ? ` in ${dur}s` : ''}.`,
+          provider: 'codex',
+        });
+      }
+    }
+
+    if (type === 'response_item') {
+      const pType = String(payload.type ?? '');
+      if (pType === 'custom_tool_call') {
+        messages.push({
+          id: payload.call_id || `codex-tool-${index}`,
+          time: timestamp,
+          kind: 'tool',
+          role: 'tool',
+          title: String(payload.name || 'exec'),
+          detail: String(payload.input || payload.arguments || ''),
+          provider: 'codex',
+          toolName: String(payload.name || 'exec'),
+          toolInput: String(payload.input || payload.arguments || ''),
+          callId: payload.call_id,
+          status: payload.status,
+        });
+      } else if (pType === 'custom_tool_call_output') {
+        const outText = Array.isArray(payload.output)
+          ? payload.output.map((o: any) => o.text || '').join('\n')
+          : String(payload.output || '');
+        messages.push({
+          id: `codex-toolout-${index}`,
+          time: timestamp,
+          kind: 'tool',
+          role: 'tool-output',
+          title: 'Tool Output',
+          detail: outText,
+          provider: 'codex',
+          toolOutput: outText,
+          callId: payload.call_id,
+        });
+      } else if (pType === 'function_call') {
+        messages.push({
+          id: payload.call_id || `codex-fn-${index}`,
+          time: timestamp,
+          kind: 'tool',
+          role: 'tool',
+          title: String(payload.name || 'tool'),
+          detail: String(payload.arguments || ''),
+          provider: 'codex',
+          toolName: String(payload.name || 'tool'),
+          toolInput: String(payload.arguments || ''),
+        });
+      } else if (pType === 'function_call_output') {
+        messages.push({
+          id: `codex-fnout-${index}`,
+          time: timestamp,
+          kind: 'tool',
+          role: 'tool-output',
+          title: 'Function Output',
+          detail: String(payload.output || ''),
+          provider: 'codex',
+          toolOutput: String(payload.output || ''),
+        });
+      } else if (pType === 'reasoning') {
+        const summary = Array.isArray(payload.summary)
+          ? payload.summary.map((s: any) => s.text || s).join('\n')
+          : String(payload.summary || '');
+        if (summary) {
+          messages.push({
+            id: `codex-reasoning-${index}`,
+            time: timestamp,
+            kind: 'system',
+            role: 'reasoning',
+            title: 'Reasoning',
+            detail: summary,
+            provider: 'codex',
+          });
+        }
+      } else if (pType === 'message') {
+        const role = String(payload.role || '').toLowerCase();
+        if (role !== 'developer') {
+          const text = readBlocksText(payload.content);
+          if (text) {
+            const prev = messages[messages.length - 1];
+            if (!(prev && prev.kind === 'assistant' && prev.detail === text)) {
+              messages.push({
+                id: payload.id || `codex-msg-${index}`,
+                time: timestamp,
+                kind: role === 'user' ? 'user' : 'assistant',
+                role: role === 'user' ? 'user' : 'assistant',
+                title: role === 'user' ? 'User' : 'Codex',
+                detail: text,
+                provider: 'codex',
+                model: primaryModel || undefined,
+              });
+            }
+          }
+        }
+      }
+    }
+  });
+
+  const totalTurns = Array.from(modelsUsedMap.values()).reduce((a, b) => a + b, 0) || 1;
+  const modelsUsed = Array.from(modelsUsedMap.entries()).map(([model, turns]) => ({
+    model,
+    turns,
+    percent: Math.round((turns / totalTurns) * 100),
+  }));
+
+  return {
+    messages,
+    modelsUsed,
+    primaryModel,
+    tokenUsage: latestTokenUsage,
+    rateLimits: latestRateLimits,
+    fileStats: Array.from(fileChangesMap.values()),
+    firstUserPrompt,
+    title: titleFromTurn || firstUserPrompt.slice(0, 50),
+  };
+}
+
 async function loadCodexConversation(sessionId: string): Promise<LocalConversationMessage[]> {
   const sid = String(sessionId || '').trim();
   if (!sid) return [];
+
+  const rolloutFile = await findCodexRolloutFile(sid);
+  if (rolloutFile) {
+    try {
+      const parsed = await parseCodexRolloutFile(rolloutFile, sid);
+      if (parsed.messages.length > 0) {
+        return parsed.messages;
+      }
+    } catch {
+      // Fall through to history/logs fallback
+    }
+  }
 
   const messages: LocalConversationMessage[] = [];
   const seenEventKeys = new Set<string>();
@@ -696,6 +1103,35 @@ async function findLocalSessionMetadata(sessionId: string, provider?: string) {
           title = String(record?.thread_name ?? '').trim();
         } catch {
           // The index is optional; retain a usable provider and file record.
+        }
+        try {
+          const parsed = await parseCodexRolloutFile(filePath, sid);
+          if (!title) title = parsed.title || (parsed.firstUserPrompt ? parsed.firstUserPrompt.slice(0, 50) : '');
+          return {
+            provider: 'codex',
+            title: title || 'Codex Session',
+            agentType: 'codex-cli',
+            model: parsed.primaryModel || 'gpt-5.6-luna',
+            tokenUsage: parsed.tokenUsage,
+            rateLimits: parsed.rateLimits,
+            modelsUsed: parsed.modelsUsed,
+            fileStats: parsed.fileStats,
+            files: [
+              { path: filePath, name: path.basename(filePath), category: 'transcript', size: stat.size, status: 'transcript' },
+              ...parsed.fileStats.map((f) => ({
+                path: f.path,
+                name: f.name,
+                category: 'source',
+                size: f.size,
+                status: f.status,
+                linesAdded: f.linesAdded,
+                linesRemoved: f.linesRemoved,
+                diff: f.diff,
+              })),
+            ],
+          };
+        } catch {
+          // Fall back to simple metadata below
         }
       }
       if (!title && !/\.db$/i.test(filePath)) {

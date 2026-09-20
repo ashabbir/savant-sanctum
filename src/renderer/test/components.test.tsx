@@ -1,9 +1,13 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 
-vi.mock('lucide-react', () => {
-  return new Proxy({}, {
+vi.mock('lucide-react', async (importOriginal) => {
+  const actual = await importOriginal<Record<string, any>>();
+  return new Proxy(actual, {
     get: (target, prop) => {
+      if (prop in target) return target[prop as string];
+      if (prop === '__esModule') return true;
+      if (prop === 'then' || typeof prop === 'symbol') return undefined;
       return (props: any) => `Icon-${String(prop)}`;
     }
   });
@@ -348,8 +352,8 @@ describe('renderer components', () => {
     );
 
     expect(html).toContain('Settings');
-    expect(html).toContain('User preferences');
-    expect(html).toContain('GATEWAY ERROR: NO PROVIDERS DETECTED');
+    expect(html).toContain('System configuration and preferences');
+    expect(html).toContain('Using built-in fallback providers');
   });
 
   it('uses Colosseum defaults when settings have not been persisted yet', () => {
@@ -434,7 +438,7 @@ describe('renderer components', () => {
 
     expect(html).toContain('sanctum');
     expect(html).toContain('Content Area');
-    expect(html).toContain('Tasks');
+    expect(html).toContain('Task manager');
     expect(html).toContain('Fail');
     expect(html).not.toContain('Search workspaces...');
   });
@@ -457,8 +461,8 @@ describe('renderer components', () => {
         workspaceMergeRequests={[]}
         workspaceJiraTickets={[]}
         activeWorkspace={workspace}
-        workspaceSummary={{ knowledgeNodes: 0, knowledgeEdges: 0, knowledgeCommittedNodes: 0, knowledgeStagedNodes: 0, knowledgeCommittedEdges: 0, knowledgeStagedEdges: 0 }}
-        manageSummary={{ todayTasks: 0, todayReminders: 0, openTasks: 1, pendingReminders: 0 }}
+        workspaceSummary={{ sessions: 1, tasks: 1, notes: 0, reminders: 0, files: 0 }}
+        manageSummary={{ todayTasks: 1, todayReminders: 1, openTasks: 1, pendingReminders: 1 }}
         todayTasks={[]}
         todayReminders={[]}
         activeSection="tasks"
@@ -466,7 +470,7 @@ describe('renderer components', () => {
         surfaceMode="dashboard"
         setSurfaceMode={() => {}}
         activeModeLabel="Dashboard"
-        surfaceTitle="Tasks"
+        surfaceTitle="Surface Title"
         workspaceList={[workspace]}
         workspaceIndex={0}
         setWorkspaceIndex={() => {}}
@@ -516,12 +520,12 @@ describe('renderer components', () => {
     );
 
     expect(html).toContain('Cross-workspace board');
-    expect(html).toContain('Task Status Overview');
-    expect(html).toContain('In progress');
+    expect(html).toContain('Task Manager');
+    expect(html).toContain('in-progress');
     expect(html).toContain('All workspaces');
     expect(html).toContain('All statuses');
     expect(html).toContain('All priorities');
-    expect(html).toContain('Board');
+    expect(html).toContain('Overview');
     expect(html).toContain('Visual');
     expect(html).toContain('Global task');
   });

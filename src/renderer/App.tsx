@@ -424,6 +424,21 @@ function App() {
     void saveAthenaEngineSafely(selectedProviderRef.current, value);
   };
 
+  const handleColosseumGroomingSettingsChange = async (settings: ColosseumSettings) => {
+    setColosseumGroomingSettings(settings);
+    await saveSettingSafely('colosseum:grooming-settings', settings);
+  };
+
+  const handleColosseumReadySettingsChange = async (settings: ColosseumSettings) => {
+    setColosseumReadySettings(settings);
+    await saveSettingSafely('colosseum:ready-settings', settings);
+  };
+
+  const handleColosseumReviewSettingsChange = async (settings: ColosseumSettings) => {
+    setColosseumReviewSettings(settings);
+    await saveSettingSafely('colosseum:review-settings', settings);
+  };
+
   const persistApiKey = async (value: string, serverUrl?: string) => {
     const clean = value.trim();
     const targetServerUrl = serverUrl?.trim() || serverDraft.trim() || 'http://127.0.0.1:8090';
@@ -997,6 +1012,7 @@ function App() {
                 updatedAt: task.updated_at ?? task.updatedAt,
                 timeSpent: task.timeSpent ?? task.time_spent ?? defaultTime,
                 complexity: task.complexity ?? defaultComplexity,
+                status: task.status,
                 colosseumConfig: task.colosseum_config ?? undefined,
               };
             });
@@ -2314,9 +2330,6 @@ function App() {
           await saveSettingSafely('user:name', newName);
           await saveSettingSafely('server:config', { url: serverDraft.trim(), enabled: true });
           await saveSettingSafely('gateway:config', { url: gatewayDraft.trim(), enabled: true });
-          await saveSettingSafely('colosseum:grooming-settings', colosseumGroomingSettings);
-          await saveSettingSafely('colosseum:ready-settings', colosseumReadySettings);
-          await saveSettingSafely('colosseum:review-settings', colosseumReviewSettings);
           await saveAthenaEngineSafely(selectedProvider, selectedModel);
           await persistApiKey(authDraft);
           void refreshProviders(gatewayDraft.trim());
@@ -2356,12 +2369,6 @@ function App() {
         }}
       onLogout={handleAuthLogout}
       onRefreshProviders={() => refreshProviders(gatewayDraft.trim() || 'http://127.0.0.1:3100')}
-      colosseumGroomingSettings={colosseumGroomingSettings}
-      colosseumReadySettings={colosseumReadySettings}
-      colosseumReviewSettings={colosseumReviewSettings}
-      onColosseumGroomingSettingsChange={setColosseumGroomingSettings}
-      onColosseumReadySettingsChange={setColosseumReadySettings}
-      onColosseumReviewSettingsChange={setColosseumReviewSettings}
       recentAlerts={toasts}
       activityFeed={activityFeed}
         restoreActivityContext={restoreActivityContext}
@@ -2373,6 +2380,12 @@ function App() {
         taskToEdit={activeSection === 'tasks' ? taskToEdit : null}
         onTaskEditOpened={() => setTaskToEdit(null)}
         setTaskList={setTaskList}
+        colosseumGroomingSettings={colosseumGroomingSettings}
+        colosseumReadySettings={colosseumReadySettings}
+        colosseumReviewSettings={colosseumReviewSettings}
+        onColosseumGroomingSettingsChange={handleColosseumGroomingSettingsChange}
+        onColosseumReadySettingsChange={handleColosseumReadySettingsChange}
+        onColosseumReviewSettingsChange={handleColosseumReviewSettingsChange}
         workspaceNotes={workspaceNotes}
         workspaceArtifacts={workspaceArtifacts}
         onCreateSessionNote={createSessionNote}

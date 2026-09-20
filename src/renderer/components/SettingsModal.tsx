@@ -109,7 +109,6 @@ const TABS = [
   { id: 'system', label: 'system' },
   { id: 'gateway', label: 'gateway' },
   { id: 'server', label: 'server' },
-  { id: 'colosseum', label: 'colosseum' },
 ] as const;
 type TabId = typeof TABS[number]['id'];
 
@@ -557,37 +556,6 @@ export function SettingsModal({
               apiKey={authDraft}
               includeApiKey
             />
-          )}
-
-          {/* ── COLOSSEUM ── */}
-          {activeTab === 'colosseum' && (
-            <div className="space-y-6">
-              <p className="text-sm opacity-60 font-sans">Configure agent execution parameters for different board statuses.</p>
-
-              <ColosseumPhaseSettingsPanel
-                title="Grooming"
-                accent="#b58cff"
-                settings={colosseumGroomingSettings}
-                providers={colosseumProviders}
-                inheritReadyProvider
-                onChange={onColosseumGroomingSettingsChange}
-              />
-              <ColosseumPhaseSettingsPanel
-                title="Ready"
-                accent="var(--cp-cyan)"
-                settings={colosseumReadySettings}
-                providers={colosseumProviders}
-                onChange={onColosseumReadySettingsChange}
-              />
-              <ColosseumPhaseSettingsPanel
-                title="Review"
-                accent="var(--cp-magenta)"
-                settings={colosseumReviewSettings}
-                providers={colosseumProviders}
-                inheritReadyProvider
-                onChange={onColosseumReviewSettingsChange}
-              />
-            </div>
           )}
         </div>
 

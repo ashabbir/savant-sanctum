@@ -34,6 +34,12 @@ function getResumeCommand(session: Session, files?: SessionFileGroup) {
   return `cd ${sessionDir || '.'} && ${provider} start --session ${sessionTarget} --yolo`;
 }
 
+function formatTokens(count: number): string {
+  if (count >= 1_000_000) return `${(count / 1_000_000).toFixed(1)}M tok`;
+  if (count >= 1_000) return `${(count / 1_000).toFixed(1)}k tok`;
+  return `${count} tok`;
+}
+
 export function WorkspaceSessionCard({ session, active, files, onSelect, onDelete }: WorkspaceSessionCardProps) {
   const resumeCommand = getResumeCommand(session, files);
 
@@ -45,6 +51,10 @@ export function WorkspaceSessionCard({ session, active, files, onSelect, onDelet
       // Clipboard copy can fail in restricted environments.
     }
   };
+
+  const modelsLabel = session.modelsUsed && session.modelsUsed.length > 1
+    ? `${session.modelsUsed.length} models: ${session.modelsUsed.map((m) => `${m.model} (${m.percent}%)`).join(', ')}`
+    : (session.agentType || session.model);
 
   return (
     <div
@@ -88,10 +98,40 @@ export function WorkspaceSessionCard({ session, active, files, onSelect, onDelet
           )}
         </div>
       </div>
-      <div className="note-drawer-meta truncate">{session.provider} · {session.agentType || session.model}</div>
+      <div className="note-drawer-meta truncate" title={modelsLabel}>{session.provider} · {modelsLabel}</div>
       <p className="session-drawer-summary">{session.tree}</p>
-      <div className="workspace-list-row session-drawer-row">
+      <div className="workspace-list-row session-drawer-row" style={{ flexWrap: 'wrap', gap: '4px' }}>
         <span className={`workspace-card-badge workspace-card-badge-${statusTone(session.provider)}`}>{session.updated}</span>
+        {session.tokenUsage?.totalTokens ? (
+          <span
+            className="workspace-list-chip"
+            style={{ color: '#38bdf8', borderColor: 'rgba(56, 189, 248, 0.25)' }}
+            title={`Total: ${session.tokenUsage.totalTokens.toLocaleString()} tokens | In: ${session.tokenUsage.inputTokens.toLocaleString()} | Out: ${session.tokenUsage.outputTokens.toLocaleString()}`}
+          >
+            ⚡ {formatTokens(session.tokenUsage.totalTokens)}
+          </span>
+        ) : null}
+        {session.tokenUsage?.contextWindowUsedPercent != null ? (
+          <span
+            className="workspace-list-chip"
+            style={{
+              color: session.tokenUsage.contextWindowUsedPercent > 80 ? '#f43f5e' : '#a78bfa',
+              borderColor: session.tokenUsage.contextWindowUsedPercent > 80 ? 'rgba(244, 63, 94, 0.25)' : 'rgba(167, 139, 250, 0.25)',
+            }}
+            title={`Context Window: ${session.tokenUsage.contextWindowUsedPercent}% used`}
+          >
+            {session.tokenUsage.contextWindowUsedPercent}% ctx
+          </span>
+        ) : null}
+        {session.modelsUsed && session.modelsUsed.length > 1 ? (
+          <span
+            className="workspace-list-chip"
+            style={{ color: '#22d3ee', borderColor: 'rgba(34, 211, 238, 0.25)' }}
+            title={session.modelsUsed.map((m) => `${m.model}: ${m.percent}% (${m.turns} turns)`).join(', ')}
+          >
+            {session.modelsUsed.length} models ({session.modelsUsed[0].percent}%)
+          </span>
+        ) : null}
         <span className="workspace-list-chip">{session.files} files</span>
         <span className="workspace-list-chip">{session.notes} notes</span>
       </div>
