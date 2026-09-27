@@ -88,6 +88,7 @@ contextBridge.exposeInMainWorld('sanctum', {
   forceKillColosseumWorker: (workerId: string) => ipcRenderer.invoke('kill-colosseum-worker', workerId),
   restartColosseumWorker: (workerId: string) => ipcRenderer.invoke('restart-colosseum-worker', workerId),
   purgeColosseumWorker: (workerId: string, killFirst?: boolean) => ipcRenderer.invoke('purge-colosseum-worker', workerId, killFirst),
+  purgeColosseumWorkers: (workerIds: string[], killFirst?: boolean) => ipcRenderer.invoke('purge-colosseum-workers', workerIds, killFirst),
   tailColosseumLog: (logPath: string, lastLen?: number, lastMtime?: number) => ipcRenderer.invoke('tail-colosseum-log', logPath, lastLen, lastMtime),
   getSystemStats: () => ipcRenderer.invoke('get-system-stats'),
 });

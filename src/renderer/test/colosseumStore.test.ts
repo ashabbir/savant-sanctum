@@ -10,6 +10,7 @@ import {
   readWorkerRegistry,
   writeWorkerRegistry,
   purgeWorker,
+  purgeWorkers,
   forceKillWorker,
   readIncrementalLog,
   getSystemResources,
@@ -338,6 +339,75 @@ describe('Worker registry reading and incremental log tailing', () => {
     const logExists = await fs.stat(logPath).catch(() => null);
     expect(logExists).toBeNull();
   });
+
+  it('purges multiple selected workers and their run logs in a single batch', async () => {
+    const regFile = path.join(tmpDir, 'workers', 'registry.json');
+    const logDir1 = path.join(tmpDir, 'workers', 'w1-logs');
+    const logDir2 = path.join(tmpDir, 'workers', 'w2-logs');
+    const logDir3 = path.join(tmpDir, 'workers', 'w3-logs');
+    await fs.mkdir(logDir1, { recursive: true });
+    await fs.mkdir(logDir2, { recursive: true });
+    await fs.mkdir(logDir3, { recursive: true });
+
+    const logPath1 = path.join(logDir1, 'worker.jsonl');
+    const logPath2 = path.join(logDir2, 'worker.jsonl');
+    const logPath3 = path.join(logDir3, 'worker.jsonl');
+    await fs.writeFile(logPath1, '{"run":1}\n');
+    await fs.writeFile(logPath2, '{"run":2}\n');
+    await fs.writeFile(logPath3, '{"run":3}\n');
+
+    const w1: WorkerRecord = {
+      worker_id: 'batch-w1',
+      workspace_id: 'ws-1',
+      status: 'stopped',
+      pid: null,
+      started_at: new Date().toISOString(),
+      log_path: logPath1,
+    };
+    const w2: WorkerRecord = {
+      worker_id: 'batch-w2',
+      workspace_id: 'ws-1',
+      status: 'failed',
+      pid: null,
+      started_at: new Date().toISOString(),
+      log_path: logPath2,
+    };
+    const w3: WorkerRecord = {
+      worker_id: 'batch-w3',
+      workspace_id: 'ws-1',
+      status: 'running',
+      pid: null,
+      started_at: new Date().toISOString(),
+      log_path: logPath3,
+    };
+
+    await writeWorkerRegistry([w1, w2, w3], regFile);
+
+    // Purge w1 and w2
+    const res = await purgeWorkers(['batch-w1', 'batch-w2'], false, regFile);
+    expect(res.success).toBe(true);
+    expect(res.purgedCount).toBe(2);
+
+    const remainingWorkers = await readWorkerRegistry(regFile);
+    expect(remainingWorkers).toHaveLength(1);
+    expect(remainingWorkers[0].worker_id).toBe('batch-w3');
+
+    // Logs for w1 and w2 must be gone
+    expect(await fs.stat(logPath1).catch(() => null)).toBeNull();
+    expect(await fs.stat(logPath2).catch(() => null)).toBeNull();
+    // Log for w3 must still exist
+    expect(await fs.stat(logPath3)).toBeTruthy();
+
+    // Now purge all remaining
+    const purgeAllRes = await purgeWorkers(['batch-w3'], false, regFile);
+    expect(purgeAllRes.success).toBe(true);
+    expect(purgeAllRes.purgedCount).toBe(1);
+
+    const emptyWorkers = await readWorkerRegistry(regFile);
+    expect(emptyWorkers).toHaveLength(0);
+    expect(await fs.stat(logPath3).catch(() => null)).toBeNull();
+  });
+
 
   it('force-kills worker via SIGKILL while preserving worker record and logs', async () => {
     const regFile = path.join(tmpDir, 'workers', 'registry.json');

@@ -24,6 +24,7 @@ import {
   readIncrementalLog,
   readWorkerRegistry,
   purgeWorker,
+  purgeWorkers,
   forceKillWorker,
   validatePipelineChain,
   writeColosseumRegistry,
@@ -1689,6 +1690,10 @@ ipcMain.handle('restart-colosseum-worker', async (_event, workerId: string) => {
 
 ipcMain.handle('purge-colosseum-worker', async (_event, workerId: string, killFirst = false) => {
   return purgeWorker(workerId, killFirst);
+});
+
+ipcMain.handle('purge-colosseum-workers', async (_event, workerIds: string[], killFirst = false) => {
+  return purgeWorkers(workerIds, killFirst);
 });
 
 ipcMain.handle('tail-colosseum-log', async (_event, logPath: string, lastLen?: number, lastMtime?: number) => {

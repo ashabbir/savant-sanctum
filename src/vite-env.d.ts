@@ -49,6 +49,7 @@ interface Window {
     forceKillColosseumWorker: (workerId: string) => Promise<{ success: boolean; error?: string }>;
     restartColosseumWorker: (workerId: string) => Promise<{ success: boolean; worker?: any; error?: string }>;
     purgeColosseumWorker: (workerId: string, killFirst?: boolean) => Promise<{ success: boolean; error?: string }>;
+    purgeColosseumWorkers: (workerIds: string[], killFirst?: boolean) => Promise<{ success: boolean; purgedCount?: number; error?: string }>;
     tailColosseumLog: (logPath: string, lastLen?: number, lastMtime?: number) => Promise<{ chunk: string; len: number; mtime: number }>;
     getSystemStats: () => Promise<{
       cpuUsagePercent: number;

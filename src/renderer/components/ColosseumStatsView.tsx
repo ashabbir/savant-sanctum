@@ -353,6 +353,123 @@ export function ColosseumStatsView({
     });
   };
 
+  // Multiple worker selection
+  const [selectedWorkerIds, setSelectedWorkerIds] = useState<Set<string>>(new Set());
+
+  const toggleSelectWorker = (workerId: string) => {
+    setSelectedWorkerIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(workerId)) {
+        next.delete(workerId);
+      } else {
+        next.add(workerId);
+      }
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedWorkerIds.size === workers.length && workers.length > 0) {
+      setSelectedWorkerIds(new Set());
+    } else {
+      setSelectedWorkerIds(new Set(workers.map((w) => w.worker_id)));
+    }
+  };
+
+  const clearSelection = () => {
+    setSelectedWorkerIds(new Set());
+  };
+
+  const executeBulkPurge = async (workerIds: string[], killFirst: boolean) => {
+    try {
+      pushToast('Purging...', `Purging ${workerIds.length} worker run log${workerIds.length === 1 ? '' : 's'}...`, 'muted');
+      const res = await window.sanctum.purgeColosseumWorkers(workerIds, killFirst);
+      if (!res.success) {
+        pushToast('Bulk Purge Failed', res.error || 'Could not purge selected workers', 'warning');
+        return;
+      }
+      pushToast(
+        'Run Logs Purged',
+        `Successfully purged ${res.purgedCount ?? workerIds.length} worker run log${(res.purgedCount ?? workerIds.length) === 1 ? '' : 's'} and record${(res.purgedCount ?? workerIds.length) === 1 ? '' : 's'}.`,
+        'good'
+      );
+      if (selectedWorker && workerIds.includes(selectedWorker.worker_id)) {
+        setSelectedWorker(null);
+      }
+      if (logModalWorker && workerIds.includes(logModalWorker.worker_id)) {
+        setLogModalWorker(null);
+      }
+      setSelectedWorkerIds((prev) => {
+        const next = new Set(prev);
+        for (const id of workerIds) next.delete(id);
+        return next;
+      });
+      await refreshAll();
+    } catch (err: any) {
+      pushToast('Bulk Purge Error', err?.message || 'Failed to purge workers', 'warning');
+    }
+  };
+
+  const handlePurgeSelected = () => {
+    const ids = Array.from(selectedWorkerIds);
+    if (ids.length === 0) return;
+    const selectedRecords = workers.filter((w) => selectedWorkerIds.has(w.worker_id));
+    const activeRunning = selectedRecords.filter((w) => w.status === 'running' || w.status === 'starting');
+    const killFirst = activeRunning.length > 0;
+
+    let warning = `Permanently delete ${ids.length} worker run log${ids.length === 1 ? '' : 's'} and registry record${ids.length === 1 ? '' : 's'}?`;
+    if (killFirst) {
+      warning += ` WARNING: ${activeRunning.length} worker${activeRunning.length === 1 ? ' is' : 's are'} currently active and will be terminated immediately via SIGKILL.`;
+    }
+
+    setConfirmationState({
+      isOpen: true,
+      title: `Purge ${ids.length} Run Log${ids.length === 1 ? '' : 's'}`,
+      description: warning,
+      confirmLabel: killFirst ? `Terminate & Purge (${ids.length})` : `Purge ${ids.length} Logs`,
+      variant: 'danger',
+      onConfirm: () => executeBulkPurge(ids, killFirst),
+    });
+  };
+
+  const handlePurgeInactive = () => {
+    const inactive = workers.filter((w) => w.status === 'stopped' || w.status === 'succeeded' || w.status === 'failed');
+    if (inactive.length === 0) {
+      pushToast('No Inactive Logs', 'There are no stopped or completed worker logs to purge.', 'muted');
+      return;
+    }
+    const ids = inactive.map((w) => w.worker_id);
+    setConfirmationState({
+      isOpen: true,
+      title: `Purge ${ids.length} Inactive Run Logs`,
+      description: `Permanently delete all ${ids.length} completed/stopped worker run logs and records? Active running workers will be unaffected.`,
+      confirmLabel: `Purge ${ids.length} Inactive Logs`,
+      variant: 'danger',
+      onConfirm: () => executeBulkPurge(ids, false),
+    });
+  };
+
+  const handlePurgeAll = () => {
+    if (workers.length === 0) return;
+    const activeCount = workers.filter((w) => w.status === 'running' || w.status === 'starting').length;
+    const killFirst = activeCount > 0;
+    const ids = workers.map((w) => w.worker_id);
+
+    let desc = `Permanently delete ALL ${workers.length} worker run logs and records from the fleet registry?`;
+    if (killFirst) {
+      desc += ` ${activeCount} active worker daemon${activeCount === 1 ? ' is' : 's are'} currently executing tasks and will be terminated immediately.`;
+    }
+
+    setConfirmationState({
+      isOpen: true,
+      title: 'Purge ALL Run Logs & Records',
+      description: desc,
+      confirmLabel: `Purge All ${workers.length} Logs`,
+      variant: 'danger',
+      onConfirm: () => executeBulkPurge(ids, killFirst),
+    });
+  };
+
   const handleKillSession = (session: any) => {
     setConfirmationState({
       isOpen: true,
@@ -757,16 +874,79 @@ export function ColosseumStatsView({
 
               {/* Per-Worker Table */}
               <section>
-                <div className="flex items-center justify-between mb-3">
-                  <h2 className="text-xs font-semibold uppercase tracking-wider text-white/50">
-                    Worker Fleet Detail ({workers.length})
-                  </h2>
-                  <span className="text-[11px] text-white/40">Click row to open detailed inspector drawer</span>
+                <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+                  <div className="flex items-center gap-3">
+                    <h2 className="text-xs font-semibold uppercase tracking-wider text-white/50">
+                      Worker Fleet Detail & Logs ({workers.length})
+                    </h2>
+                    {selectedWorkerIds.size > 0 && (
+                      <span className="text-[11px] px-2 py-0.5 rounded-full bg-cyan-950 border border-cyan-500/40 text-cyan-300 font-mono">
+                        {selectedWorkerIds.size} selected
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    {selectedWorkerIds.size > 0 ? (
+                      <>
+                        <button
+                          type="button"
+                          onClick={handlePurgeSelected}
+                          className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-rose-950 hover:bg-rose-900 border border-rose-600 text-rose-200 text-xs font-medium transition-colors shadow-sm"
+                          title="Purge selected worker run logs and registry records"
+                        >
+                          <Trash2 size={12} />
+                          Purge Selected ({selectedWorkerIds.size})
+                        </button>
+                        <button
+                          type="button"
+                          onClick={clearSelection}
+                          className="px-2 py-1 rounded bg-white/5 hover:bg-white/10 text-white/50 hover:text-white text-xs transition-colors"
+                        >
+                          Deselect All
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        {workers.some((w) => w.status === 'stopped' || w.status === 'succeeded' || w.status === 'failed') && (
+                          <button
+                            type="button"
+                            onClick={handlePurgeInactive}
+                            className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-white/5 hover:bg-rose-950/80 border border-white/10 hover:border-rose-600/60 text-white/60 hover:text-rose-200 text-xs font-medium transition-colors"
+                            title="Delete all stopped, failed, and completed worker run logs"
+                          >
+                            <Trash2 size={12} />
+                            Purge Inactive ({workers.filter((w) => w.status === 'stopped' || w.status === 'succeeded' || w.status === 'failed').length})
+                          </button>
+                        )}
+                        {workers.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={handlePurgeAll}
+                            className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-white/5 hover:bg-rose-950/80 border border-white/10 hover:border-rose-600/60 text-white/40 hover:text-rose-300 text-xs font-medium transition-colors"
+                            title="Purge all worker run logs and records from the fleet"
+                          >
+                            <Trash2 size={12} />
+                            Purge All ({workers.length})
+                          </button>
+                        )}
+                      </>
+                    )}
+                  </div>
                 </div>
                 <div className="rounded-xl border border-white/10 bg-slate-900/50 overflow-hidden">
                   <table className="w-full text-left text-xs border-collapse">
                     <thead>
                       <tr className="border-b border-white/10 bg-white/5 font-mono uppercase text-[10px] text-white/50">
+                        <th className="py-2.5 px-3 w-8" onClick={(e) => e.stopPropagation()}>
+                          <input
+                            type="checkbox"
+                            checked={workers.length > 0 && selectedWorkerIds.size === workers.length}
+                            onChange={toggleSelectAll}
+                            className="rounded bg-black/40 border-white/20 text-cyan-500 cursor-pointer"
+                            title={selectedWorkerIds.size === workers.length ? 'Deselect all' : 'Select all'}
+                          />
+                        </th>
                         <th className="py-2.5 px-3">Status</th>
                         <th className="py-2.5 px-3">Worker ID</th>
                         <th className="py-2.5 px-3">Workspace</th>
@@ -782,7 +962,7 @@ export function ColosseumStatsView({
                     <tbody className="divide-y divide-white/5 font-mono">
                       {workers.length === 0 ? (
                         <tr>
-                          <td colSpan={10} className="py-8 text-center text-white/40 italic">
+                          <td colSpan={11} className="py-8 text-center text-white/40 italic">
                             No Colosseum workers in registry. Start one from the workspace header or CLI.
                           </td>
                         </tr>
@@ -791,15 +971,28 @@ export function ColosseumStatsView({
                           const isRunning = worker.status === 'running' || worker.status === 'starting';
                           const telemetry = getWorkerTelemetry(worker);
                           const isSelected = selectedWorker?.worker_id === worker.worker_id;
+                          const isChecked = selectedWorkerIds.has(worker.worker_id);
 
                           return (
                             <tr
                               key={worker.worker_id}
                               onClick={() => setSelectedWorker(worker)}
                               className={`hover:bg-white/5 cursor-pointer transition-colors ${
-                                isSelected ? 'bg-cyan-950/40 border-l-2 border-cyan-400' : ''
+                                isSelected
+                                  ? 'bg-cyan-950/40 border-l-2 border-cyan-400'
+                                  : isChecked
+                                  ? 'bg-cyan-950/20'
+                                  : ''
                               }`}
                             >
+                              <td className="py-2.5 px-3 w-8" onClick={(e) => e.stopPropagation()}>
+                                <input
+                                  type="checkbox"
+                                  checked={isChecked}
+                                  onChange={() => toggleSelectWorker(worker.worker_id)}
+                                  className="rounded bg-black/40 border-white/20 text-cyan-500 cursor-pointer"
+                                />
+                              </td>
                               <td className="py-2.5 px-3">
                                 <span
                                   className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] uppercase font-semibold ${
@@ -1160,6 +1353,33 @@ export function ColosseumStatsView({
                   />
                   <span>Follow Mode</span>
                 </label>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!logModalWorker) return;
+                    const isRunning = logModalWorker.status === 'running' || logModalWorker.status === 'starting';
+                    setConfirmationState({
+                      isOpen: true,
+                      title: `Purge Log: ${logModalWorker.worker_id}`,
+                      description: `Permanently delete this worker's log file and registry record?${
+                        isRunning ? ' The worker process will be terminated immediately via SIGKILL.' : ''
+                      }`,
+                      confirmLabel: isRunning ? 'Terminate & Purge' : 'Purge Log',
+                      variant: 'danger',
+                      onConfirm: async () => {
+                        const id = logModalWorker.worker_id;
+                        await executeBulkPurge([id], isRunning);
+                        setLogModalWorker(null);
+                      },
+                    });
+                  }}
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-rose-950/80 hover:bg-rose-900 border border-rose-500/40 text-rose-300 text-[11px] font-sans font-medium transition-colors"
+                  title="Delete this worker log file and registry record"
+                >
+                  <Trash2 size={12} className="text-rose-400" />
+                  Purge Log
+                </button>
 
                 <button
                   type="button"

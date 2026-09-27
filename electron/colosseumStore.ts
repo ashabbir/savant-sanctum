@@ -230,37 +230,58 @@ export async function writeWorkerRegistry(
   await fs.rename(tempFile, filePath);
 }
 
+export async function purgeWorkers(
+  workerIds: string[],
+  killFirst = false,
+  customRegistryPath?: string
+): Promise<{ success: boolean; purgedCount: number; error?: string }> {
+  if (!workerIds || workerIds.length === 0) {
+    return { success: true, purgedCount: 0 };
+  }
+  const idSet = new Set(workerIds);
+  const workers = await readWorkerRegistry(customRegistryPath);
+  const targets = workers.filter((w) => idSet.has(w.worker_id));
+
+  if (killFirst) {
+    for (const target of targets) {
+      if (target.pid) {
+        try {
+          process.kill(target.pid, 'SIGKILL');
+        } catch {
+          // process might already be dead
+        }
+      }
+    }
+  }
+
+  const remaining = workers.filter((w) => !idSet.has(w.worker_id));
+  try {
+    await writeWorkerRegistry(remaining, customRegistryPath);
+  } catch (err: any) {
+    return { success: false, purgedCount: 0, error: `Failed to write worker registry: ${err?.message || String(err)}` };
+  }
+
+  for (const target of targets) {
+    if (target.log_path) {
+      const parentDir = path.dirname(target.log_path);
+      try {
+        await fs.rm(parentDir, { recursive: true, force: true });
+      } catch {
+        // ignore log dir deletion failure if non-existent
+      }
+    }
+  }
+
+  return { success: true, purgedCount: targets.length };
+}
+
 export async function purgeWorker(
   workerId: string,
   killFirst = false,
   customRegistryPath?: string
 ): Promise<{ success: boolean; error?: string }> {
-  const workers = await readWorkerRegistry(customRegistryPath);
-  const worker = workers.find((w) => w.worker_id === workerId);
-  if (worker && killFirst && worker.pid) {
-    try {
-      process.kill(worker.pid, 'SIGKILL');
-    } catch {
-      // process might already be dead
-    }
-  }
-  const remaining = workers.filter((w) => w.worker_id !== workerId);
-  try {
-    await writeWorkerRegistry(remaining, customRegistryPath);
-  } catch (err: any) {
-    return { success: false, error: `Failed to write worker registry: ${err?.message || String(err)}` };
-  }
-
-  if (worker?.log_path) {
-    const parentDir = path.dirname(worker.log_path);
-    try {
-      await fs.rm(parentDir, { recursive: true, force: true });
-    } catch {
-      // ignore log dir deletion failure if non-existent
-    }
-  }
-
-  return { success: true };
+  const res = await purgeWorkers([workerId], killFirst, customRegistryPath);
+  return { success: res.success, error: res.error };
 }
 
 export async function forceKillWorker(
