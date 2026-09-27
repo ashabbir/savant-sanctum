@@ -93,9 +93,9 @@ export function ColosseumStatsView({ pushToast, serverUrl = 'http://127.0.0.1:80
         const headers: Record<string, string> = { 'Content-Type': 'application/json' };
         if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`;
         const res = await fetch(`${serverUrl}/api/tasks`, { headers });
-        if (res.ok) {
-          const taskData = await res.json();
-          if (Array.isArray(taskData)) setTasks(taskData);
+        const taskData = res.ok ? await res.json() : null;
+        if (Array.isArray(taskData)) {
+          setTasks(taskData);
         }
       } catch {
         // Server unreachable - leave as unavailable
@@ -163,6 +163,53 @@ export function ColosseumStatsView({ pushToast, serverUrl = 'http://127.0.0.1:80
     setIsFollowMode(true);
   };
 
+  // Action Executions
+  const executeRestart = async (worker: WorkerRecord) => {
+    try {
+      pushToast('Restarting...', `Stopping worker ${worker.worker_id} and relaunching...`, 'muted');
+      const res = await window.sanctum.restartColosseumWorker(worker.worker_id);
+      if (!res.success) {
+        pushToast('Restart Failed', res.error || 'Could not restart worker', 'warning');
+        return;
+      }
+      pushToast('Worker Restarted', `New worker launched: ${res.worker?.worker_id || 'active'}`, 'good');
+      await refreshAll();
+    } catch (err: any) {
+      pushToast('Restart Error', err?.message || 'Failed to restart worker', 'warning');
+    }
+  };
+
+  const executeStop = async (worker: WorkerRecord) => {
+    try {
+      const res = await window.sanctum.stopColosseumWorker(worker.worker_id);
+      if (!res.success) {
+        pushToast('Stop Failed', res.error || 'Could not stop worker', 'warning');
+        return;
+      }
+      pushToast('Worker Stopped', `Worker ${worker.worker_id} terminated.`, 'good');
+      await refreshAll();
+    } catch (err: any) {
+      pushToast('Stop Error', err?.message || 'Failed to stop worker', 'warning');
+    }
+  };
+
+  const executePurge = async (worker: WorkerRecord, killFirst: boolean) => {
+    try {
+      const res = await window.sanctum.purgeColosseumWorker(worker.worker_id, killFirst);
+      if (!res.success) {
+        pushToast('Purge Failed', res.error || 'Could not purge worker', 'warning');
+        return;
+      }
+      pushToast('Worker Purged', `Worker ${worker.worker_id} removed from registry.`, 'good');
+      if (selectedWorker?.worker_id === worker.worker_id) {
+        setSelectedWorker(null);
+      }
+      await refreshAll();
+    } catch (err: any) {
+      pushToast('Purge Error', err?.message || 'Failed to purge worker', 'warning');
+    }
+  };
+
   // Actions
   const handleRestart = (worker: WorkerRecord) => {
     setConfirmationState({
@@ -171,20 +218,7 @@ export function ColosseumStatsView({ pushToast, serverUrl = 'http://127.0.0.1:80
       description: `Restart worker "${worker.worker_id}"? The existing daemon will be stopped and a new worker daemon will be launched.`,
       confirmLabel: 'Restart Worker',
       variant: 'warning',
-      onConfirm: async () => {
-        try {
-          pushToast('Restarting...', `Stopping worker ${worker.worker_id} and relaunching...`, 'muted');
-          const res = await window.sanctum.restartColosseumWorker(worker.worker_id);
-          if (res.success) {
-            pushToast('Worker Restarted', `New worker launched: ${res.worker?.worker_id || 'active'}`, 'good');
-            await refreshAll();
-          } else {
-            pushToast('Restart Failed', res.error || 'Could not restart worker', 'warning');
-          }
-        } catch (err: any) {
-          pushToast('Restart Error', err?.message || 'Failed to restart worker', 'warning');
-        }
-      },
+      onConfirm: () => executeRestart(worker),
     });
   };
 
@@ -195,19 +229,7 @@ export function ColosseumStatsView({ pushToast, serverUrl = 'http://127.0.0.1:80
       description: `Terminate worker daemon "${worker.worker_id}"? Any currently active stage will be stopped.`,
       confirmLabel: 'Stop Worker',
       variant: 'danger',
-      onConfirm: async () => {
-        try {
-          const res = await window.sanctum.stopColosseumWorker(worker.worker_id);
-          if (res.success) {
-            pushToast('Worker Stopped', `Worker ${worker.worker_id} terminated.`, 'good');
-            await refreshAll();
-          } else {
-            pushToast('Stop Failed', res.error || 'Could not stop worker', 'warning');
-          }
-        } catch (err: any) {
-          pushToast('Stop Error', err?.message || 'Failed to stop worker', 'warning');
-        }
-      },
+      onConfirm: () => executeStop(worker),
     });
   };
 
@@ -220,22 +242,7 @@ export function ColosseumStatsView({ pushToast, serverUrl = 'http://127.0.0.1:80
         : `Remove worker "${worker.worker_id}" and delete its log files? [y/N]`,
       confirmLabel: killFirst ? 'Kill & Purge' : 'Purge Worker',
       variant: 'danger',
-      onConfirm: async () => {
-        try {
-          const res = await window.sanctum.purgeColosseumWorker(worker.worker_id, killFirst);
-          if (res.success) {
-            pushToast('Worker Purged', `Worker ${worker.worker_id} removed from registry.`, 'good');
-            if (selectedWorker?.worker_id === worker.worker_id) {
-              setSelectedWorker(null);
-            }
-            await refreshAll();
-          } else {
-            pushToast('Purge Failed', res.error || 'Could not purge worker', 'warning');
-          }
-        } catch (err: any) {
-          pushToast('Purge Error', err?.message || 'Failed to purge worker', 'warning');
-        }
-      },
+      onConfirm: () => executePurge(worker, killFirst),
     });
   };
 
