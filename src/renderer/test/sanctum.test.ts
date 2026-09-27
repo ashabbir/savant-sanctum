@@ -3,7 +3,7 @@ import { artifacts, navigation, reminders, sectionProfiles, sessionEvents, sessi
 
 describe('Sanctum scaffold', () => {
   it('exposes the expected navigation rails', () => {
-    expect(navigation.map((item) => item.short)).toEqual(['W', 'M', 'S', 'T', 'R', 'N', 'F', 'J', 'M', 'K', 'G']);
+    expect(navigation.map((item) => item.short)).toEqual(['W', 'M', 'S', 'T', 'R', 'N', 'F', 'J', 'M', 'P', 'C', 'K', 'G']);
   });
 
   it('includes the PRD entities in the mock data', () => {
@@ -17,7 +17,7 @@ describe('Sanctum scaffold', () => {
   });
 
   it('covers each navigation surface with a section profile', () => {
-    expect(sectionProfiles.map((profile) => profile.id)).toEqual(['workspace', 'manage', 'session', 'tasks', 'reminders', 'notes', 'files', 'jira', 'merge-requests', 'knowledge', 'providers', 'settings']);
+    expect(sectionProfiles.map((profile) => profile.id)).toEqual(['workspace', 'manage', 'session', 'tasks', 'reminders', 'notes', 'files', 'jira', 'merge-requests', 'pipelines', 'colosseum', 'knowledge', 'providers', 'settings']);
   });
 
   it('keeps the settings shortcut available', () => {

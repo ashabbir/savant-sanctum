@@ -1,5 +1,5 @@
 import { app, BrowserWindow, dialog, ipcMain } from 'electron';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawn } from 'node:child_process';
 import path from 'node:path';
 import fs from 'node:fs/promises';
 import fsSync from 'node:fs';
@@ -17,6 +17,17 @@ import {
   readHermesSessionMetadata,
   type SqlDatabase,
 } from './hermesStore.js';
+import {
+  COLOSSEUM_PROVIDERS as STORE_COLOSSEUM_PROVIDERS,
+  getSystemResources,
+  readColosseumRegistry,
+  readIncrementalLog,
+  readWorkerRegistry,
+  validatePipelineChain,
+  writeColosseumRegistry,
+  type ColosseumRegistry,
+  type WorkerRecord,
+} from './colosseumStore.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -1469,3 +1480,225 @@ ipcMain.handle('list-providers', async (_event, gatewayUrl?: string) => {
     providers: gatewayProviders || [],
   };
 });
+
+function findColosseumBinary(): string | null {
+  const candidates = [
+    'savant-colosseum',
+    path.join(os.homedir(), '.cargo', 'bin', 'savant-colosseum'),
+    '/usr/local/bin/savant-colosseum',
+    '/opt/homebrew/bin/savant-colosseum',
+  ];
+  for (const bin of candidates) {
+    try {
+      execFileSync('which', [bin], { stdio: 'ignore' });
+      return bin;
+    } catch {
+      if (path.isAbsolute(bin) && fsSync.existsSync(bin)) {
+        return bin;
+      }
+    }
+  }
+  return null;
+}
+
+function isProcessAlive(pid: number, expectedIdentity?: string | null): boolean {
+  try {
+    process.kill(pid, 0);
+  } catch {
+    return false;
+  }
+  if (!expectedIdentity) return true;
+  try {
+    const stdout = execFileSync('ps', ['-o', 'lstart=', '-p', String(pid)], {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    }).trim();
+    return stdout === expectedIdentity;
+  } catch {
+    return false;
+  }
+}
+
+ipcMain.handle('get-colosseum-registry', async () => {
+  return readColosseumRegistry();
+});
+
+ipcMain.handle('save-colosseum-registry', async (_event, registry: ColosseumRegistry) => {
+  try {
+    await writeColosseumRegistry(registry);
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, errors: [error?.message || String(error)] };
+  }
+});
+
+ipcMain.handle('get-colosseum-workers', async () => {
+  const workers = await readWorkerRegistry();
+  return workers.map((w) => {
+    const alive = w.pid ? isProcessAlive(w.pid, w.process_identity) : false;
+    let status = w.status;
+    if (status === 'running' && !alive) {
+      status = 'failed';
+    }
+    return {
+      ...w,
+      status,
+    };
+  });
+});
+
+ipcMain.handle('start-colosseum-worker', async (_event, workspaceId?: string) => {
+  const binary = findColosseumBinary();
+  if (!binary) {
+    throw new Error(
+      "savant-colosseum binary not found in PATH or ~/.cargo/bin. Please run 'cargo install --path .' in savant-colosseum."
+    );
+  }
+  const args = ['start'];
+  if (workspaceId?.trim()) {
+    args.push('--workspace', workspaceId.trim());
+  }
+  args.push('--daemon');
+
+  return new Promise((resolve) => {
+    const child = spawn(binary, args, {
+      detached: true,
+      stdio: 'ignore',
+      env: { ...process.env },
+    });
+    child.unref();
+
+    setTimeout(async () => {
+      try {
+        const workers = await readWorkerRegistry();
+        const active = workers.find((w) =>
+          (!workspaceId || w.workspace_id === workspaceId) &&
+          (w.status === 'starting' || w.status === 'running')
+        );
+        resolve({ success: true, workerId: active?.worker_id });
+      } catch {
+        resolve({ success: true });
+      }
+    }, 600);
+  });
+});
+
+ipcMain.handle('stop-colosseum-worker', async (_event, workerId: string) => {
+  const binary = findColosseumBinary();
+  if (binary) {
+    try {
+      execFileSync(binary, ['stop', workerId], { stdio: 'ignore' });
+      return { success: true };
+    } catch {
+      // Fallback
+    }
+  }
+  const workers = await readWorkerRegistry();
+  const worker = workers.find((w) => w.worker_id === workerId);
+  if (worker?.pid && isProcessAlive(worker.pid, worker.process_identity)) {
+    try {
+      process.kill(worker.pid, 'SIGTERM');
+    } catch {
+      // ignore
+    }
+  }
+  return { success: true };
+});
+
+ipcMain.handle('restart-colosseum-worker', async (_event, workerId: string) => {
+  const workers = await readWorkerRegistry();
+  const worker = workers.find((w) => w.worker_id === workerId);
+  if (!worker) {
+    throw new Error(`Worker '${workerId}' not found`);
+  }
+  const wsId = worker.workspace_id || undefined;
+
+  const binary = findColosseumBinary();
+  if (binary) {
+    try {
+      execFileSync(binary, ['stop', workerId], { stdio: 'ignore' });
+    } catch {
+      // ignore
+    }
+  }
+  if (worker.pid && isProcessAlive(worker.pid, worker.process_identity)) {
+    try {
+      process.kill(worker.pid, 'SIGTERM');
+    } catch {
+      // ignore
+    }
+  }
+
+  await new Promise((r) => setTimeout(r, 600));
+
+  if (!binary) {
+    throw new Error('savant-colosseum binary not found');
+  }
+  const args = ['start'];
+  if (wsId) args.push('--workspace', wsId);
+  args.push('--daemon');
+
+  const child = spawn(binary, args, {
+    detached: true,
+    stdio: 'ignore',
+    env: { ...process.env },
+  });
+  child.unref();
+
+  let newWorker: WorkerRecord | undefined;
+  for (let attempt = 0; attempt < 10; attempt++) {
+    await new Promise((r) => setTimeout(r, 400));
+    const currentWorkers = await readWorkerRegistry();
+    newWorker = currentWorkers.find((w) =>
+      w.worker_id !== workerId &&
+      (!wsId || w.workspace_id === wsId) &&
+      (w.status === 'starting' || w.status === 'running')
+    );
+    if (newWorker) break;
+  }
+
+  if (!newWorker) {
+    throw new Error('Worker restart initiated, but new worker record was not created in time');
+  }
+
+  return { success: true, worker: newWorker };
+});
+
+ipcMain.handle('purge-colosseum-worker', async (_event, workerId: string, killFirst = false) => {
+  const workers = await readWorkerRegistry();
+  const worker = workers.find((w) => w.worker_id === workerId);
+  if (worker && killFirst && worker.pid && isProcessAlive(worker.pid, worker.process_identity)) {
+    try {
+      process.kill(worker.pid, 'SIGKILL');
+    } catch {
+      // ignore
+    }
+  }
+  const remaining = workers.filter((w) => w.worker_id !== workerId);
+  const registryPath = path.join(os.homedir(), '.savant', 'colosseum', 'workers', 'registry.json');
+  try {
+    await fs.writeFile(registryPath, JSON.stringify(remaining, null, 2), 'utf8');
+  } catch {
+    // ignore
+  }
+
+  if (worker?.log_path) {
+    const parentDir = path.dirname(worker.log_path);
+    try {
+      await fs.rm(parentDir, { recursive: true, force: true });
+    } catch {
+      // ignore
+    }
+  }
+
+  return { success: true };
+});
+
+ipcMain.handle('tail-colosseum-log', async (_event, logPath: string, lastLen?: number, lastMtime?: number) => {
+  return readIncrementalLog(logPath, lastLen, lastMtime);
+});
+
+ipcMain.handle('get-system-stats', async () => {
+  return getSystemResources();
+});
+

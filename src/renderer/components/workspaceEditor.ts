@@ -8,6 +8,7 @@ export type WorkspaceEditorDraft = {
   workspacePriority: 'critical' | 'high' | 'medium' | 'low';
   workspaceStatus: 'open' | 'closed';
   workspaceColor: string;
+  boundPipelineId?: string | null;
 };
 
 export function createWorkspaceEditorDraft(input: Partial<WorkspaceEditorDraft> = {}): WorkspaceEditorDraft {
@@ -17,16 +18,22 @@ export function createWorkspaceEditorDraft(input: Partial<WorkspaceEditorDraft> 
     workspacePriority: input.workspacePriority ?? 'medium',
     workspaceStatus: input.workspaceStatus ?? 'open',
     workspaceColor: input.workspaceColor ?? '',
+    boundPipelineId: input.boundPipelineId ?? null,
   };
 }
 
-export function createWorkspaceEditorDraftFromWorkspace(workspace?: Workspace, displayName?: string): WorkspaceEditorDraft {
+export function createWorkspaceEditorDraftFromWorkspace(
+  workspace?: Workspace,
+  displayName?: string,
+  boundPipelineId?: string | null
+): WorkspaceEditorDraft {
   return createWorkspaceEditorDraft({
     workspaceName: displayName ?? workspace?.name ?? '',
     workspaceDescription: workspace?.description ?? '',
     workspacePriority: workspace?.priority ?? 'medium',
     workspaceStatus: workspace?.status === 'closed' ? 'closed' : 'open',
     workspaceColor: workspace?.color ?? '',
+    boundPipelineId: boundPipelineId ?? null,
   });
 }
 

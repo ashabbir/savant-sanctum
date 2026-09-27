@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Check, Copy } from 'lucide-react';
+import { ColosseumWorkerControls } from './ColosseumWorkerControls';
 
 type WorkspaceHeaderProps = {
   eyebrow: string;
@@ -16,6 +17,8 @@ type WorkspaceHeaderProps = {
   onOpenKnowledge: () => void;
   onOpenActivity: () => void;
   workspaceId?: string;
+  pushToast?: (title: string, detail: string, tone?: 'good' | 'warning' | 'muted') => void;
+  onNavigateToPipelines?: () => void;
 };
 
 export function WorkspaceHeader({
@@ -33,6 +36,8 @@ export function WorkspaceHeader({
   onOpenKnowledge,
   onOpenActivity,
   workspaceId,
+  pushToast,
+  onNavigateToPipelines,
 }: WorkspaceHeaderProps) {
   const [copied, setCopied] = useState(false);
   const priorityTone = (workspacePriority ?? '').toLowerCase();
@@ -79,8 +84,15 @@ export function WorkspaceHeader({
           </div>
           {subtitle ? <p className="hero-copy">{subtitle}</p> : null}
         </div>
-        {(onEdit || showActions) ? (
-          <div className="panel-actions">
+        {(onEdit || showActions || workspaceId) ? (
+          <div className="panel-actions" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            {workspaceId && (
+              <ColosseumWorkerControls
+                workspaceId={workspaceId}
+                pushToast={pushToast || (() => {})}
+                onNavigateToPipelines={onNavigateToPipelines}
+              />
+            )}
             {onEdit ? (
               <button className="ghost-btn icon-only" aria-label="Edit workspace" title="Edit workspace" onClick={onEdit}>
                 <span aria-hidden="true">✎</span>

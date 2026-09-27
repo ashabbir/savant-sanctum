@@ -114,6 +114,7 @@ describe('renderer components', () => {
       workspacePriority: 'medium',
       workspaceStatus: 'open',
       workspaceColor: '',
+      boundPipelineId: null,
     });
   });
 
@@ -141,6 +142,7 @@ describe('renderer components', () => {
       workspacePriority: 'high',
       workspaceStatus: 'closed',
       workspaceColor: '#123456',
+      boundPipelineId: null,
     });
   });
 

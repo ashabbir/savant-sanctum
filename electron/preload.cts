@@ -80,4 +80,13 @@ contextBridge.exposeInMainWorld('sanctum', {
   runAgent: (payload: RunAgentPayload) => invokeRunAgent(payload),
   pickRepository: (defaultPath?: string) => ipcRenderer.invoke('pick-repository', defaultPath),
   listColosseumProviders: () => ipcRenderer.invoke('list-colosseum-providers'),
+  getColosseumRegistry: () => ipcRenderer.invoke('get-colosseum-registry'),
+  saveColosseumRegistry: (registry: any) => ipcRenderer.invoke('save-colosseum-registry', registry),
+  getColosseumWorkers: () => ipcRenderer.invoke('get-colosseum-workers'),
+  startColosseumWorker: (workspaceId?: string) => ipcRenderer.invoke('start-colosseum-worker', workspaceId),
+  stopColosseumWorker: (workerId: string) => ipcRenderer.invoke('stop-colosseum-worker', workerId),
+  restartColosseumWorker: (workerId: string) => ipcRenderer.invoke('restart-colosseum-worker', workerId),
+  purgeColosseumWorker: (workerId: string, killFirst?: boolean) => ipcRenderer.invoke('purge-colosseum-worker', workerId, killFirst),
+  tailColosseumLog: (logPath: string, lastLen?: number, lastMtime?: number) => ipcRenderer.invoke('tail-colosseum-log', logPath, lastLen, lastMtime),
+  getSystemStats: () => ipcRenderer.invoke('get-system-stats'),
 });

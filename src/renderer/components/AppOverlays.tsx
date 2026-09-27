@@ -1,4 +1,4 @@
-import { Ban, Check, ChevronDown, Circle, FileCode, FileText, FolderOpen, GitBranch, History, ListChecks, Maximize, MessageSquare, Network, Plus, Timer, Trash2, User, X, Zap, Copy, Loader2, Send, Sparkles, ZoomIn, ZoomOut } from 'lucide-react';
+import { Ban, Check, ChevronDown, Circle, FileCode, FileText, FolderOpen, GitBranch, History, ListChecks, Maximize, MessageSquare, Network, Plus, Timer, Trash2, User, X, Zap, Copy, Loader2, Send, Sparkles, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
 import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -11,6 +11,7 @@ import { WorkspaceSessionsDrawer } from './WorkspaceSessionsDrawer';
 import { WorkspaceSessionDetailsDrawer } from './WorkspaceSessionDetailsDrawer';
 import { ColosseumLivePulse, ColosseumPhaseLedger, ColosseumRunLedger } from './ColosseumTaskEvidence';
 import { getSessionAdapter, inferSessionProvider, type SessionConversationMessage, type SessionFileGroup } from '../services/sessionAdapters';
+import { getWorkspaceBoundPipelineId, setWorkspaceBoundPipelineId } from './ColosseumWorkerControls';
 
 type WorkspaceMergeRequest = {
   id: string;
@@ -264,6 +265,21 @@ export function AppOverlays(props: AppOverlaysProps) {
   const [jiraTickets, setJiraTickets] = useState<WorkspaceJiraTicket[]>([]);
   const [entityEditor, setEntityEditor] = useState<EntityEditorState | null>(null);
   const [statusDropdownOpen, setStatusDropdownOpen] = useState<'merge-request' | 'jira' | null>(null);
+  const [colosseumPipelines, setColosseumPipelines] = useState<Array<{ id: string; name: string; stageCount: number }>>([]);
+  useEffect(() => {
+    if (isEditOpen && window.sanctum?.getColosseumRegistry) {
+      window.sanctum.getColosseumRegistry().then((reg) => {
+        if (reg?.pipelines) {
+          const list = Object.values(reg.pipelines).map((p) => ({
+            id: p.id,
+            name: p.name,
+            stageCount: p.agent_ids?.length || 0,
+          }));
+          setColosseumPipelines(list);
+        }
+      }).catch(() => {});
+    }
+  }, [isEditOpen]);
   const [taskEditor, setTaskEditor] = useState<{
     title: string;
     description: string;
@@ -1289,15 +1305,28 @@ export function AppOverlays(props: AppOverlaysProps) {
                               </div>
                               <div className="task-card-actions">
                                 {isTaskBlocked(task, taskFlags) ? (
-                                  <button
-                                    type="button"
-                                    className="task-card-block is-unblock-btn"
-                                    aria-label={`Unblock ${task.title}`}
-                                    title="Unblock task"
-                                    onClick={(event) => { event.stopPropagation(); toggleTaskBlocked(task); }}
-                                  >
-                                    Unblock
-                                  </button>
+                                  <>
+                                    <button
+                                      type="button"
+                                      className="task-card-block is-resubmit-btn"
+                                      title="Review reason & re-submit"
+                                      onClick={(event) => {
+                                        event.stopPropagation();
+                                        openTaskEditor(task);
+                                      }}
+                                    >
+                                      Review & re-submit
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="task-card-block is-unblock-btn"
+                                      aria-label={`Unblock ${task.title}`}
+                                      title="Unblock task"
+                                      onClick={(event) => { event.stopPropagation(); toggleTaskBlocked(task); }}
+                                    >
+                                      Unblock
+                                    </button>
+                                  </>
                                 ) : (task.state !== 'human-review' && task.state !== 'approved' && task.state !== 'done') ? (
                                   <button
                                     type="button"
@@ -1760,7 +1789,7 @@ export function AppOverlays(props: AppOverlaysProps) {
             {selectedTask && isTaskBlocked(selectedTask, taskFlags) && (
               <div className="mx-6 mt-3 px-4 py-3 bg-rose-950/40 border border-rose-500/25 rounded-md flex items-start gap-2.5">
                 <Ban className="text-rose-400 shrink-0 mt-0.5" size={16} />
-                <div className="flex flex-col gap-0.5">
+                <div className="flex flex-col gap-0.5 flex-1">
                   <div className="text-xs font-semibold text-rose-300">Task is Blocked</div>
                   {getTaskBlockReason(selectedTask) ? (
                     <div className="text-xs text-rose-200/90 whitespace-pre-wrap leading-relaxed font-mono mt-0.5 bg-black/20 p-2 rounded border border-white/5">
@@ -1771,6 +1800,23 @@ export function AppOverlays(props: AppOverlaysProps) {
                       This task has been blocked. Unblock it to resume execution.
                     </div>
                   )}
+                  <div className="mt-2.5 flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        if (taskFlags[selectedTask.id]?.blocked) {
+                          setTaskFlags((current) => ({
+                            ...current,
+                            [selectedTask.id]: { ...current[selectedTask.id], blocked: false },
+                          }));
+                        }
+                        await submitTaskForGrooming();
+                      }}
+                      className="px-3 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded text-xs font-medium transition-colors flex items-center gap-1.5 shadow-sm cursor-pointer"
+                    >
+                      <RotateCcw size={12} /> Review reason & re-submit
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
@@ -2260,6 +2306,20 @@ export function AppOverlays(props: AppOverlaysProps) {
                 <label className="task-editor-field"><span>Status</span><select value={editDraft.workspaceStatus} onChange={(event) => setEditDraft((current) => ({ ...current, workspaceStatus: event.target.value as 'open' | 'closed' }))}><option value="open">open</option><option value="closed">closed</option></select></label>
                 <label className="task-editor-field"><span>Color</span><input type="color" value={editDraft.workspaceColor || '#00e5ff'} onChange={(event) => setEditDraft((current) => ({ ...current, workspaceColor: event.target.value }))} /></label>
               </div>
+              <label className="task-editor-field entity-editor-span-2">
+                <span>Bound Colosseum Pipeline</span>
+                <select
+                  value={editDraft.boundPipelineId || ''}
+                  onChange={(event) => setEditDraft((current) => ({ ...current, boundPipelineId: event.target.value || null }))}
+                >
+                  <option value="">(None - Unbound)</option>
+                  {colosseumPipelines.map((pipeline) => (
+                    <option key={pipeline.id} value={pipeline.id}>
+                      {pipeline.name} ({pipeline.stageCount} stages) [{pipeline.id}]
+                    </option>
+                  ))}
+                </select>
+              </label>
             </div>
             <div className="modal-actions">
               <button className="ghost-btn action-save icon-only" aria-label={workspaceEditorMode === 'create' ? 'Create workspace' : 'Save workspace'} title={workspaceEditorMode === 'create' ? 'Create workspace' : 'Save workspace'} onClick={saveEditDraft}><span aria-hidden="true">✓</span></button>

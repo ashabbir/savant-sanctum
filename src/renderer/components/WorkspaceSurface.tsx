@@ -451,6 +451,8 @@ export function WorkspaceSurface(props: WorkspaceSurfaceProps) {
         onOpenKnowledge={() => setIsKnowledgeOpen(true)}
         onOpenActivity={() => setIsActivityOpen(true)}
         workspaceId={activeWorkspaceId}
+        pushToast={pushToast}
+        onNavigateToPipelines={() => setActiveSection('pipelines')}
       />}
       {activeSection === 'workspace' ? (
         <WorkspaceOverview
@@ -577,15 +579,28 @@ export function WorkspaceSurface(props: WorkspaceSurfaceProps) {
                             </div>
                             <div className="task-card-actions">
                               {isTaskBlocked(task, taskFlags) ? (
-                                <button
-                                  type="button"
-                                  className="task-card-block is-unblock-btn"
-                                  aria-label={`Unblock ${task.title}`}
-                                  title="Unblock task"
-                                  onClick={(event) => { event.stopPropagation(); toggleTaskBlocked(task); }}
-                                >
-                                  Unblock
-                                </button>
+                                <>
+                                  <button
+                                    type="button"
+                                    className="task-card-block is-resubmit-btn"
+                                    title="Review reason & re-submit"
+                                    onClick={(event) => {
+                                      event.stopPropagation();
+                                      onEditGlobalTask(task);
+                                    }}
+                                  >
+                                    Review & re-submit
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="task-card-block is-unblock-btn"
+                                    aria-label={`Unblock ${task.title}`}
+                                    title="Unblock task"
+                                    onClick={(event) => { event.stopPropagation(); toggleTaskBlocked(task); }}
+                                  >
+                                    Unblock
+                                  </button>
+                                </>
                               ) : (task.state !== 'human-review' && task.state !== 'approved' && task.state !== 'done') ? (
                                 <button
                                   type="button"

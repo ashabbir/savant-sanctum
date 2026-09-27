@@ -98,10 +98,10 @@ export function buildColosseumPhaseConfigs(
 }
 
 const FALLBACK_PROVIDERS = [
-  { id: 'claude', label: 'Claude', defaultModel: 'claude-sonnet-4-6', models: ['claude-haiku-4-5-20251001', 'claude-sonnet-4-6', 'claude-opus-4-7', 'haiku', 'sonnet', 'opus'] },
-  { id: 'gemini', label: 'Gemini', defaultModel: 'gemini-2.5-flash', models: ['gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-2.0-flash'] },
   { id: 'codex', label: 'Codex', defaultModel: 'o4-mini', models: ['o4-mini', 'gpt-4.1', 'gpt-5-mini', 'o3'] },
+  { id: 'claude', label: 'Claude', defaultModel: 'claude-sonnet-4-6', models: ['claude-haiku-4-5-20251001', 'claude-sonnet-4-6', 'claude-opus-4-7', 'haiku', 'sonnet', 'opus'] },
   { id: 'copilot', label: 'Copilot', defaultModel: 'claude-sonnet-4.6', models: ['claude-haiku-4.5', 'claude-sonnet-4.6', 'gpt-4.1', 'gpt-5-mini'] },
+  { id: 'hermes', label: 'Hermes', defaultModel: 'hermes-3-llama-3.1-8b', models: ['hermes-3-llama-3.1-8b', 'hermes-3-llama-3.1-70b'] },
   { id: 'agy', label: 'AGY', defaultModel: 'gemini-2.5-flash', models: ['gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-2.0-flash'] },
 ];
 

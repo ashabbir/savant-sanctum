@@ -22,7 +22,9 @@ import {
   Plus,
   PlusSquare,
   History,
-  Share2
+  Share2,
+  Workflow,
+  Activity,
 } from 'lucide-react';
 import { collectColosseumResponseNotifications } from './lib/colosseumNotifications';
 import {
@@ -48,6 +50,9 @@ import { AppOverlays } from './components/AppOverlays';
 import { ShellChrome } from './components/ShellChrome';
 import { WorkspaceAthenaDrawer } from './components/WorkspaceAthenaDrawer';
 import { WorkspaceSurface } from './components/WorkspaceSurface';
+import { ColosseumPipelinesView } from './components/ColosseumPipelinesView';
+import { ColosseumStatsView } from './components/ColosseumStatsView';
+import { getWorkspaceBoundPipelineId, setWorkspaceBoundPipelineId } from './components/ColosseumWorkerControls';
 import {
   DEFAULT_COLOSSEUM_GROOMING_SETTINGS,
   DEFAULT_COLOSSEUM_READY_SETTINGS,
@@ -217,6 +222,8 @@ const sectionIcons: Record<string, ReactNode> = {
   manage: <LayoutGrid size={14} />,
   session: <MessageSquare size={14} />,
   tasks: <ListChecks size={14} />,
+  pipelines: <Workflow size={14} />,
+  colosseum: <Activity size={14} />,
   reminders: <Timer size={14} />,
   notes: <FileText size={14} />,
   files: <FileCode size={14} />,
@@ -303,9 +310,33 @@ function App() {
   const [selectedProvider, setSelectedProvider] = useState('gemini');
   const [selectedModel, setSelectedModel] = useState('3.5');
   const [gatewayProviders, setGatewayProviders] = useState<Array<{ id: string; label: string; models: string[] }>>([]);
-  const [colosseumGroomingSettings, setColosseumGroomingSettings] = useState<ColosseumSettings>(DEFAULT_COLOSSEUM_GROOMING_SETTINGS);
-  const [colosseumReadySettings, setColosseumReadySettings] = useState<ColosseumSettings>(DEFAULT_COLOSSEUM_READY_SETTINGS);
-  const [colosseumReviewSettings, setColosseumReviewSettings] = useState<ColosseumSettings>(DEFAULT_COLOSSEUM_REVIEW_SETTINGS);
+  const [colosseumGroomingSettings, setColosseumGroomingSettings] = useState<ColosseumSettings>(() => {
+    if (typeof window === 'undefined') return DEFAULT_COLOSSEUM_GROOMING_SETTINGS;
+    try {
+      const raw = window.localStorage.getItem('savant.colosseum.settings.grooming') ?? window.localStorage.getItem('colosseum:grooming-settings');
+      return raw ? { ...DEFAULT_COLOSSEUM_GROOMING_SETTINGS, ...JSON.parse(raw) } : DEFAULT_COLOSSEUM_GROOMING_SETTINGS;
+    } catch {
+      return DEFAULT_COLOSSEUM_GROOMING_SETTINGS;
+    }
+  });
+  const [colosseumReadySettings, setColosseumReadySettings] = useState<ColosseumSettings>(() => {
+    if (typeof window === 'undefined') return DEFAULT_COLOSSEUM_READY_SETTINGS;
+    try {
+      const raw = window.localStorage.getItem('savant.colosseum.settings.ready') ?? window.localStorage.getItem('colosseum:ready-settings');
+      return raw ? { ...DEFAULT_COLOSSEUM_READY_SETTINGS, ...JSON.parse(raw) } : DEFAULT_COLOSSEUM_READY_SETTINGS;
+    } catch {
+      return DEFAULT_COLOSSEUM_READY_SETTINGS;
+    }
+  });
+  const [colosseumReviewSettings, setColosseumReviewSettings] = useState<ColosseumSettings>(() => {
+    if (typeof window === 'undefined') return DEFAULT_COLOSSEUM_REVIEW_SETTINGS;
+    try {
+      const raw = window.localStorage.getItem('savant.colosseum.settings.review') ?? window.localStorage.getItem('colosseum:review-settings');
+      return raw ? { ...DEFAULT_COLOSSEUM_REVIEW_SETTINGS, ...JSON.parse(raw) } : DEFAULT_COLOSSEUM_REVIEW_SETTINGS;
+    } catch {
+      return DEFAULT_COLOSSEUM_REVIEW_SETTINGS;
+    }
+  });
   const [authDraft, setAuthDraft] = useState(() => {
     if (typeof window === 'undefined') return '';
     return window.localStorage.getItem('user:apiKey')?.trim() ?? '';
@@ -426,16 +457,25 @@ function App() {
 
   const handleColosseumGroomingSettingsChange = async (settings: ColosseumSettings) => {
     setColosseumGroomingSettings(settings);
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('savant.colosseum.settings.grooming', JSON.stringify(settings));
+    }
     await saveSettingSafely('colosseum:grooming-settings', settings);
   };
 
   const handleColosseumReadySettingsChange = async (settings: ColosseumSettings) => {
     setColosseumReadySettings(settings);
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('savant.colosseum.settings.ready', JSON.stringify(settings));
+    }
     await saveSettingSafely('colosseum:ready-settings', settings);
   };
 
   const handleColosseumReviewSettingsChange = async (settings: ColosseumSettings) => {
     setColosseumReviewSettings(settings);
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('savant.colosseum.settings.review', JSON.stringify(settings));
+    }
     await saveSettingSafely('colosseum:review-settings', settings);
   };
 
@@ -1801,6 +1841,9 @@ function App() {
           });
           if (response.ok) {
             const createdWorkspace = await response.json();
+            if (createdWorkspace?.id && editDraft.boundPipelineId) {
+              setWorkspaceBoundPipelineId(createdWorkspace.id, editDraft.boundPipelineId);
+            }
             setWorkspaceList((current) => [createdWorkspace, ...current]);
             setWorkspaceIndex(0);
           }
@@ -1809,6 +1852,9 @@ function App() {
         }
       })();
     } else if (activeWorkspace) {
+      if (activeWorkspace.id) {
+        setWorkspaceBoundPipelineId(activeWorkspace.id, editDraft.boundPipelineId ?? null);
+      }
       void (async () => {
         try {
           const response = await fetch(`${serverBaseUrl}/api/workspaces/${encodeURIComponent(activeWorkspace.id)}`, {
@@ -1833,6 +1879,9 @@ function App() {
     setWorkspaceEditorMode(mode);
     if (mode === 'create') {
       setEditDraft(createWorkspaceEditorDraft());
+    } else {
+      const bound = activeWorkspace?.id ? getWorkspaceBoundPipelineId(activeWorkspace.id) : null;
+      setEditDraft(createWorkspaceEditorDraftFromWorkspace(activeWorkspace, displayedWorkspaceName, bound));
     }
     setIsEditOpen(true);
   };
@@ -2188,6 +2237,10 @@ function App() {
         setActiveSection('tasks');
         setIsDrawerOpen(true);
       }}
+      onSelectSection={(sectionId) => {
+        setActiveSection(sectionId as SectionId);
+        setIsDrawerOpen(true);
+      }}
       onSettings={() => setSettingsOpen(true)}
       rightRailItems={rightRailItems}
       athenaProvider={selectedProviderLabel}
@@ -2202,7 +2255,12 @@ function App() {
         { label: 'sync', status: 'online', detail: 'live' },
       ]}
     >
-      <WorkspaceSurface
+      {activeSection === 'pipelines' ? (
+        <ColosseumPipelinesView pushToast={pushToast} />
+      ) : activeSection === 'colosseum' ? (
+        <ColosseumStatsView pushToast={pushToast} serverUrl={serverDraft} apiKey={authDraft} />
+      ) : (
+        <WorkspaceSurface
         hero={hero}
         heroFacts={heroFacts}
         onEdit={() => openWorkspaceEditor('edit')}
@@ -2274,7 +2332,7 @@ function App() {
         restoreActivityContext={restoreActivityContext}
         activeWorkspaceId={activeWorkspaceId}
         onOpenSessions={openSessionsDrawer}
-      />
+      />)}
 
       <AppOverlays
       setSessionIndex={setSessionIndex}

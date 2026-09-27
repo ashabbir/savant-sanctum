@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react';
-import { Bell, ChevronDown, ChevronLeft, ChevronRight, Folder, Keyboard, ListChecks, LogOut, Plus, Settings } from 'lucide-react';
+import { Activity, Bell, ChevronDown, ChevronLeft, ChevronRight, Folder, Keyboard, ListChecks, LogOut, Plus, Settings, Workflow } from 'lucide-react';
 import type { Session, Workspace } from '../data';
 import { BottomBar } from './BottomBar';
 
@@ -49,6 +49,7 @@ type ShellChromeProps = {
   onLogout: () => void;
   onWorkspaceCreate: () => void;
   onWorkspaceSelected: () => void;
+  onSelectSection?: (sectionId: string) => void;
   onSettings: () => void;
   rightRailItems: { id: string; label: string; icon: ReactNode; active: boolean; action: () => void }[];
   children: ReactNode;
@@ -78,6 +79,7 @@ export function ShellChrome({
   onLogout,
   onWorkspaceCreate,
   onWorkspaceSelected,
+  onSelectSection,
   onSettings,
   rightRailItems,
   children,
@@ -85,7 +87,8 @@ export function ShellChrome({
 }: ShellChromeProps) {
   const [expandedWorkspaceIds, setExpandedWorkspaceIds] = useState<Set<string>>(() => new Set());
   const filteredWorkspaces = workspaceList.filter((ws) => ws.name.toLowerCase().includes(workspaceSearch.toLowerCase()));
-  const showWorkspacePane = isWorkspacePaneOpen && activeSection !== 'tasks';
+  const isSpanningView = activeSection === 'tasks' || activeSection === 'pipelines' || activeSection === 'colosseum';
+  const showWorkspacePane = isWorkspacePaneOpen && !isSpanningView;
 
   return (
     <div className="app-shell">
@@ -111,7 +114,7 @@ export function ShellChrome({
         ))}
       </div>
 
-      <div className={`shell-body ${showWorkspacePane ? 'left-pane-open' : 'left-pane-collapsed'} ${activeSection === 'tasks' ? 'task-mode' : ''}`}>
+      <div className={`shell-body ${showWorkspacePane ? 'left-pane-open' : 'left-pane-collapsed'} ${isSpanningView ? 'task-mode' : ''}`}>
         <aside className="rail rail-left">
           <div className="rail-group">
             <button className={`nav-item ${activeSection === 'workspace' ? 'is-active' : ''}`} onClick={toggleWorkspacePane} title="Workspaces" aria-label="Workspaces">
@@ -119,6 +122,12 @@ export function ShellChrome({
             </button>
             <button className={`nav-item ${activeSection === 'tasks' ? 'is-active' : ''}`} onClick={() => onWorkspaceSelected()} title="Task manager" aria-label="Task manager">
               <span className="nav-icon" aria-hidden="true"><ListChecks size={14} /></span>
+            </button>
+            <button className={`nav-item ${activeSection === 'pipelines' ? 'is-active' : ''}`} onClick={() => onSelectSection?.('pipelines')} title="Colosseum Pipelines" aria-label="Colosseum Pipelines">
+              <span className="nav-icon" aria-hidden="true">{sectionIcons.pipelines || <Workflow size={14} />}</span>
+            </button>
+            <button className={`nav-item ${activeSection === 'colosseum' ? 'is-active' : ''}`} onClick={() => onSelectSection?.('colosseum')} title="Colosseum Fleet" aria-label="Colosseum Fleet">
+              <span className="nav-icon" aria-hidden="true">{sectionIcons.colosseum || <Activity size={14} />}</span>
             </button>
           </div>
           <div className="rail-spacer" />
@@ -130,7 +139,7 @@ export function ShellChrome({
           </div>
         </aside>
 
-        {activeSection !== 'tasks' && (
+        {!isSpanningView && (
         <aside className={`workspace-pane ${isWorkspacePaneOpen ? 'is-open' : 'is-collapsed'}`}>
           {!isWorkspacePaneOpen ? (
             <>

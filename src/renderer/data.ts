@@ -10,6 +10,8 @@ export type SectionId =
   | 'merge-requests'
   | 'knowledge'
   | 'providers'
+  | 'pipelines'
+  | 'colosseum'
   | 'settings';
 
 export type SurfaceMode = 'overview' | 'sessions' | 'artifacts' | 'setup';
@@ -277,6 +279,8 @@ export const navigation = [
   { id: 'files', short: 'F', icon: '▤', label: 'Files' },
   { id: 'jira', short: 'J', icon: '⌁', label: 'Jira' },
   { id: 'merge-requests', short: 'M', icon: '⇄', label: 'Merge Requests' },
+  { id: 'pipelines', short: 'P', icon: '⑂', label: 'Pipelines' },
+  { id: 'colosseum', short: 'C', icon: '⚡', label: 'Colosseum' },
   { id: 'knowledge', short: 'K', icon: '⟡', label: 'Knowledge' },
   { id: 'settings', short: 'G', icon: '⚙', label: 'Settings' },
 ] as const;
@@ -592,6 +596,22 @@ export const sectionProfiles: SectionProfile[] = [
     subtitle: 'Session-linked merge requests and review state',
     blurb: 'Merge requests stay attached to the active session and visible in the workspace context.',
     modeLabel: 'Review MRs',
+  },
+  {
+    id: 'pipelines',
+    eyebrow: 'Colosseum',
+    title: 'Pipeline Orchestration',
+    subtitle: 'Agents, transitions, and automated stages',
+    blurb: 'Visual designer for multi-stage Colosseum pipelines and agent registries.',
+    modeLabel: 'Configure pipelines',
+  },
+  {
+    id: 'colosseum',
+    eyebrow: 'Colosseum',
+    title: 'Fleet & Telemetry',
+    subtitle: 'Worker daemons, live logs, and system metrics',
+    blurb: 'Manage Colosseum worker processes and inspect runtime performance.',
+    modeLabel: 'Monitor fleet',
   },
   {
     id: 'knowledge',

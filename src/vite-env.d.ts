@@ -11,6 +11,55 @@ interface Window {
     }) => Promise<string>;
     pickRepository: (defaultPath?: string) => Promise<string | null>;
     listColosseumProviders: () => Promise<Array<{ id: string; label: string; command: string }>>;
+    getColosseumRegistry: () => Promise<{
+      agents: Record<string, {
+        id: string;
+        name: string;
+        prompt: string;
+        persona: string;
+        tag: string;
+        provider: string;
+        model: string;
+        pickup_location: string;
+        working_location?: string;
+        drop_location: string;
+      }>;
+      pipelines: Record<string, {
+        id: string;
+        name: string;
+        agent_ids: string[];
+      }>;
+    }>;
+    saveColosseumRegistry: (registry: {
+      agents: Record<string, any>;
+      pipelines: Record<string, any>;
+    }) => Promise<{ success: boolean; errors?: string[] }>;
+    getColosseumWorkers: () => Promise<Array<{
+      worker_id: string;
+      workspace_id: string | null;
+      status: 'starting' | 'running' | 'stopped' | 'succeeded' | 'failed';
+      pid: number | null;
+      process_identity?: string | null;
+      started_at: string;
+      finished_at?: string | null;
+      log_path: string;
+    }>>;
+    startColosseumWorker: (workspaceId?: string) => Promise<{ success: boolean; workerId?: string; error?: string }>;
+    stopColosseumWorker: (workerId: string) => Promise<{ success: boolean; error?: string }>;
+    restartColosseumWorker: (workerId: string) => Promise<{ success: boolean; worker?: any; error?: string }>;
+    purgeColosseumWorker: (workerId: string, killFirst?: boolean) => Promise<{ success: boolean; error?: string }>;
+    tailColosseumLog: (logPath: string, lastLen?: number, lastMtime?: number) => Promise<{ chunk: string; len: number; mtime: number }>;
+    getSystemStats: () => Promise<{
+      cpuUsagePercent: number;
+      totalMemoryBytes: number;
+      freeMemoryBytes: number;
+      usedMemoryBytes: number;
+      memoryUsagePercent: number;
+      uptimeSeconds: number;
+      loadAvg: number[];
+      platform: string;
+      arch: string;
+    }>;
   };
   system: {
     getSettings: () => Promise<Record<string, any>>;
