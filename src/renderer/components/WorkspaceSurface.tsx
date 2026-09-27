@@ -276,16 +276,17 @@ export function WorkspaceSurface(props: WorkspaceSurfaceProps) {
     pushToast('Task Re-armed', `${task.title} is now Ready for Colosseum worker execution.`, 'good');
 
     try {
-      await fetch(`${serverBaseUrl.replace(/\/+$/, '')}/api/tasks/${encodeURIComponent(task.id)}`, {
+      const resp = await fetch(`${serverBaseUrl.replace(/\/+$/, '')}/api/tasks/${encodeURIComponent(task.id)}`, {
         method: 'PUT',
         headers,
-        body: JSON.stringify({ status: 'ready' }),
+        body: JSON.stringify({ status: 'ready', comments }),
       });
-      await fetch(`${serverBaseUrl.replace(/\/+$/, '')}/api/tasks/${encodeURIComponent(task.id)}/colosseum-metadata`, {
-        method: 'PUT',
-        headers,
-        body: JSON.stringify({ ...task.colosseumConfig, colosseum_ready: true }),
-      });
+      if (resp.ok) {
+        const body = await resp.json().catch(() => null);
+        if (body && body.colosseum_ready === false) {
+          pushToast('Disarmed by Server', 'Server disarmed task: missing repository context or provider.', 'warning');
+        }
+      }
     } catch {
       // Local state updated optimistically
     }

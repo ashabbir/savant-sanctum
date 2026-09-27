@@ -10,6 +10,7 @@ import {
   readWorkerRegistry,
   writeWorkerRegistry,
   purgeWorker,
+  forceKillWorker,
   readIncrementalLog,
   getSystemResources,
   type AgentConfig,
@@ -336,6 +337,38 @@ describe('Worker registry reading and incremental log tailing', () => {
     // w1 log directory should be cleaned up
     const logExists = await fs.stat(logPath).catch(() => null);
     expect(logExists).toBeNull();
+  });
+
+  it('force-kills worker via SIGKILL while preserving worker record and logs', async () => {
+    const regFile = path.join(tmpDir, 'workers', 'registry.json');
+    const logDir = path.join(tmpDir, 'workers', 'w-stuck-logs');
+    await fs.mkdir(logDir, { recursive: true });
+    const logPath = path.join(logDir, 'worker.jsonl');
+    await fs.writeFile(logPath, '{"type":"task_start","task_id":"t-1"}\n');
+
+    const stuckWorker: WorkerRecord = {
+      worker_id: 'w-stuck',
+      workspace_id: 'ws-1',
+      status: 'running',
+      pid: 99999999, // dummy dead pid
+      started_at: new Date().toISOString(),
+      log_path: logPath,
+    };
+
+    await writeWorkerRegistry([stuckWorker], regFile);
+
+    const killRes = await forceKillWorker('w-stuck', regFile);
+    expect(killRes.success).toBe(true);
+
+    const workers = await readWorkerRegistry(regFile);
+    expect(workers).toHaveLength(1);
+    expect(workers[0].worker_id).toBe('w-stuck');
+    expect(workers[0].status).toBe('stopped');
+    expect(workers[0].finished_at).toBeTruthy();
+
+    // Crucial: log file must NOT be deleted!
+    const logStat = await fs.stat(logPath);
+    expect(logStat.isFile()).toBe(true);
   });
 
   it('tails logs incrementally without re-reading previous bytes', async () => {

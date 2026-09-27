@@ -255,6 +255,20 @@ export function ColosseumStatsView({
     }
   };
 
+  const executeForceKill = async (worker: WorkerRecord) => {
+    try {
+      const res = await window.sanctum.stopColosseumWorker(worker.worker_id, true);
+      if (!res.success) {
+        pushToast('Force-Kill Failed', res.error || 'Could not force-kill worker', 'warning');
+        return;
+      }
+      pushToast('Worker Force-Killed', `Worker ${worker.worker_id} terminated via SIGKILL. Record and logs preserved.`, 'good');
+      await refreshAll();
+    } catch (err: any) {
+      pushToast('Force-Kill Error', err?.message || 'Failed to force-kill worker', 'warning');
+    }
+  };
+
   const executePurge = async (worker: WorkerRecord, killFirst: boolean) => {
     try {
       const res = await window.sanctum.purgeColosseumWorker(worker.worker_id, killFirst);
@@ -304,10 +318,23 @@ export function ColosseumStatsView({
     setConfirmationState({
       isOpen: true,
       title: 'Stop Worker',
-      description: `Terminate worker daemon "${worker.worker_id}"? Any currently active stage will be stopped. Currently running: ${runInfo}.`,
+      description: `Terminate worker daemon "${worker.worker_id}"? Any currently active stage will be stopped gracefully. Currently running: ${runInfo}.`,
       confirmLabel: 'Stop Worker',
       variant: 'danger',
       onConfirm: () => executeStop(worker),
+    });
+  };
+
+  const handleForceKill = (worker: WorkerRecord) => {
+    const activeRuns = getActiveRunsCount(worker.workspace_id);
+    const runInfo = activeRuns === 1 ? '1 active task execution' : `${activeRuns} active task executions`;
+    setConfirmationState({
+      isOpen: true,
+      title: 'Force-Kill Worker',
+      description: `Force-kill worker process "${worker.worker_id}" (PID ${worker.pid || '?'}) immediately via SIGKILL? Worker record and event logs will be preserved. Currently running: ${runInfo}.`,
+      confirmLabel: 'Force-Kill Worker',
+      variant: 'danger',
+      onConfirm: () => executeForceKill(worker),
     });
   };
 
@@ -834,18 +861,26 @@ export function ColosseumStatsView({
                                       <button
                                         type="button"
                                         onClick={() => handleStop(worker)}
-                                        className="px-2 py-1 rounded bg-rose-950/60 hover:bg-rose-900/60 border border-rose-500/30 text-rose-300 text-[11px]"
-                                        title="Stop worker"
+                                        className="px-2 py-1 rounded bg-amber-950/60 hover:bg-amber-900/60 border border-amber-500/30 text-amber-300 text-[11px]"
+                                        title="Stop worker gracefully (SIGTERM)"
                                       >
                                         Stop
                                       </button>
                                       <button
                                         type="button"
-                                        onClick={() => handlePurge(worker, true)}
+                                        onClick={() => handleForceKill(worker)}
                                         className="px-2 py-1 rounded bg-rose-950 hover:bg-rose-900 border border-rose-600 text-rose-200 text-[11px]"
-                                        title="Force-kill worker and purge registry"
+                                        title="Force-kill worker process immediately (SIGKILL) while preserving logs and record"
                                       >
                                         Kill
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => handlePurge(worker, true)}
+                                        className="p-1 rounded bg-white/5 hover:bg-rose-950/60 text-white/40 hover:text-rose-300 text-[11px]"
+                                        title="Force-kill worker and purge registry and logs"
+                                      >
+                                        <Trash2 size={12} />
                                       </button>
                                     </>
                                   ) : (
@@ -1058,14 +1093,21 @@ export function ColosseumStatsView({
                     <button
                       type="button"
                       onClick={() => handleStop(selectedWorker)}
-                      className="w-full flex items-center justify-center gap-1.5 py-1.5 px-3 rounded bg-rose-950/60 hover:bg-rose-900 border border-rose-500/30 text-rose-300 text-xs font-medium transition-colors"
+                      className="w-full flex items-center justify-center gap-1.5 py-1.5 px-3 rounded bg-amber-950/40 hover:bg-amber-900/60 border border-amber-500/30 text-amber-300 text-xs font-medium transition-colors"
                     >
-                      <Ban size={13} /> Stop Worker
+                      <Ban size={13} /> Stop Worker (Graceful)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleForceKill(selectedWorker)}
+                      className="w-full flex items-center justify-center gap-1.5 py-1.5 px-3 rounded bg-rose-950/80 hover:bg-rose-900 border border-rose-600/60 text-rose-300 text-xs font-medium transition-colors"
+                    >
+                      <Zap size={13} /> Force-Kill Worker (Keep Logs)
                     </button>
                     <button
                       type="button"
                       onClick={() => handlePurge(selectedWorker, true)}
-                      className="w-full flex items-center justify-center gap-1.5 py-1.5 px-3 rounded bg-rose-950 hover:bg-rose-900 border border-rose-600 text-rose-200 text-xs font-medium transition-colors"
+                      className="w-full flex items-center justify-center gap-1.5 py-1.5 px-3 rounded bg-white/5 hover:bg-rose-950/80 border border-white/10 hover:border-rose-600 text-white/50 hover:text-rose-200 text-xs font-medium transition-colors"
                     >
                       <Trash2 size={13} /> Force-Kill & Purge
                     </button>

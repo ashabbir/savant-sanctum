@@ -45,7 +45,8 @@ interface Window {
       log_path: string;
     }>>;
     startColosseumWorker: (workspaceId?: string) => Promise<{ success: boolean; workerId?: string; error?: string }>;
-    stopColosseumWorker: (workerId: string) => Promise<{ success: boolean; error?: string }>;
+    stopColosseumWorker: (workerId: string, force?: boolean) => Promise<{ success: boolean; error?: string }>;
+    forceKillColosseumWorker: (workerId: string) => Promise<{ success: boolean; error?: string }>;
     restartColosseumWorker: (workerId: string) => Promise<{ success: boolean; worker?: any; error?: string }>;
     purgeColosseumWorker: (workerId: string, killFirst?: boolean) => Promise<{ success: boolean; error?: string }>;
     tailColosseumLog: (logPath: string, lastLen?: number, lastMtime?: number) => Promise<{ chunk: string; len: number; mtime: number }>;

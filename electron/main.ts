@@ -24,6 +24,7 @@ import {
   readIncrementalLog,
   readWorkerRegistry,
   purgeWorker,
+  forceKillWorker,
   validatePipelineChain,
   writeColosseumRegistry,
   type ColosseumRegistry,
@@ -1576,18 +1577,12 @@ ipcMain.handle('start-colosseum-worker', async (_event, workspaceId?: string) =>
     await new Promise((r) => setTimeout(r, 400));
     try {
       const workers = await readWorkerRegistry();
-      activeWorker =
-        workers.find(
-          (w) =>
-            !beforeIds.has(w.worker_id) &&
-            (!workspaceId || w.workspace_id === workspaceId) &&
-            (w.status === 'starting' || w.status === 'running')
-        ) ||
-        workers.find(
-          (w) =>
-            (!workspaceId || w.workspace_id === workspaceId) &&
-            (w.status === 'starting' || w.status === 'running')
-        );
+      activeWorker = workers.find(
+        (w) =>
+          !beforeIds.has(w.worker_id) &&
+          (!workspaceId || w.workspace_id === workspaceId) &&
+          (w.status === 'starting' || w.status === 'running')
+      );
       if (activeWorker) break;
     } catch {
       // retry next attempt
@@ -1604,7 +1599,10 @@ ipcMain.handle('start-colosseum-worker', async (_event, workspaceId?: string) =>
   return { success: true, workerId: activeWorker.worker_id };
 });
 
-ipcMain.handle('stop-colosseum-worker', async (_event, workerId: string) => {
+ipcMain.handle('stop-colosseum-worker', async (_event, workerId: string, force = false) => {
+  if (force) {
+    return forceKillWorker(workerId);
+  }
   const binary = findColosseumBinary();
   if (binary) {
     try {
@@ -1624,6 +1622,10 @@ ipcMain.handle('stop-colosseum-worker', async (_event, workerId: string) => {
     }
   }
   return { success: true };
+});
+
+ipcMain.handle('kill-colosseum-worker', async (_event, workerId: string) => {
+  return forceKillWorker(workerId);
 });
 
 ipcMain.handle('restart-colosseum-worker', async (_event, workerId: string) => {

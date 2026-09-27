@@ -263,6 +263,44 @@ export async function purgeWorker(
   return { success: true };
 }
 
+export async function forceKillWorker(
+  workerId: string,
+  customRegistryPath?: string
+): Promise<{ success: boolean; error?: string }> {
+  const workers = await readWorkerRegistry(customRegistryPath);
+  const worker = workers.find((w) => w.worker_id === workerId);
+  if (!worker) {
+    return { success: false, error: `Worker '${workerId}' not found in registry` };
+  }
+
+  if (worker.pid) {
+    try {
+      process.kill(worker.pid, 'SIGKILL');
+    } catch {
+      // process might already be dead
+    }
+  }
+
+  const updatedWorkers = workers.map((w) => {
+    if (w.worker_id === workerId) {
+      return {
+        ...w,
+        status: 'stopped' as const,
+        finished_at: new Date().toISOString(),
+      };
+    }
+    return w;
+  });
+
+  try {
+    await writeWorkerRegistry(updatedWorkers, customRegistryPath);
+  } catch (err: any) {
+    return { success: false, error: `Failed to write worker registry: ${err?.message || String(err)}` };
+  }
+
+  return { success: true };
+}
+
 export async function readIncrementalLog(
   logPath: string,
   lastLen = 0,
