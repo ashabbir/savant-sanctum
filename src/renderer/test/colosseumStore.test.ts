@@ -8,6 +8,8 @@ import {
   readColosseumRegistry,
   writeColosseumRegistry,
   readWorkerRegistry,
+  writeWorkerRegistry,
+  purgeWorker,
   readIncrementalLog,
   getSystemResources,
   type AgentConfig,
@@ -294,6 +296,46 @@ describe('Worker registry reading and incremental log tailing', () => {
     expect(workers).toHaveLength(1);
     expect(workers[0].worker_id).toBe('01JABCDEF1234567890');
     expect(workers[0].workspace_id).toBe('ws-123');
+  });
+
+  it('atomically writes and purges workers from registry', async () => {
+    const regFile = path.join(tmpDir, 'workers', 'registry.json');
+    const logDir = path.join(tmpDir, 'workers', 'w1-logs');
+    await fs.mkdir(logDir, { recursive: true });
+    const logPath = path.join(logDir, 'worker.jsonl');
+    await fs.writeFile(logPath, '{"type":"test"}\n');
+
+    const w1: WorkerRecord = {
+      worker_id: 'w1',
+      workspace_id: 'ws-1',
+      status: 'stopped',
+      pid: null,
+      started_at: new Date().toISOString(),
+      log_path: logPath,
+    };
+    const w2: WorkerRecord = {
+      worker_id: 'w2',
+      workspace_id: 'ws-2',
+      status: 'running',
+      pid: null,
+      started_at: new Date().toISOString(),
+      log_path: '/tmp/w2.log',
+    };
+
+    await writeWorkerRegistry([w1, w2], regFile);
+    let workers = await readWorkerRegistry(regFile);
+    expect(workers).toHaveLength(2);
+
+    const purgeRes = await purgeWorker('w1', false, regFile);
+    expect(purgeRes.success).toBe(true);
+
+    workers = await readWorkerRegistry(regFile);
+    expect(workers).toHaveLength(1);
+    expect(workers[0].worker_id).toBe('w2');
+
+    // w1 log directory should be cleaned up
+    const logExists = await fs.stat(logPath).catch(() => null);
+    expect(logExists).toBeNull();
   });
 
   it('tails logs incrementally without re-reading previous bytes', async () => {

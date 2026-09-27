@@ -107,6 +107,7 @@ const FALLBACK_PROVIDERS = [
 
 const TABS = [
   { id: 'system', label: 'system' },
+  { id: 'colosseum', label: 'colosseum' },
   { id: 'gateway', label: 'gateway' },
   { id: 'server', label: 'server' },
 ] as const;
@@ -532,6 +533,41 @@ export function SettingsModal({
                   ))}
                 </select>
               </label>
+            </div>
+          )}
+
+          {/* ── COLOSSEUM ── */}
+          {activeTab === 'colosseum' && (
+            <div className="space-y-5">
+              <div>
+                <p className="text-sm opacity-60 font-sans">Configure default provider, model, persona, and tags for each Colosseum execution phase.</p>
+              </div>
+
+              <ColosseumPhaseSettingsPanel
+                title="Ready"
+                accent="var(--cp-cyan)"
+                settings={colosseumReadySettings}
+                providers={colosseumProviders}
+                onChange={onColosseumReadySettingsChange}
+              />
+
+              <ColosseumPhaseSettingsPanel
+                title="Grooming"
+                accent="var(--cp-purple)"
+                settings={colosseumGroomingSettings}
+                providers={colosseumProviders}
+                inheritReadyProvider
+                onChange={onColosseumGroomingSettingsChange}
+              />
+
+              <ColosseumPhaseSettingsPanel
+                title="Review"
+                accent="var(--cp-gold, #f59e0b)"
+                settings={colosseumReviewSettings}
+                providers={colosseumProviders}
+                inheritReadyProvider
+                onChange={onColosseumReviewSettingsChange}
+              />
             </div>
           )}
 

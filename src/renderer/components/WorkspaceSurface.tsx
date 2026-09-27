@@ -248,6 +248,48 @@ export function WorkspaceSurface(props: WorkspaceSurfaceProps) {
     }
     pushToast(blocked ? 'Task blocked' : 'Task unblocked', `${task.title} remains in ${workflowState}.`, blocked ? 'warning' : 'good');
   };
+  const reArmBlockedTask = async (task: Task) => {
+    const reason = getTaskBlockReason(task);
+    const provider = task.colosseumConfig?.provider;
+    if (!provider) {
+      pushToast('Provider required', 'Set a provider in task details before re-arming Ready.', 'warning');
+      onEditGlobalTask(task);
+      return;
+    }
+    setTaskFlags((current) => ({ ...current, [task.id]: { ...(current[task.id] ?? {}), blocked: false } }));
+    const comments = [...(task.comments ?? [])];
+    if (reason) {
+      comments.push({
+        id: `c-${Date.now()}`,
+        author: 'Operator',
+        text: `[Re-armed for execution]: Addressed ${reason}`,
+        createdAt: new Date().toISOString(),
+        role: 'user',
+      });
+    }
+    const updated: Task = {
+      ...task,
+      state: 'ready',
+      comments,
+    };
+    setTaskList((current) => current.map((item) => (item.id === task.id ? updated : item)));
+    pushToast('Task Re-armed', `${task.title} is now Ready for Colosseum worker execution.`, 'good');
+
+    try {
+      await fetch(`${serverBaseUrl.replace(/\/+$/, '')}/api/tasks/${encodeURIComponent(task.id)}`, {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify({ status: 'ready' }),
+      });
+      await fetch(`${serverBaseUrl.replace(/\/+$/, '')}/api/tasks/${encodeURIComponent(task.id)}/colosseum-metadata`, {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify({ ...task.colosseumConfig, colosseum_ready: true }),
+      });
+    } catch {
+      // Local state updated optimistically
+    }
+  };
   const removeGlobalTask = (taskId: string) => {
     const task = allTasks.find((item) => item.id === taskId);
     setTaskList((current) => current.filter((item) => item.id !== taskId));
@@ -583,13 +625,24 @@ export function WorkspaceSurface(props: WorkspaceSurfaceProps) {
                                   <button
                                     type="button"
                                     className="task-card-block is-resubmit-btn"
-                                    title="Review reason & re-submit"
+                                    title="Re-arm Ready in 1 click"
+                                    onClick={(event) => {
+                                      event.stopPropagation();
+                                      void reArmBlockedTask(task);
+                                    }}
+                                  >
+                                    Re-arm Ready
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="task-card-block"
+                                    title="Review reason & edit task"
                                     onClick={(event) => {
                                       event.stopPropagation();
                                       onEditGlobalTask(task);
                                     }}
                                   >
-                                    Review & re-submit
+                                    Review
                                   </button>
                                   <button
                                     type="button"

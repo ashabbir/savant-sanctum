@@ -23,6 +23,7 @@ import {
   readColosseumRegistry,
   readIncrementalLog,
   readWorkerRegistry,
+  purgeWorker,
   validatePipelineChain,
   writeColosseumRegistry,
   type ColosseumRegistry,
@@ -1560,27 +1561,47 @@ ipcMain.handle('start-colosseum-worker', async (_event, workspaceId?: string) =>
   }
   args.push('--daemon');
 
-  return new Promise((resolve) => {
-    const child = spawn(binary, args, {
-      detached: true,
-      stdio: 'ignore',
-      env: { ...process.env },
-    });
-    child.unref();
+  const beforeWorkers = await readWorkerRegistry().catch(() => []);
+  const beforeIds = new Set(beforeWorkers.map((w) => w.worker_id));
 
-    setTimeout(async () => {
-      try {
-        const workers = await readWorkerRegistry();
-        const active = workers.find((w) =>
-          (!workspaceId || w.workspace_id === workspaceId) &&
-          (w.status === 'starting' || w.status === 'running')
-        );
-        resolve({ success: true, workerId: active?.worker_id });
-      } catch {
-        resolve({ success: true });
-      }
-    }, 600);
+  const child = spawn(binary, args, {
+    detached: true,
+    stdio: 'ignore',
+    env: { ...process.env },
   });
+  child.unref();
+
+  let activeWorker: WorkerRecord | undefined;
+  for (let attempt = 0; attempt < 10; attempt++) {
+    await new Promise((r) => setTimeout(r, 400));
+    try {
+      const workers = await readWorkerRegistry();
+      activeWorker =
+        workers.find(
+          (w) =>
+            !beforeIds.has(w.worker_id) &&
+            (!workspaceId || w.workspace_id === workspaceId) &&
+            (w.status === 'starting' || w.status === 'running')
+        ) ||
+        workers.find(
+          (w) =>
+            (!workspaceId || w.workspace_id === workspaceId) &&
+            (w.status === 'starting' || w.status === 'running')
+        );
+      if (activeWorker) break;
+    } catch {
+      // retry next attempt
+    }
+  }
+
+  if (!activeWorker) {
+    return {
+      success: false,
+      error: 'Worker process launched, but no active worker record appeared in the registry within 4 seconds',
+    };
+  }
+
+  return { success: true, workerId: activeWorker.worker_id };
 });
 
 ipcMain.handle('stop-colosseum-worker', async (_event, workerId: string) => {
@@ -1665,33 +1686,7 @@ ipcMain.handle('restart-colosseum-worker', async (_event, workerId: string) => {
 });
 
 ipcMain.handle('purge-colosseum-worker', async (_event, workerId: string, killFirst = false) => {
-  const workers = await readWorkerRegistry();
-  const worker = workers.find((w) => w.worker_id === workerId);
-  if (worker && killFirst && worker.pid && isProcessAlive(worker.pid, worker.process_identity)) {
-    try {
-      process.kill(worker.pid, 'SIGKILL');
-    } catch {
-      // ignore
-    }
-  }
-  const remaining = workers.filter((w) => w.worker_id !== workerId);
-  const registryPath = path.join(os.homedir(), '.savant', 'colosseum', 'workers', 'registry.json');
-  try {
-    await fs.writeFile(registryPath, JSON.stringify(remaining, null, 2), 'utf8');
-  } catch {
-    // ignore
-  }
-
-  if (worker?.log_path) {
-    const parentDir = path.dirname(worker.log_path);
-    try {
-      await fs.rm(parentDir, { recursive: true, force: true });
-    } catch {
-      // ignore
-    }
-  }
-
-  return { success: true };
+  return purgeWorker(workerId, killFirst);
 });
 
 ipcMain.handle('tail-colosseum-log', async (_event, logPath: string, lastLen?: number, lastMtime?: number) => {

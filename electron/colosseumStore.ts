@@ -216,6 +216,53 @@ export async function readWorkerRegistry(customPath?: string): Promise<WorkerRec
   }
 }
 
+export async function writeWorkerRegistry(
+  workers: WorkerRecord[],
+  customPath?: string
+): Promise<void> {
+  const filePath = customPath || getDefaultWorkerRegistryPath();
+  const dir = path.dirname(filePath);
+  await fs.mkdir(dir, { recursive: true });
+
+  const tempFile = path.join(dir, `registry.${Date.now()}.${Math.random().toString(36).slice(2)}.tmp`);
+  const content = JSON.stringify(workers, null, 2);
+  await fs.writeFile(tempFile, content, 'utf8');
+  await fs.rename(tempFile, filePath);
+}
+
+export async function purgeWorker(
+  workerId: string,
+  killFirst = false,
+  customRegistryPath?: string
+): Promise<{ success: boolean; error?: string }> {
+  const workers = await readWorkerRegistry(customRegistryPath);
+  const worker = workers.find((w) => w.worker_id === workerId);
+  if (worker && killFirst && worker.pid) {
+    try {
+      process.kill(worker.pid, 'SIGKILL');
+    } catch {
+      // process might already be dead
+    }
+  }
+  const remaining = workers.filter((w) => w.worker_id !== workerId);
+  try {
+    await writeWorkerRegistry(remaining, customRegistryPath);
+  } catch (err: any) {
+    return { success: false, error: `Failed to write worker registry: ${err?.message || String(err)}` };
+  }
+
+  if (worker?.log_path) {
+    const parentDir = path.dirname(worker.log_path);
+    try {
+      await fs.rm(parentDir, { recursive: true, force: true });
+    } catch {
+      // ignore log dir deletion failure if non-existent
+    }
+  }
+
+  return { success: true };
+}
+
 export async function readIncrementalLog(
   logPath: string,
   lastLen = 0,

@@ -2258,12 +2258,18 @@ function App() {
       {activeSection === 'pipelines' ? (
         <ColosseumPipelinesView pushToast={pushToast} />
       ) : activeSection === 'colosseum' ? (
-        <ColosseumStatsView pushToast={pushToast} serverUrl={serverDraft} apiKey={authDraft} />
+        <ColosseumStatsView
+          pushToast={pushToast}
+          serverUrl={serverDraft}
+          apiKey={authDraft}
+          sessionList={sessionList}
+          onDeleteSession={handleDeleteSession}
+        />
       ) : (
         <WorkspaceSurface
-        hero={hero}
-        heroFacts={heroFacts}
-        onEdit={() => openWorkspaceEditor('edit')}
+          hero={hero}
+          heroFacts={heroFacts}
+          onEdit={() => openWorkspaceEditor('edit')}
         workspaceSessions={workspaceSessions}
         workspaceTasks={workspaceTasks}
         allTasks={taskList}

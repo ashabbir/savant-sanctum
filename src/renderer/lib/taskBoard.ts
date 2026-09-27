@@ -13,6 +13,12 @@ export const isTaskBlocked = (task: Task, taskFlags: Record<string, TaskFlagStat
 };
 
 export const getTaskBlockReason = (task: Task): string | null => {
+  if (task.colosseumConfig?.runs && task.colosseumConfig.runs.length > 0) {
+    const failedRun = task.colosseumConfig.runs.slice().reverse().find(r => r.status === 'failed' || r.status === 'rejected');
+    if (failedRun?.rationale || failedRun?.summary) {
+      return (failedRun.rationale || failedRun.summary || '').trim();
+    }
+  }
   if (!task.comments || task.comments.length === 0) return null;
   const colosseumComments = task.comments.filter(c => {
     if (typeof c === 'string') return false;
@@ -27,7 +33,7 @@ export const getTaskBlockReason = (task: Task): string | null => {
   if (reasonIndex !== -1) {
     return text.substring(reasonIndex + reasonMarker.length).trim();
   }
-  return text;
+  return text.trim();
 };
 
 export const taskWorkflowState = (
